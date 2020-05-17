@@ -1,6 +1,7 @@
 import logging
 from time import sleep
 
+from bravado.exception import HTTPNotFound
 import requests
 
 from django.db import models, transaction
@@ -32,31 +33,45 @@ DISCORD_SEND_DELAY = 1
 
 class EveEntityQuerySet(models.QuerySet):
 
+    MAX_DEPTH = 5
+
     def update_from_esi(self) -> int:
         ids = list(self.values_list('id', flat=True))
         if not ids:
             return 0
         else:            
             logger.info('Updating %d entities from ESI', len(ids))
-            item_counter = 0
+            resolved_counter = 0
             for chunk_ids in chunks(ids, 1000):
                 logger.debug(
                     'Trying to resolve the following IDs from ESI:\n%s', chunk_ids
                 )
-                items = esi_fetch(
-                    'Universe.post_universe_names', args={'ids': chunk_ids}
-                )                 
-                for item in items:
-                    self.update_or_create(
-                        id=item['id'],
-                        defaults={
-                            'name': item['name'],
-                            'category': item['category'],
-                            'last_updated': now()
-                        }
-                    )
-                item_counter += len(items)
-            return item_counter
+                resolved_counter = self._resolve_ids(chunk_ids)                     
+            return resolved_counter
+
+    def _resolve_ids(self, ids: list, depth: int = 1):
+        resolved_counter = 0
+        try:
+            items = esi_fetch('Universe.post_universe_names', args={'ids': ids})
+        except HTTPNotFound:
+            # if API fails to resolve all IDs, we divide and conquer
+            # and try to resolve each half seperately
+            if len(ids) > 1 and depth < self.MAX_DEPTH:
+                resolved_counter += self._resolve_ids(ids[::2], depth + 1)
+                resolved_counter += self._resolve_ids(ids[1::2], depth + 1)
+        else:
+            resolved_counter += len(items)
+            for item in items:
+                self.update_or_create(
+                    id=item['id'],
+                    defaults={
+                        'name': item['name'],
+                        'category': item['category'],
+                        'last_updated': now()
+                    }
+                )
+        
+        return resolved_counter
 
 
 class EveEntityManager(models.Manager):
@@ -188,12 +203,13 @@ class KillmailManager(models.Manager):
             else:
                 break
 
-        EveEntity.objects.update_all_from_esi()
+        killmail.refresh_from_db()
+        killmail.update_from_esi()
         logger.info('Retrieved %s killmail from ZKB', killmail_counter)
         return killmail_counter
             
     def process_killmails(self) -> int:                       
-        killmails = self.filter(is_processed=False).select_related()
+        killmails = self.filter(is_processed=False).select_related().order_by('time')
         killmail_counter = 0
         for killmail in killmails:
             logger.debug('Processing killmail with ID %d', killmail.id)
