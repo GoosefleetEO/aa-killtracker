@@ -4,24 +4,24 @@ from time import sleep
 import requests
 
 from django.db import models, transaction
+from django.utils.timezone import now
 
-from esi.models import esi_client_factory
+from .helpers.esi_fetch import esi_fetch
+from .utils import chunks
 
 
-_client = None
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('allianceauth')
 
 ZKB_REDISQ_URL = 'https://redisq.zkillboard.com/listen.php'
-ZKB_REDISQ_TIMEOUT = 5
-ESI_API_TIMEOUT = 5
+ZKB_REDISQ_TIMEOUT = 30
 
-CHARACTER_PROPS = [
-    'character_id', 
-    'corporation_id', 
-    'alliance_id', 
-    'faction_id', 
-    'ship_type_id'
-]
+CHARACTER_PROPS = (
+    ('character_id', 'character'),
+    ('corporation_id', 'corporation'),
+    ('alliance_id', 'alliance'),
+    ('faction_id', 'faction'),
+    ('ship_type_id', 'ship_type'),
+)
 
 WEBHOOK_URL = 'https://discordapp.com/api/webhooks/519251066089373717/MOhnV35wtgIQv8nMy_bD5Eda5EVxcjdm6y3ZmpfFH8nV97i45T_g-xDuoRRo13i-KwIO'  # noqa
 
@@ -32,17 +32,31 @@ DISCORD_SEND_DELAY = 1
 
 class EveEntityQuerySet(models.QuerySet):
 
-    def id2name(self, id: int) -> str:
-        """returns the name for the given ID from the queryset if found
-        
-        else returns ''
-        """
-        try:
-            entity = self.get(id=id)
-        except self.model.DoesNotExist:
-            return ''
-        else:
-            return entity.name
+    def update_from_esi(self) -> int:
+        ids = list(self.values_list('id', flat=True))
+        if not ids:
+            return 0
+        else:            
+            logger.info('Updating %d entities from ESI', len(ids))
+            item_counter = 0
+            for chunk_ids in chunks(ids, 1000):
+                logger.debug(
+                    'Trying to resolve the following IDs from ESI:\n%s', chunk_ids
+                )
+                items = esi_fetch(
+                    'Universe.post_universe_names', args={'ids': chunk_ids}
+                )                 
+                for item in items:
+                    self.update_or_create(
+                        id=item['id'],
+                        defaults={
+                            'name': item['name'],
+                            'category': item['category'],
+                            'last_updated': now()
+                        }
+                    )
+                item_counter += len(items)
+            return item_counter
 
 
 class EveEntityManager(models.Manager):
@@ -50,38 +64,12 @@ class EveEntityManager(models.Manager):
     def get_queryset(self):
         return EveEntityQuerySet(self.model, using=self._db)
 
-    @staticmethod
-    def _get_client():
-        global _client
-        if _client is None:
-            logger.info('Loading ESI client...')
-            _client = esi_client_factory()
-        return _client
-    
-    def fetch_entities(self, ids: set) -> list:        
-        ids = {int(x) for x in ids}
-        ids_found = self.filter(id__in=ids).values_list(flat=True)
-        if ids_found:
-            ids_found = set(ids_found)
+    def update_all_from_esi(self) -> int:  
+        to_be_updated = self.filter(name='')
+        if to_be_updated:
+            return to_be_updated.update_from_esi()            
         else:
-            ids_found = set()
-        
-        ids_not_found = ids - ids_found
-        if ids_not_found:
-            client = self._get_client()
-            logger.info('Fetching ids:\n%s', ids_found)
-            results = \
-                client.Universe.post_universe_names(ids=list(ids_not_found))\
-                .result(timeout=ESI_API_TIMEOUT)
-            for item in results:
-                self.update_or_create(
-                    id=item['id'],
-                    defaults={
-                        'name': item['name'],
-                        'category': item['category']
-                    }
-                )
-        return self.filter(id__in=ids)
+            return 0
 
     def fetch_entity(self, id: str) -> object:
         try:
@@ -94,9 +82,9 @@ class EveEntityManager(models.Manager):
 
 class KillmailManager(models.Manager):
     
-    def fetch_killmails(self):
+    def fetch_from_zkb(self) -> int:
         from .models import (            
-            KillmailAttacker, KillmailPosition, KillmailVictim, KillmailZkb,     
+            EveEntity, KillmailAttacker, KillmailPosition, KillmailVictim, KillmailZkb,    
         )
         logger.info('Starting to fetch killmail from ZKB')
         killmail_counter = 0    
@@ -121,7 +109,9 @@ class KillmailManager(models.Manager):
                             args['time'] = killmail_data['killmail_time']
 
                         if 'solar_system_id' in killmail_data:
-                            args['solar_system_id'] = killmail_data['solar_system_id']
+                            args['solar_system'], _ = EveEntity.objects.get_or_create(
+                                id=killmail_data['solar_system_id']
+                            )
 
                     killmail = self.create(**args)
                     
@@ -151,11 +141,14 @@ class KillmailManager(models.Manager):
                         if 'victim' in killmail_data:
                             victim_data = killmail_data['victim']
                             args = {'killmail': killmail}
-                            for prop in CHARACTER_PROPS + [
-                                'damage_taken'
-                            ]:
+                            for prop, field in CHARACTER_PROPS:
                                 if prop in victim_data:
-                                    args[prop] = victim_data[prop]
+                                    args[field], _ = EveEntity.objects.get_or_create(
+                                        id=victim_data[prop]
+                                    )
+                            
+                            if 'damage_taken' in victim_data:
+                                args['damage_taken'] = victim_data['damage_taken']
 
                             KillmailVictim.objects.create(**args)
                             
@@ -171,14 +164,21 @@ class KillmailManager(models.Manager):
                         if 'attackers' in killmail_data:
                             for attacker_data in killmail_data['attackers']:
                                 args = {'killmail': killmail}
-                                for prop in CHARACTER_PROPS + [
-                                    'damage_done',                                 
-                                    'security_status', 
-                                    'faction_id', 
-                                    'weapon_type_id'
-                                ]:
+                                for prop, field in CHARACTER_PROPS + (
+                                    ('faction_id', 'faction'),
+                                    ('weapon_type_id', 'weapon_type'),
+                                ):
                                     if prop in attacker_data:
-                                        args[prop] = attacker_data[prop]
+                                        args[field], _ = \
+                                            EveEntity.objects.get_or_create(
+                                                id=attacker_data[prop]
+                                        )
+                                if 'damage_done' in attacker_data:
+                                    args['damage_done'] = attacker_data['damage_done']
+
+                                if 'security_status' in attacker_data:
+                                    args['is_final_blow'] = \
+                                        attacker_data['security_status']
 
                                 if 'final_blow' in attacker_data:
                                     args['is_final_blow'] = attacker_data['final_blow']
@@ -188,14 +188,24 @@ class KillmailManager(models.Manager):
             else:
                 break
 
+        EveEntity.objects.update_all_from_esi()
         logger.info('Retrieved %s killmail from ZKB', killmail_counter)
+        return killmail_counter
             
-    def process_killmails(self):                       
+    def process_killmails(self) -> int:                       
         killmails = self.filter(is_processed=False).select_related()
         killmail_counter = 0
         for killmail in killmails:
-            killmail.send_to_webhook(WEBHOOK_URL)
+            logger.debug('Processing killmail with ID %d', killmail.id)
+            try:
+                killmail.send_to_webhook(WEBHOOK_URL)
+            except Exception as ex:
+                logger.exception(ex)
+                pass
+            
             sleep(DISCORD_SEND_DELAY)
             killmail_counter += 1
             if killmail_counter > 10:
                 break
+
+        return killmail_counter

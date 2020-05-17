@@ -7,7 +7,7 @@ from django.db import models
 
 from .managers import EveEntityManager, KillmailManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('allianceauth')
 WEBHOOK_URL = 'https://discordapp.com/api/webhooks/519251066089373717/MOhnV35wtgIQv8nMy_bD5Eda5EVxcjdm6y3ZmpfFH8nV97i45T_g-xDuoRRo13i-KwIO'  # noqa
 
 
@@ -24,6 +24,7 @@ class General(models.Model):
 
 class EveEntity(models.Model):
     
+    EVE_IMAGESERVER_BASE_URL = 'https://images.evetech.net'
     ZKB_ENTITY_URL_BASE = 'https://zkillboard.com/'
 
     CATEGORY_ALLIANCE = 'alliance'
@@ -49,9 +50,15 @@ class EveEntity(models.Model):
     )
     
     id = models.PositiveIntegerField(primary_key=True)
-    name = models.CharField(max_length=100)
-    category = models.CharField(max_length=16, choices=CATEGORY_CHOICES)
-    timestamp = models.DateTimeField(auto_now=True, db_index=True)
+    name = models.CharField(
+        max_length=100, default='', blank=True
+    )
+    category = models.CharField(
+        max_length=16, choices=CATEGORY_CHOICES, default=None, null=True, blank=True,
+    )
+    last_updated = models.DateTimeField(
+        default=None, null=True, blank=True, db_index=True,
+    )
 
     objects = EveEntityManager()
 
@@ -82,15 +89,37 @@ class EveEntity(models.Model):
         else:
             return f'{self.name}'
 
+    def update_from_esi(self):
+        EveEntity.objects.get(self.id).update_from_esi()
+    
+    def icon_url(self, size: int = 64) -> str:
+        if self.category == self.CATEGORY_INVENTORY_TYPE:
+            if size < 32 or size > 1024 or (size % 2 != 0):
+                raise ValueError("Invalid size: {}".format(size))
+
+            url = '{}/types/{}/icon'.format(
+                self.EVE_IMAGESERVER_BASE_URL,
+                int(self.id)
+            )
+            if size:
+                args = {'size': int(size)}
+                url += '?{}'.format(urllib.parse.urlencode(args))
+
+            return url
+        
+        else:
+            raise NotImplementedError()
+
 
 class Killmail(models.Model):
-
-    EVE_IMAGESERVER_BASE_URL = 'https://images.evetech.net'
+    
     ZKB_KILLMAIL_BASEURL = 'https://zkillboard.com/kill/'
 
     id = models.BigIntegerField(primary_key=True)
     time = models.DateTimeField(default=None, null=True, blank=True)
-    solar_system_id = models.PositiveIntegerField(default=None, null=True, blank=True)
+    solar_system = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
     is_processed = models.BooleanField(default=False)
 
     objects = KillmailManager()
@@ -101,135 +130,125 @@ class Killmail(models.Model):
     def __repr__(self):
         return f'Killmail(id={self.id})'
 
-    @property
-    def solar_system_name(self):
-        return EveEntity.objects.fetch_entity(self.solar_system_id).name
-
-    @property
-    def solar_system_link(self):
-        return EveEntity.objects.fetch_entity(self.solar_system_id).zkb_link
-
-    def fetch_entities(self):
-        ids = [
-            x for x in [
-                self.victim.character_id,
-                self.victim.corporation_id,
-                self.victim.alliance_id,
-                self.victim.ship_type_id,
-                self.solar_system_id
-            ]
-            if x is not None
+    def update_from_esi(self):
+        ids = [            
+            self.victim.character_id,
+            self.victim.corporation_id,
+            self.victim.alliance_id,
+            self.victim.ship_type_id,
+            self.solar_system_id            
         ]
         for attacker in self.attackers.all():
-            ids += [
-                x for x in [
-                    attacker.character_id,
-                    attacker.corporation_id,
-                    attacker.alliance_id,
-                    attacker.ship_type_id,
-                    attacker.weapon_type_id,
-                ]
-                if x is not None        
+            ids += [                
+                attacker.character_id,
+                attacker.corporation_id,
+                attacker.alliance_id,
+                attacker.ship_type_id,
+                attacker.weapon_type_id,
             ]
-        return EveEntity.objects.fetch_entities(ids)
-
-    def send_to_webhook(self, webhook_url: str = WEBHOOK_URL):
-        self.fetch_entities()
-        try:                        
-            zkb_killmail_url = f'{self.ZKB_KILLMAIL_BASEURL}{self.id}/'            
-            value_mio = int(self.zkb.total_value / 1000000)
-            attacker = self.attackers.get(is_final_blow=True)
-            description = (
-                f'{self.victim.character_link} ({self.victim.corporation_link}) '
-                f'lost their '
-                f'**{self.victim.ship_type_name}** '
-                f'in {self.solar_system_link} worth **{value_mio} M** ISK.\n'
-                f'Final blow by {attacker.character_link} '
-                f'({attacker.corporation_link}) '
-                f'in a **{attacker.ship_type_name}**.'
+        ids = [x for x in ids if x is not None]
+        qs = EveEntity.objects.filter(id__in=ids)
+        qs.update_from_esi()
+        
+    def send_to_webhook(self, webhook_url: str = WEBHOOK_URL):        
+        self.update_from_esi()
+        zkb_killmail_url = f'{self.ZKB_KILLMAIL_BASEURL}{self.id}/'            
+        value_mio = int(self.zkb.total_value / 1000000)        
+        if self.victim.character:
+            victim_str = (                
+                f'{self.victim.character.zkb_link} '
+                f'({self.victim.corporation.zkb_link}) '
             )
-            title = \
-                f'{self.solar_system_name} | {self.victim.character_name} | Killmail'
-            thumbnail_url = self.type_icon_url(self.victim.ship_type_id)
-            footer_text = 'zKillboard'
-            embed = Embed(
-                description=description,
-                title=title,
-                url=zkb_killmail_url,
-                thumbnail=Thumbnail(url=thumbnail_url),
-                footer=Footer(text=footer_text),
-                timestamp=self.time
-            )            
-            logger.info('Sending self to Discord')
-            hook = Webhook(url=webhook_url, username='killtracker')
-            hook.execute(embeds=[embed], wait_for_response=True)            
-            self.is_processed = True
-            self.save()
-           
-        except Exception as ex:
-            logger.exception(ex)
-            pass
+            victim_name = self.victim.character.name
+        else:
+            victim_str = f'{self.victim.corporation.zkb_link}'
+            victim_name = self.victim.corporation.name
 
-    @classmethod
-    def type_icon_url(cls, type_id: int, size: int = 64) -> str:
-        if size < 32 or size > 1024 or (size % 2 != 0):
-            raise ValueError("Invalid size: {}".format(size))
+        attacker = self.attackers.get(is_final_blow=True)
+        if attacker.character and attacker.corporation:
+            attacker_str = (
+                f'{attacker.character.zkb_link} '
+                f'({attacker.corporation.zkb_link})'
+            )
+        elif attacker.corporation:
+            attacker_str = f'{attacker.corporation.zkb_link}'        
+        elif attacker.faction:
+            attacker_str = f'**{attacker.faction.name}**'
+        else:
+            attacker_str = '(Unknown attacker)'
 
-        url = '{}/types/{}/icon'.format(
-            cls.EVE_IMAGESERVER_BASE_URL,
-            int(type_id)
+        description = (
+            f'{victim_str} lost their **{self.victim.ship_type.name}** '
+            f'in {self.solar_system.zkb_link} worth **{value_mio} M** ISK.\n'
+            f'Final blow by {attacker_str} '
+            f'in a **{attacker.ship_type.name}**.\n'
+            f'Attackers: {self.attackers.count()}'
         )
-        if size:
-            args = {'size': int(size)}
-            url += '?{}'.format(urllib.parse.urlencode(args))
+        title = \
+            f'{self.solar_system.name} | {victim_name} | Killmail'
+        thumbnail_url = self.victim.ship_type.icon_url()
+        footer_text = 'zKillboard'
+        embed = Embed(
+            description=description,
+            title=title,
+            url=zkb_killmail_url,
+            thumbnail=Thumbnail(url=thumbnail_url),
+            footer=Footer(text=footer_text),
+            timestamp=self.time
+        )            
+        logger.info('Sending self to Discord')
+        hook = Webhook(url=webhook_url, username='killtracker')
+        hook.execute(embeds=[embed], wait_for_response=True)            
+        self.is_processed = True
+        self.save()
 
-        return url
-    
 
 class KillmailCharacter(models.Model):
     
-    character_id = models.PositiveIntegerField(default=None, null=True, blank=True)
-    corporation_id = models.PositiveIntegerField(default=None, null=True, blank=True)
-    alliance_id = models.PositiveIntegerField(default=None, null=True, blank=True)
-    faction_id = models.PositiveIntegerField(default=None, null=True, blank=True)    
-    ship_type_id = models.PositiveIntegerField(default=None, null=True, blank=True)
+    character = models.ForeignKey(
+        EveEntity, 
+        on_delete=models.CASCADE, 
+        default=None, null=True, 
+        blank=True, 
+        related_name='%(class)s_character_set'
+    )
+    corporation = models.ForeignKey(
+        EveEntity, 
+        on_delete=models.CASCADE, 
+        default=None, 
+        null=True, 
+        blank=True, 
+        related_name='%(class)s_corporation_set'
+    )
+    alliance = models.ForeignKey(
+        EveEntity, 
+        on_delete=models.CASCADE, 
+        default=None, 
+        null=True, 
+        blank=True, 
+        related_name='%(class)s_alliance_set'
+    )
+    faction = models.ForeignKey(
+        EveEntity, 
+        on_delete=models.CASCADE, 
+        default=None, 
+        null=True, 
+        blank=True, 
+        related_name='%(class)s_faction_set'
+    )    
+    ship_type = models.ForeignKey(
+        EveEntity, 
+        on_delete=models.CASCADE, 
+        default=None, 
+        null=True, 
+        blank=True, 
+        related_name='%(class)s_shiptype_set'
+    )
     
     class Meta:
-        abstract = True
+        abstract = True    
 
-    @property
-    def character_name(self):
-        return EveEntity.objects.fetch_entity(self.character_id).name
 
-    @property
-    def character_link(self):
-        return EveEntity.objects.fetch_entity(self.character_id).zkb_link
-
-    @property
-    def corporation_name(self):
-        return EveEntity.objects.fetch_entity(self.corporation_id).name
-
-    @property
-    def corporation_link(self):
-        return EveEntity.objects.fetch_entity(self.corporation_id).zkb_link
-
-    @property
-    def alliance_name(self):
-        return EveEntity.objects.fetch_entity(self.alliance_id).name
-
-    @property
-    def alliance_link(self):
-        return EveEntity.objects.fetch_entity(self.alliance_id).zkb_link
-
-    @property
-    def faction_name(self):
-        return EveEntity.objects.fetch_entity(self.faction_id).name
-
-    @property
-    def ship_type_name(self):
-        return EveEntity.objects.fetch_entity(self.ship_type_id).name
-    
-   
 class KillmailVictim(KillmailCharacter):
 
     killmail = models.OneToOneField(
@@ -246,11 +265,9 @@ class KillmailAttacker(KillmailCharacter):
     damage_done = models.BigIntegerField(default=None, null=True, blank=True)
     is_final_blow = models.BooleanField(default=None, null=True, blank=True)
     security_status = models.FloatField(default=None, null=True, blank=True)
-    weapon_type_id = models.PositiveIntegerField(default=None, null=True, blank=True)
-
-    @property
-    def weapon_type_name(self):
-        return EveEntity.objects.fetch_entity(self.weapon_type_id).name
+    weapon_type = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
 
 
 class KillmailPosition(models.Model):
