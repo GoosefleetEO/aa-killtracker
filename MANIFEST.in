@@ -1,0 +1,6 @@
+include LICENSE
+include README.md
+recursive-include killtracker *.py
+recursive-include killtracker/static *
+recursive-include killtracker/templates *
+
