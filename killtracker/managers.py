@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 
 from bravado.exception import HTTPNotFound
 import requests
@@ -23,12 +22,6 @@ CHARACTER_PROPS = (
     ('faction_id', 'faction'),
     ('ship_type_id', 'ship_type'),
 )
-
-WEBHOOK_URL = 'https://discordapp.com/api/webhooks/519251066089373717/MOhnV35wtgIQv8nMy_bD5Eda5EVxcjdm6y3ZmpfFH8nV97i45T_g-xDuoRRo13i-KwIO'  # noqa
-
-# delay in seconds between every message sent to Discord
-# this needs to be >= 1 to prevent 429 Too Many Request errors
-DISCORD_SEND_DELAY = 1
 
 
 class EveEntityQuerySet(models.QuerySet):
@@ -206,22 +199,4 @@ class KillmailManager(models.Manager):
         killmail.refresh_from_db()
         killmail.update_from_esi()
         logger.info('Retrieved %s killmail from ZKB', killmail_counter)
-        return killmail_counter
-            
-    def process_killmails(self) -> int:                       
-        killmails = self.filter(is_processed=False).select_related().order_by('time')
-        killmail_counter = 0
-        for killmail in killmails:
-            logger.debug('Processing killmail with ID %d', killmail.id)
-            try:
-                killmail.send_to_webhook(WEBHOOK_URL)
-            except Exception as ex:
-                logger.exception(ex)
-                pass
-            
-            sleep(DISCORD_SEND_DELAY)
-            killmail_counter += 1
-            if killmail_counter > 10:
-                break
-
         return killmail_counter
