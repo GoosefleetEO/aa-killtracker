@@ -550,7 +550,8 @@ class Tracker(models.Model):
     )
     max_age = models.PositiveIntegerField(
         default=DEFAULT_MAX_AGE_HOURS, 
-        blank=True, 
+        null=True,
+        blank=True,
         help_text=(
             'ignore killmails that are older than the given number in hours '
             '(sometimes killmails appear belated on ZKB - '
@@ -577,6 +578,12 @@ class Tracker(models.Model):
                 .values_list('killmail_id', flat=True)        
         for killmail in Killmail.objects.exclude(id__in=processed_ids):
             dest_solar_system = killmail.solar_system.get_pendant_object()
+            if self.origin_solar_system:
+                distance = meters_to_ly(
+                    self.origin_solar_system.distance_to(dest_solar_system)
+                )
+            else:
+                distance = None
             TrackerKillmail.objects.update_or_create(
                 killmail=killmail,
                 tracker=self,
@@ -585,15 +592,15 @@ class Tracker(models.Model):
                     'is_low_sec': dest_solar_system.is_low_sec,
                     'is_null_sec': dest_solar_system.is_null_sec,
                     'is_w_space': dest_solar_system.is_w_space,
-                    'distance': meters_to_ly(
-                        self.origin_solar_system.distance_to(dest_solar_system)
-                    )
+                    'distance': distance
                 }
             )
             processed_counter += 1
         
         # apply all filters from tracker to determine matching killmails
-        matching = TrackerKillmail.objects.filter(is_matching__isnull=True)
+        matching = TrackerKillmail.objects\
+            .filter(is_matching__isnull=True)\
+            .prefetch_related()
 
         if self.max_age:
             threshold_date = now() - timedelta(hours=self.max_age)
@@ -623,17 +630,17 @@ class Tracker(models.Model):
         if self.max_distance:
             matching = matching.exclude(distance__gt=self.max_distance)
 
-        if self.exclude_attacker_alliances:
+        if self.exclude_attacker_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.exclude_attacker_alliances)
             matching = \
                 matching.exclude(killmail__attackers__alliance__id__in=alliance_ids)
 
-        if self.required_attacker_alliances:
+        if self.required_attacker_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.required_attacker_alliances)
             matching = \
                 matching.filter(killmail__attackers__alliance__id__in=alliance_ids)
 
-        if self.require_victim_alliances:
+        if self.require_victim_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.require_victim_alliances)
             
         # store which killmails match with the tracker
@@ -653,11 +660,15 @@ class Tracker(models.Model):
             for alliance_id in alliances.values_list('alliance_id', flat=True)
         ]
 
-    def send_matching_to_webhook(self) -> int:                       
+    def send_matching_to_webhook(self, resend=False) -> int:                       
         matching_killmails = TrackerKillmail.objects\
-            .filter(tracker=self, date_sent__isnull=True, is_matching=True)\
-            .select_related()\
+            .filter(tracker=self, is_matching=True)\
+            .prefetch_related()\
             .order_by('killmail__time')
+        
+        if not resend:
+            matching_killmails = matching_killmails.filter(date_sent__isnull=True)
+
         killmail_counter = 0
         for matching in matching_killmails:
             logger.debug(
@@ -666,9 +677,11 @@ class Tracker(models.Model):
             try:
                 matching.killmail.send_to_webhook(self.webhook.url)
             except Exception as ex:
-                logger.exception(ex)
-                pass
-            
+                logger.exception(ex)                
+            else:
+                matching.date_sent = now()
+                matching.save()
+
             sleep(DISCORD_SEND_DELAY)
             killmail_counter += 1
             if killmail_counter > 10:

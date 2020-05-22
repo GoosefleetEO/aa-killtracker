@@ -1,10 +1,12 @@
 from django.contrib import admin
+from django.db.models import Max
 from django.db.models.functions import Lower
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from evesde.models import EveSolarSystem, EveGroup
 
 from .models import EveEntity, Killmail, Webhook, Tracker
+from . import tasks
 
 EVE_CATEGORY_ID_SHIPS = 6
 
@@ -39,8 +41,35 @@ class WebhookAdmin(admin.ModelAdmin):
 
 @admin.register(Tracker)
 class Tracker(admin.ModelAdmin):
-    list_display = ('name', 'webhook')
+    list_display = (
+        'name', 
+        'webhook', 
+        '_processed_count', 
+        '_matching_count', 
+        '_sent_count',
+        '_last_sent',
+    )
     autocomplete_fields = ['origin_solar_system']
+    
+    def _processed_count(self, obj):
+        return obj.trackerkillmail_set.count()
+
+    def _matching_count(self, obj):
+        return obj.trackerkillmail_set.filter(is_matching=True).count()
+
+    def _sent_count(self, obj):
+        return obj.trackerkillmail_set.filter(date_sent__isnull=False).count()
+
+    def _last_sent(self, obj):        
+        result = obj.trackerkillmail_set.all().aggregate(Max('date_sent'))
+        return result['date_sent__max']
+
+    actions = ['run_tracker']
+
+    def run_tracker(self, request, queryset):
+        for tracker in queryset:
+            tasks.run_tracker.delay(tracker.pk)
+    
     filter_horizontal = (
         'exclude_attacker_alliances',
         'required_attacker_alliances',

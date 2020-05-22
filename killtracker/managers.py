@@ -23,6 +23,8 @@ CHARACTER_PROPS = (
     ('ship_type_id', 'ship_type'),
 )
 
+MAX_FETCHED_KILLMAILS_PER_RUN = 20
+
 
 class EveEntityQuerySet(models.QuerySet):
 
@@ -47,11 +49,13 @@ class EveEntityQuerySet(models.QuerySet):
         try:
             items = esi_fetch('Universe.post_universe_names', args={'ids': ids})
         except HTTPNotFound:
-            # if API fails to resolve all IDs, we divide and conquer
-            # and try to resolve each half seperately
+            # if API fails to resolve all IDs, we divide and conquer,
+            # trying to resolve each half of the ids seperately
             if len(ids) > 1 and depth < self.MAX_DEPTH:
                 resolved_counter += self._resolve_ids(ids[::2], depth + 1)
                 resolved_counter += self._resolve_ids(ids[1::2], depth + 1)
+            else:
+                logger.warning('Failed to resolve invalid IDs: %s', ids)
         else:
             resolved_counter += len(items)
             for item in items:
@@ -96,7 +100,7 @@ class KillmailManager(models.Manager):
         )
         logger.info('Starting to fetch killmail from ZKB')
         killmail_counter = 0    
-        for _ in range(10):
+        for _ in range(MAX_FETCHED_KILLMAILS_PER_RUN):
             r = requests.get(ZKB_REDISQ_URL, timeout=ZKB_REDISQ_TIMEOUT)
             r.raise_for_status()
             data = r.json()    
@@ -104,7 +108,7 @@ class KillmailManager(models.Manager):
                 logger.debug('data:\n%s', data)
             if data and 'package' in data and data['package']:
                 logger.info('Received a killmail from ZKB')
-                killmail_counter += 1            
+                killmail_counter += 1
                 package_data = data['package']        
                 with transaction.atomic():
                     killmail_id = int(package_data['killID'])
@@ -193,10 +197,11 @@ class KillmailManager(models.Manager):
 
                                 KillmailAttacker.objects.create(**args)
                 
+                killmail.refresh_from_db()
+                killmail.update_from_esi()
+
             else:
                 break
-
-        killmail.refresh_from_db()
-        killmail.update_from_esi()
+            
         logger.info('Retrieved %s killmail from ZKB', killmail_counter)
         return killmail_counter
