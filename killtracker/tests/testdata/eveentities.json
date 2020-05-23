@@ -1,0 +1,32 @@
+[
+    {
+        "id": 1001,
+        "name": "Bruce Wayne",
+        "category": "character"
+    },
+    {
+        "id": 1002,
+        "name": "Peter Parker",
+        "category": "character"
+    },
+    {
+        "id": 1003,
+        "name": "Clark Kent",
+        "category": "character"
+    },
+    {
+        "id": 1011,
+        "name": "Lex Luthor",
+        "category": "character"
+    },
+    {
+        "id": 2001,
+        "name": "Wayne Technologies",
+        "category": "corporation"
+    },    
+    {
+        "id": 2011,
+        "name": "LexCorp",
+        "category": "corporation"
+    }
+]

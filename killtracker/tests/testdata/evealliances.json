@@ -1,0 +1,14 @@
+[
+    {
+        "alliance_id": 3001,
+        "alliance_name": "Wayne Enterprises",
+        "alliance_ticker": "WYNE",
+        "executor_corp_id": 2001
+    },
+    {
+        "alliance_id": 3011,
+        "alliance_name": "LexGlobal",
+        "alliance_ticker": "WYNE",
+        "executor_corp_id": 2011
+    }
+]
