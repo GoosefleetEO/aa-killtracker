@@ -16,6 +16,9 @@ class EveSolarSystemAdmin(admin.ModelAdmin):
     ordering = ['solar_system_name']
     search_fields = ['solar_system_name']
 
+    def has_module_permission(self, request):
+        return False
+
 
 @admin.register(EveEntity)
 class EveEntityAdmin(admin.ModelAdmin):

@@ -27,7 +27,7 @@ DEFAULT_MAX_AGE_HOURS = 4
 
 # delay in seconds between every message sent to Discord
 # this needs to be >= 1 to prevent 429 Too Many Request errors
-DISCORD_SEND_DELAY = 1
+DISCORD_SEND_DELAY = 2
 
 
 class General(models.Model):
@@ -190,58 +190,7 @@ class Killmail(models.Model):
         ids = [x for x in ids if x is not None]
         qs = EveEntity.objects.filter(id__in=ids, name='')
         qs.update_from_esi()
-        
-    def send_to_webhook(self, webhook_url: str = WEBHOOK_URL):        
-        zkb_killmail_url = f'{self.ZKB_KILLMAIL_BASEURL}{self.id}/'            
-        value_mio = int(self.zkb.total_value / 1000000)        
-        if self.victim.character:
-            victim_str = (                
-                f'{self.victim.character.zkb_link} '
-                f'({self.victim.corporation.zkb_link}) '
-            )
-            victim_name = self.victim.character.name
-        else:
-            victim_str = f'{self.victim.corporation.zkb_link}'
-            victim_name = self.victim.corporation.name
-
-        attacker = self.attackers.get(is_final_blow=True)
-        if attacker.character and attacker.corporation:
-            attacker_str = (
-                f'{attacker.character.zkb_link} '
-                f'({attacker.corporation.zkb_link})'
-            )
-        elif attacker.corporation:
-            attacker_str = f'{attacker.corporation.zkb_link}'        
-        elif attacker.faction:
-            attacker_str = f'**{attacker.faction.name}**'
-        else:
-            attacker_str = '(Unknown attacker)'
-
-        description = (
-            f'{victim_str} lost their **{self.victim.ship_type.name}** '
-            f'in {self.solar_system.zkb_link} worth **{value_mio} M** ISK.\n'
-            f'Final blow by {attacker_str} '
-            f'in a **{attacker.ship_type.name}**.\n'
-            f'Attackers: {self.attackers.count()}'
-        )
-        title = \
-            f'{self.solar_system.name} | {victim_name} | Killmail'
-        thumbnail_url = self.victim.ship_type.icon_url()
-        footer_text = 'zKillboard'
-        embed = dhooks_lite.Embed(
-            description=description,
-            title=title,
-            url=zkb_killmail_url,
-            thumbnail=dhooks_lite.Thumbnail(url=thumbnail_url),
-            footer=dhooks_lite.Footer(text=footer_text),
-            timestamp=self.time
-        )            
-        logger.info('Sending self to Discord')
-        hook = dhooks_lite.Webhook(url=webhook_url, username='killtracker')
-        hook.execute(embeds=[embed], wait_for_response=True)            
-        self.is_processed = True
-        self.save()
-
+    
 
 class KillmailCharacter(models.Model):
     
@@ -583,8 +532,10 @@ class Tracker(models.Model):
                 distance = meters_to_ly(
                     self.origin_solar_system.distance_to(dest_solar_system)
                 )
+                jumps = self.origin_solar_system.jumps_to(dest_solar_system)
             else:
                 distance = None
+                jumps = None
             
             TrackerKillmail.objects.update_or_create(
                 killmail=killmail,
@@ -595,6 +546,7 @@ class Tracker(models.Model):
                     'is_null_sec': dest_solar_system.is_null_sec,
                     'is_w_space': dest_solar_system.is_w_space,
                     'distance': distance,
+                    'jumps': jumps,
                     'attackers_count': killmail.attackers.count()
                 }
             )
@@ -657,6 +609,15 @@ class Tracker(models.Model):
 
         logger.debug('max_distance: %s', matching.all().killmail_ids())
 
+        if self.max_jumps:
+            matching = (
+                matching
+                .exclude(jumps__isnull=True)
+                .exclude(jumps__gt=self.max_jumps)
+            )
+
+        logger.debug('max_jumps: %s', matching.all().killmail_ids())
+
         if self.exclude_attacker_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.exclude_attacker_alliances)
             matching = \
@@ -711,15 +672,12 @@ class Tracker(models.Model):
             logger.debug(
                 'Sending killmail with ID %d to webhook', matching.killmail.id
             )
+            sleep(DISCORD_SEND_DELAY)
             try:
-                matching.killmail.send_to_webhook(self.webhook.url)
+                matching.send_to_webhook(self.webhook.url)
             except Exception as ex:
                 logger.exception(ex)                
-            else:
-                matching.date_sent = now()
-                matching.save()
-
-            sleep(DISCORD_SEND_DELAY)
+                        
             killmail_counter += 1
             
         return killmail_counter
@@ -765,3 +723,70 @@ class TrackerKillmail(models.Model):
             f'{type(self).__name__}(tracker=\'{self.tracker}\''
             f', killmail_id={self.killmail_id})'
         )
+
+    def send_to_webhook(self, webhook_url: str = WEBHOOK_URL):        
+        killmail = self.killmail
+        if killmail.victim.character:
+            victim_str = (                
+                f'{killmail.victim.character.zkb_link} '
+                f'({killmail.victim.corporation.zkb_link}) '
+            )
+            victim_name = killmail.victim.character.name
+        else:
+            victim_str = f'{killmail.victim.corporation.zkb_link}'
+            victim_name = killmail.victim.corporation.name
+
+        attacker = killmail.attackers.get(is_final_blow=True)
+        if attacker.character and attacker.corporation:
+            attacker_str = (
+                f'{attacker.character.zkb_link} '
+                f'({attacker.corporation.zkb_link})'
+            )
+        elif attacker.corporation:
+            attacker_str = f'{attacker.corporation.zkb_link}'        
+        elif attacker.faction:
+            attacker_str = f'**{attacker.faction.name}**'
+        else:
+            attacker_str = '(Unknown attacker)'
+
+        value_mio = int(killmail.zkb.total_value / 1000000)
+        description = (
+            f'{victim_str} lost their **{killmail.victim.ship_type.name}** '
+            f'in {killmail.solar_system.zkb_link} worth **{value_mio} M** ISK.\n'
+            f'Final blow by {attacker_str} '
+            f'in a **{attacker.ship_type.name}**.\n'
+            f'Attackers: {killmail.attackers.count()}'
+        )
+        if self.tracker.origin_solar_system:
+            origin_solar_system_link = (
+                f'[{self.tracker.origin_solar_system.solar_system_name}]'
+                f'({self.tracker.origin_solar_system.dotlan_link})'
+            )
+            distance = f'{self.distance:,.2f}' if self.distance else '?'
+            jumps = self.jumps if self.jumps else '?'
+            description += (
+                f'\nDistance from {origin_solar_system_link}: '
+                f'{distance} LY | {jumps} jumps'
+            )
+
+        title = \
+            f'{killmail.solar_system.name} | {victim_name} | Killmail'
+        thumbnail_url = killmail.victim.ship_type.icon_url()
+        footer_text = 'zKillboard'
+        zkb_killmail_url = f'{self.killmail.ZKB_KILLMAIL_BASEURL}{self.id}/'
+        embed = dhooks_lite.Embed(
+            description=description,
+            title=title,
+            url=zkb_killmail_url,
+            thumbnail=dhooks_lite.Thumbnail(url=thumbnail_url),
+            footer=dhooks_lite.Footer(text=footer_text),
+            timestamp=killmail.time
+        )            
+        logger.info('Sending self to Discord')
+        hook = dhooks_lite.Webhook(url=webhook_url, username='killtracker')
+        response = hook.execute(embeds=[embed], wait_for_response=True)            
+        logger.debug('headers: %s', response.headers)
+        logger.debug('status_code: %s', response.status_code)
+        logger.debug('content: %s', response.content)
+        self.date_sent = now()
+        self.save()

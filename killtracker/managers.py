@@ -4,6 +4,7 @@ from bravado.exception import HTTPNotFound
 import requests
 
 from django.db import models, transaction
+from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from .helpers.esi_fetch import esi_fetch
@@ -23,6 +24,7 @@ CHARACTER_PROPS = (
     ('ship_type_id', 'ship_type'),
 )
 
+MIN_FETCHED_KILLMAILS_PER_RUN = 10
 MAX_FETCHED_KILLMAILS_PER_RUN = 100
 
 
@@ -94,9 +96,10 @@ class EveEntityManager(models.Manager):
 
 class KillmailManager(models.Manager):
     
-    def fetch_from_zkb(self) -> int:                
-        killmail_counter = 0    
-        for _ in range(MAX_FETCHED_KILLMAILS_PER_RUN):
+    def fetch_from_zkb(self, max_killmails: int = MAX_FETCHED_KILLMAILS_PER_RUN) -> int:
+        killmail_counter = 0
+        max_killmails = max(1, int(max_killmails))
+        for _ in range(max_killmails):
             logger.info('Trying to fetch killmail from ZKB...')
             r = requests.get(ZKB_REDISQ_URL, timeout=ZKB_REDISQ_TIMEOUT)
             r.raise_for_status()
@@ -125,8 +128,8 @@ class KillmailManager(models.Manager):
             if 'killmail' in package_data:
                 killmail_data = package_data['killmail']
 
-                if 'killmail_time' in package_data:
-                    args['time'] = killmail_data['killmail_time']
+                if 'killmail_time' in killmail_data:
+                    args['time'] = parse_datetime(killmail_data['killmail_time'])
 
                 if 'solar_system_id' in killmail_data:
                     args['solar_system'], _ = EveEntity.objects.get_or_create(

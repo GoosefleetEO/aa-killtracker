@@ -34,5 +34,10 @@ setup(
         'Programming Language :: Python :: 3.5',        
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+    ],
+    python_requires='~=3.6',
+    install_requires=[         
+        'django-esi<2.0',
+        'dhooks-lite>=0.3.0',        
     ]
 )

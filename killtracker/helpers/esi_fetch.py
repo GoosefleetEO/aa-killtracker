@@ -26,7 +26,7 @@ logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 
 ESI_MAX_RETRIES = 3
 ESI_RETRY_SLEEP_SECS = 1
-ESI_API_TIMEOUT = 5
+ESI_API_TIMEOUT = 10
 
 _my_esi_client = None
 
