@@ -1,120 +1,151 @@
 {
-    "EveGroup":
-    [
+    "EveCategory": [
         {
-            "group_id": 25,
-            "group_name": "Frigate"
+            "id": 5,
+            "name": "Ships"
         },
         {
-            "group_id": 55,
-            "group_name": "Projectile Weapon"
+            "id": 7,
+            "name": "Weapon"
         },
         {
-            "group_id": 100,
-            "group_name": "Combat Drone"
-        },
-        {
-            "group_id": 419,
-            "group_name": "Combat Battlecruiser"
-        },
-        {
-            "group_id": 1305,
-            "group_name": "Tactical Destroyer"
+            "id": 18,
+            "name": "Drones"
         }
     ],
-    "EveType":
-    [
+    "EveGroup": [
         {
-            "type_id": 603,
-            "type_name": "Merlin",
-            "group_id": 25
+            "id": 25,
+            "name": "Frigate",
+            "eve_category_id": 5
         },
         {
-            "type_id": 2488,
-            "type_name": "Warrior II",
-            "group_id": 100
+            "id": 55,
+            "name": "Projectile Weapon",
+            "eve_category_id": 7
         },
         {
-            "type_id": 2977,
-            "type_name": "280mm Howitzer Artillery II",
-            "group_id": 55
+            "id": 100,
+            "name": "Combat Drone",
+            "eve_category_id": 18
         },
         {
-            "type_id": 3756,
-            "type_name": "Gnosis",
-            "group_id": 419
+            "id": 419,
+            "name": "Combat Battlecruiser",
+            "eve_category_id": 5
         },
         {
-            "type_id": 34562,
-            "type_name": "Svipul",
-            "group_id": 1305
+            "id": 1305,
+            "name": "Tactical Destroyer",
+            "eve_category_id": 5
         }
     ],
-    "EveRegion":
-    [
+    "EveType": [
         {
-            "region_id": 10000014,
-            "region_name": "Catch"
+            "id": 603,
+            "name": "Merlin",
+            "eve_group_id": 25
         },
         {
-            "region_id": 10000064,
-            "region_name": "Essence"
+            "id": 2488,
+            "name": "Warrior II",
+            "eve_group_id": 100
         },
         {
+            "id": 2977,
+            "name": "280mm Howitzer Artillery II",
+            "eve_group_id": 55
+        },
+        {
+            "id": 3756,
+            "name": "Gnosis",
+            "eve_group_id": 419
+        },
+        {
+            "id": 34562,
+            "name": "Svipul",
+            "eve_group_id": 1305
+        }
+    ],
+    "EveRegion": [
+        {
+            "id": 10000014,
+            "name": "Catch"
+        },
+        {
+            "id": 10000064,
+            "name": "Essence"
+        },
+        {
+            "id": 10000069,
+            "name": "Black Rise"
+        },
+        {
+            "id": 11000031,
+            "name": "G-R00031"
+        }
+    ],
+    "EveConstellation": [
+        {
+            "id": 20000169,
+            "name": "UX3-N2",
+            "eve_region_id": 10000014
+        },
+        {
+            "id": 20000728,
+            "name": "Patrie",
+            "eve_region_id": 10000014
+        },
+        {
+            "id": 20000729,
+            "name": "Jeon"
+        }
+    ],
+    "EveSolarSystem": [
+        {
+            "id": 30001161,
+            "name": "HED-GP",
+            "constellation_id": 20000169,
+            "security_status": -0.1,
+            "position_x": -95413697560001200,
+            "position_y": 19654254337720636,
+            "position_z": -206915366853997472
+        },
+        {
+            "id": 30004976,
+            "name": "Charmerout",
+            "constellation_id": 20000728,
+            "security_status": 0.6,
+            "position_x": -205375759182639840,
+            "position_y": 51126248698047880,
+            "position_z": 72684231058165040
+        },
+        {
+            "id": 30004984,
+            "name": "Abune",
+            "constellation_id": 20000729,
+            "security_status": 0.3,
+            "position_x": -211265901041153472,
+            "position_y": 55806528490315120,
+            "position_z": 81416396747037216
+        },
+        {
+            "id": 30045349,
+            "name": "Rakapas",
             "region_id": 10000069,
-            "region_name": "Black Rise"
+            "security_status": 0.2,
+            "position_x": -222890333299573760,
+            "position_y": 63435216421685656,
+            "position_z": 127063662874602496
         },
         {
+            "id": 31000005,
+            "name": "Thera",
             "region_id": 11000031,
-            "region_name": "G-R00031"
+            "security_status": -1.0,
+            "position_x": 7201177000000000000,
+            "position_y": 1534300000000000000,
+            "position_z": -9501332482538404000
         }
-    ],
-    "EveSolarSystem":
-    [
-        {
-            "solar_system_id": 30001161,
-            "solar_system_name": "HED-GP",
-            "region_id": 10000014,
-            "security": -0.1,
-            "x": -95413697560001200,
-            "y": 19654254337720636,
-            "z": -206915366853997472
-        },        
-        {
-            "solar_system_id": 30004976,
-            "solar_system_name": "Charmerout",
-            "region_id": 10000064,
-            "security": 0.6,
-            "x": -205375759182639840,
-            "y": 51126248698047880,
-            "z": 72684231058165040
-        },
-        {
-            "solar_system_id": 30004984,
-            "solar_system_name": "Abune",
-            "region_id": 10000064,
-            "security": 0.3,
-            "x": -211265901041153472,
-            "y": 55806528490315120,
-            "z": 81416396747037216
-        },
-        {
-            "solar_system_id": 30045349,
-            "solar_system_name": "Rakapas",
-            "region_id": 10000069,
-            "security": 0.2,
-            "x": -222890333299573760,
-            "y": 63435216421685656,
-            "z": 127063662874602496
-        },
-        {
-            "solar_system_id": 31000005,
-            "solar_system_name": "Thera",
-            "region_id": 11000031,
-            "security": -1.0,
-            "x": 7201177000000000000,
-            "y": 1534300000000000000,
-            "z": -9501332482538404000
-        }
-    ]    
+    ]
 }

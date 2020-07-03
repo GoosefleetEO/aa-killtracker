@@ -35,7 +35,7 @@ def run_killtracker(self):
     total_killmails = 0
     while total_killmails < 100:
         killmails_fetched = Killmail.objects.fetch_from_zkb(max_killmails=10)
-        total_killmails += killmails_fetched        
+        total_killmails += killmails_fetched
         run_all_tracker_and_send.delay()
-        if killmails_fetched == 0:        
+        if killmails_fetched == 0:
             break
