@@ -1,0 +1,1757 @@
+{
+    "EveCategory": [
+        {
+            "id": 2,
+            "name": "Celestial",
+            "published": true
+        },
+        {
+            "id": 6,
+            "name": "Ship",
+            "published": true
+        },
+        {
+            "id": 7,
+            "name": "Module",
+            "published": true
+        },
+        {
+            "id": 18,
+            "name": "Drone",
+            "published": true
+        }
+    ],
+    "EveConstellation": [
+        {
+            "eve_region_id": 10000014,
+            "id": 20000169,
+            "name": "UX3-N2",
+            "position_x": -8.144235531686658e+16,
+            "position_y": 8631923480121213.0,
+            "position_z": -2.142002604277861e+17
+        },
+        {
+            "eve_region_id": 10000038,
+            "id": 20000448,
+            "name": "Sasen",
+            "position_x": -1.4487749680007757e+17,
+            "position_y": 5.785808611970901e+16,
+            "position_z": -4.8618946556037704e+16
+        },
+        {
+            "eve_region_id": 10000038,
+            "id": 20000449,
+            "name": "Vaarma",
+            "position_x": -1.5632352300754352e+17,
+            "position_y": 3.7113200248594696e+16,
+            "position_z": -5.018303591402107e+16
+        },
+        {
+            "eve_region_id": 10000038,
+            "id": 20000450,
+            "name": "Ichida",
+            "position_x": -1.4351005363255656e+17,
+            "position_y": 6.107320126385917e+16,
+            "position_z": -6.901191922536963e+16
+        },
+        {
+            "eve_region_id": 10000038,
+            "id": 20000451,
+            "name": "Tandoiras",
+            "position_x": -1.6450706791375152e+17,
+            "position_y": 1703819912406752.0,
+            "position_z": -3.2861581505385484e+16
+        },
+        {
+            "eve_region_id": 10000038,
+            "id": 20000452,
+            "name": "Ohvarainen",
+            "position_x": -1.748344074006404e+17,
+            "position_y": 2.8272186960028584e+16,
+            "position_z": -4.446887675348592e+16
+        },
+        {
+            "eve_region_id": 10000064,
+            "id": 20000728,
+            "name": "Patrie",
+            "position_x": -2.0861714109918752e+17,
+            "position_y": 5.758537147720374e+16,
+            "position_z": 6.7343616711449896e+16
+        },
+        {
+            "eve_region_id": 10000064,
+            "id": 20000729,
+            "name": "Jeon",
+            "position_x": -2.0690763482714282e+17,
+            "position_y": 4.82908790696792e+16,
+            "position_z": 7.960999000649318e+16
+        },
+        {
+            "eve_region_id": 10000069,
+            "id": 20000782,
+            "name": "Okakuola",
+            "position_x": -1.9576885101954605e+17,
+            "position_y": 5.915796071531944e+16,
+            "position_z": 1.1696704137615693e+17
+        },
+        {
+            "eve_region_id": 11000031,
+            "id": 21000324,
+            "name": "G-C00324",
+            "position_x": 7.2058e+18,
+            "position_y": 1.5393e+18,
+            "position_z": -9.5151e+18
+        }
+    ],
+    "EveGroup": [
+        {
+            "eve_category_id": 2,
+            "id": 10,
+            "name": "Stargate",
+            "published": false
+        },
+        {
+            "eve_category_id": 6,
+            "id": 25,
+            "name": "Frigate",
+            "published": true
+        },
+        {
+            "eve_category_id": 7,
+            "id": 55,
+            "name": "Projectile Weapon",
+            "published": true
+        },
+        {
+            "eve_category_id": 18,
+            "id": 100,
+            "name": "Combat Drone",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
+            "id": 419,
+            "name": "Combat Battlecruiser",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
+            "id": 1305,
+            "name": "Tactical Destroyer",
+            "published": true
+        }
+    ],
+    "EveRegion": [
+        {
+            "description": "Catch has long been a strategically important region. During the initial expansion into the rim territories, it linked the Khanid Kingdom, Sansha's Nation and the Angel Cartel to one another, and through its connections to Providence was given considerable status as the \"Southern Gateway\" by the Amarr Empire. Unlike regions such as Pure Blind, however, its importance did not fade with the dawn of the capsuleer era, as its branching links east and west ensured continued relevance. As a consequence it has earned itself a bloody reputation - some say the very stars reverberate with the dying breaths of the countless lost souls.",
+            "id": 10000014,
+            "name": "Catch"
+        },
+        {
+            "description": "When the Sani Sabik cults were first deemed heretical by the Council of Apostles millennia ago, they were driven out of the homelands of the Amarr Empire. Many of them fled to the Bleak Lands, where they sulked in hiding for centuries fighting amongst themselves until one stood victorious, The Blood Raiders. The Bleaks remained their seat of power until June 107 when, following the horrors of Mabnen, the Imperial Navy descended upon the region with all their fury and rage, forcing the Blood Raiders to retreat out of the Bleak Lands. Their presence is still felt, as the region remains a lawless danger to even the most wary traveler.\n\nRecent times have pushed this traditionally neglected region once more back into a position of some prominence. The brief War of Defiance was fought almost entirely within this region, and the ripples of that conflict and its fiery conclusion are still spreading. Many see the Bleaks as a central battlefield in the oft-predicted conflagration between the Empire and its former slaves, ensuring that some at least still have serious plans for the volume.",
+            "id": 10000038,
+            "name": "The Bleak Lands"
+        },
+        {
+            "description": "\"The Federation is not a defined region of space, of planets, of mountains, rivers, or woods. It is a vision.\"",
+            "id": 10000064,
+            "name": "Essence"
+        },
+        {
+            "description": "For centuries, this volume of space remained inexplicably impenetrable to investigation. It possesses no apparent mass or dimension, but the abrupt disappearance of every expedition into the zone made it an effective bulwark against flanking attacks during the first Gallente-Caldari war, and the subsequent uneasy peace.<br><br>Several decades ago, a coalition of like-minded Caldari megacorps discovered ways to traverse Black Rise safely, and began a secret programme of colonization. The start of the Empyrean War forced them to show their hand, and the region soon became a key front in the conflict between Caldari and Gallente forces.<br><br>Today the region remains somewhat underdeveloped, but rich in raw materials. The poorly-understood phenomena that still manifest can make life awkward, but fluid router networks and jump travel permit unrestricted travel and communications. Of the many early expeditions, though, no trace has yet been found.",
+            "id": 10000069,
+            "name": "Black Rise"
+        },
+        {
+            "description": "",
+            "id": 11000031,
+            "name": "G-R00031"
+        }
+    ],
+    "EveSolarSystem": [
+        {
+            "eve_constellation_id": 20000169,
+            "eve_star_id": null,
+            "id": 30001161,
+            "name": "HED-GP",
+            "position_x": -9.54136975600012e+16,
+            "position_y": 1.9654254337720636e+16,
+            "position_z": -2.0691536685399747e+17,
+            "security_status": -0.14632222056388855
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003063,
+            "name": "Lamaa",
+            "position_x": -1.3650408686004696e+17,
+            "position_y": 3.2772030526736908e+16,
+            "position_z": -4.2199968266481304e+16,
+            "security_status": 0.3552711606025696
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003064,
+            "name": "Tuomuta",
+            "position_x": -1.439872028248173e+17,
+            "position_y": 6.220247112491925e+16,
+            "position_z": -4.690080888472223e+16,
+            "security_status": 0.4537486732006073
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003065,
+            "name": "Otelen",
+            "position_x": -1.5325090674010816e+17,
+            "position_y": 8.29441417126811e+16,
+            "position_z": -6.4383881783429816e+16,
+            "security_status": 0.7848193645477295
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003066,
+            "name": "Kuomi",
+            "position_x": -1.4820806555014256e+17,
+            "position_y": 6.718322818202729e+16,
+            "position_z": -5.435627420932785e+16,
+            "security_status": 0.5678633451461792
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003067,
+            "name": "Huola",
+            "position_x": -1.3965828300036011e+17,
+            "position_y": 4.700036988383117e+16,
+            "position_z": -3.5883792461355764e+16,
+            "security_status": 0.37024858593940735
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003068,
+            "name": "Kourmonen",
+            "position_x": -1.3714486663497122e+17,
+            "position_y": 4.2128767386892e+16,
+            "position_z": -3.285401132864559e+16,
+            "security_status": 0.3634801506996155
+        },
+        {
+            "eve_constellation_id": 20000448,
+            "eve_star_id": null,
+            "id": 30003069,
+            "name": "Kamela",
+            "position_x": -1.3677649551118062e+17,
+            "position_y": 5.259278946764716e+16,
+            "position_z": -4.372972514451311e+16,
+            "security_status": 0.4408656656742096
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003070,
+            "name": "Sosala",
+            "position_x": -1.4303241888979723e+17,
+            "position_y": 4.99884289062394e+16,
+            "position_z": -4.7606141152822456e+16,
+            "security_status": 0.4205274283885956
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003071,
+            "name": "Anka",
+            "position_x": -1.4945594553861578e+17,
+            "position_y": 4.889118078909181e+16,
+            "position_z": -4.773928503748523e+16,
+            "security_status": 0.4145998954772949
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003072,
+            "name": "Iesa",
+            "position_x": -1.5580797852672195e+17,
+            "position_y": 3.783196191817708e+16,
+            "position_z": -4.930095583798636e+16,
+            "security_status": 0.4138185381889343
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003073,
+            "name": "Netsalakka",
+            "position_x": -1.5892964277067094e+17,
+            "position_y": 4.171998121373172e+16,
+            "position_z": -5.66935901673956e+16,
+            "security_status": 0.48395606875419617
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003074,
+            "name": "Sasiekko",
+            "position_x": -1.6507372764022195e+17,
+            "position_y": 3.769687570439011e+16,
+            "position_z": -6.022515483286214e+16,
+            "security_status": 0.5426346659660339
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003075,
+            "name": "Myyhera",
+            "position_x": -1.6370731442883226e+17,
+            "position_y": 3.0774418132873748e+16,
+            "position_z": -5.594687205996486e+16,
+            "security_status": 0.4817073345184326
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003076,
+            "name": "Gammel",
+            "position_x": -1.5052149388579808e+17,
+            "position_y": 5.254915039866209e+16,
+            "position_z": -5.259696588565931e+16,
+            "security_status": 0.4655892848968506
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003077,
+            "name": "Uusanen",
+            "position_x": -1.5913300022794726e+17,
+            "position_y": 3.685103244518024e+16,
+            "position_z": -4.014091699517999e+16,
+            "security_status": 0.40233927965164185
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003078,
+            "name": "Erkinen",
+            "position_x": -1.6961462712528982e+17,
+            "position_y": 4.203854886170401e+16,
+            "position_z": -4.5610590347794024e+16,
+            "security_status": 0.5920044779777527
+        },
+        {
+            "eve_constellation_id": 20000449,
+            "eve_star_id": null,
+            "id": 30003079,
+            "name": "Saikamon",
+            "position_x": -1.6386344104614538e+17,
+            "position_y": 2.1677250098527304e+16,
+            "position_z": -4.913178924163765e+16,
+            "security_status": 0.41249215602874756
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003080,
+            "name": "Jarkkolen",
+            "position_x": -1.444423403858877e+17,
+            "position_y": 7.08830706921744e+16,
+            "position_z": -7.64870567094455e+16,
+            "security_status": 0.8206006288528442
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003081,
+            "name": "Ronne",
+            "position_x": -1.4475290155002432e+17,
+            "position_y": 6.549028746403505e+16,
+            "position_z": -6.8509157234435064e+16,
+            "security_status": 0.7241339087486267
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003082,
+            "name": "Hatori",
+            "position_x": -1.4225883364418472e+17,
+            "position_y": 5.534709836416846e+16,
+            "position_z": -6.6493253762934e+16,
+            "security_status": 0.572819709777832
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003083,
+            "name": "Junsen",
+            "position_x": -1.401913588038719e+17,
+            "position_y": 7.362180096994915e+16,
+            "position_z": -7.1245375155066216e+16,
+            "security_status": 0.8095908164978027
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003084,
+            "name": "Malpara",
+            "position_x": -1.468287484612412e+17,
+            "position_y": 4.8524601557769176e+16,
+            "position_z": -6.153678174129376e+16,
+            "security_status": 0.4744237959384918
+        },
+        {
+            "eve_constellation_id": 20000450,
+            "eve_star_id": null,
+            "id": 30003085,
+            "name": "Hakodan",
+            "position_x": -1.4226482210259659e+17,
+            "position_y": 6.955642435827596e+16,
+            "position_z": -6.4934341773262e+16,
+            "security_status": 0.7266675233840942
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003086,
+            "name": "Sahtogas",
+            "position_x": -1.607149096640146e+17,
+            "position_y": 1.148930001103365e+16,
+            "position_z": -4.100270693769536e+16,
+            "security_status": 0.2798665463924408
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003087,
+            "name": "Haras",
+            "position_x": -1.721385196144633e+17,
+            "position_y": 2287187465318103.0,
+            "position_z": -3.8217761062498104e+16,
+            "security_status": 0.2799620032310486
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003088,
+            "name": "Oyonata",
+            "position_x": -1.5748458506109238e+17,
+            "position_y": 1.3043419026976106e+16,
+            "position_z": -3.8164560155995736e+16,
+            "security_status": 0.2588910460472107
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003089,
+            "name": "Kurniainen",
+            "position_x": -1.591620744146072e+17,
+            "position_y": -5793958536537446.0,
+            "position_z": -2.3811668869817484e+16,
+            "security_status": 0.1143735870718956
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003090,
+            "name": "Saidusairos",
+            "position_x": -1.6352018613537558e+17,
+            "position_y": -9635779202162600.0,
+            "position_z": -2.156999352333355e+16,
+            "security_status": 0.10473328828811646
+        },
+        {
+            "eve_constellation_id": 20000451,
+            "eve_star_id": null,
+            "id": 30003091,
+            "name": "Tannakan",
+            "position_x": -1.5687561621303974e+17,
+            "position_y": 9729804376800062.0,
+            "position_z": -4.4153169487437416e+16,
+            "security_status": 0.2470819503068924
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003092,
+            "name": "Komaa",
+            "position_x": -1.6943226605681757e+17,
+            "position_y": 3.53785507501808e+16,
+            "position_z": -4.576509478459759e+16,
+            "security_status": 0.5567216277122498
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003093,
+            "name": "Ayeroilen",
+            "position_x": -1.683194721559271e+17,
+            "position_y": 2.3672590801157796e+16,
+            "position_z": -4.056666034718001e+16,
+            "security_status": 0.44656839966773987
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003094,
+            "name": "Imata",
+            "position_x": -1.7401303955317658e+17,
+            "position_y": 1.8810769897768732e+16,
+            "position_z": -4.264549780947515e+16,
+            "security_status": 0.48835480213165283
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003095,
+            "name": "Furskeshin",
+            "position_x": -1.7641992903965418e+17,
+            "position_y": 2.4710145008911656e+16,
+            "position_z": -4.837109315979182e+16,
+            "security_status": 0.6055033206939697
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003096,
+            "name": "Kurmaru",
+            "position_x": -1.7182475087274422e+17,
+            "position_y": 3.773360402228844e+16,
+            "position_z": -4.793937238468866e+16,
+            "security_status": 0.6191213726997375
+        },
+        {
+            "eve_constellation_id": 20000452,
+            "eve_star_id": null,
+            "id": 30003097,
+            "name": "Satalama",
+            "position_x": -1.8134934264535363e+17,
+            "position_y": 2.4712201242491228e+16,
+            "position_z": -4.5863621112197e+16,
+            "security_status": 0.6607545614242554
+        },
+        {
+            "eve_constellation_id": 20000728,
+            "eve_star_id": null,
+            "id": 30004976,
+            "name": "Charmerout",
+            "position_x": -2.0537575918263984e+17,
+            "position_y": 5.112624869804788e+16,
+            "position_z": 7.268423105816504e+16,
+            "security_status": 0.5549203753471375
+        },
+        {
+            "eve_constellation_id": 20000729,
+            "eve_star_id": null,
+            "id": 30004984,
+            "name": "Abune",
+            "position_x": -2.1126590104115347e+17,
+            "position_y": 5.580652849031512e+16,
+            "position_z": 8.141639674703722e+16,
+            "security_status": 0.28563404083251953
+        },
+        {
+            "eve_constellation_id": 20000782,
+            "eve_star_id": null,
+            "id": 30045349,
+            "name": "Rakapas",
+            "position_x": -2.2289033329957376e+17,
+            "position_y": 6.3435216421685656e+16,
+            "position_z": 1.270636628746025e+17,
+            "security_status": 0.22278037667274475
+        },
+        {
+            "eve_constellation_id": 21000324,
+            "eve_star_id": null,
+            "id": 31000005,
+            "name": "Thera",
+            "position_x": 7.201177e+18,
+            "position_y": 1.5343e+18,
+            "position_z": -9.501332482538404e+18,
+            "security_status": -0.9900000095367432
+        }
+    ],
+    "EveStargate": [
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003063,
+            "eve_type_id": 29626,
+            "id": 50000130,
+            "name": "Stargate (Tzvi)",
+            "position_x": -254607237120.0,
+            "position_y": -1729629020160.0,
+            "position_z": 1575181885440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003068,
+            "destination_eve_stargate_id": 50001856,
+            "eve_solar_system_id": 30003063,
+            "eve_type_id": 29624,
+            "id": 50000131,
+            "name": "Stargate (Kourmonen)",
+            "position_x": 325114306560.0,
+            "position_y": 15020728320.0,
+            "position_z": 113213153280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003069,
+            "destination_eve_stargate_id": 50001995,
+            "eve_solar_system_id": 30003063,
+            "eve_type_id": 29624,
+            "id": 50000132,
+            "name": "Stargate (Kamela)",
+            "position_x": 1983111045120.0,
+            "position_y": 91450122240.0,
+            "position_z": -797185597440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003066,
+            "destination_eve_stargate_id": 50001366,
+            "eve_solar_system_id": 30003064,
+            "eve_type_id": 29624,
+            "id": 50000919,
+            "name": "Stargate (Kuomi)",
+            "position_x": -44314583040.0,
+            "position_y": -2274631680.0,
+            "position_z": -149897502720.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003069,
+            "destination_eve_stargate_id": 50001996,
+            "eve_solar_system_id": 30003064,
+            "eve_type_id": 29624,
+            "id": 50000920,
+            "name": "Stargate (Kamela)",
+            "position_x": 2023783833600.0,
+            "position_y": 104145838080.0,
+            "position_z": 1805696655360.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003066,
+            "destination_eve_stargate_id": 50001367,
+            "eve_solar_system_id": 30003065,
+            "eve_type_id": 29624,
+            "id": 50000974,
+            "name": "Stargate (Kuomi)",
+            "position_x": 722775367680.0,
+            "position_y": -32808591360.0,
+            "position_z": 997631631360.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003067,
+            "destination_eve_stargate_id": 50001715,
+            "eve_solar_system_id": 30003065,
+            "eve_type_id": 29624,
+            "id": 50000975,
+            "name": "Stargate (Huola)",
+            "position_x": 722769960960.0,
+            "position_y": -32772218880.0,
+            "position_z": 997625487360.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003065,
+            "eve_type_id": 29626,
+            "id": 50000976,
+            "name": "Stargate (Mahrokht)",
+            "position_x": -3431536926720.0,
+            "position_y": 3272061050880.0,
+            "position_z": -2840619294720.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003064,
+            "destination_eve_stargate_id": 50000919,
+            "eve_solar_system_id": 30003066,
+            "eve_type_id": 29624,
+            "id": 50001366,
+            "name": "Stargate (Tuomuta)",
+            "position_x": -615844454400.0,
+            "position_y": 45586391040.0,
+            "position_z": 1036558049280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003065,
+            "destination_eve_stargate_id": 50000974,
+            "eve_solar_system_id": 30003066,
+            "eve_type_id": 29624,
+            "id": 50001367,
+            "name": "Stargate (Otelen)",
+            "position_x": -654326046720.0,
+            "position_y": 48534282240.0,
+            "position_z": -2771424092160.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003065,
+            "destination_eve_stargate_id": 50000975,
+            "eve_solar_system_id": 30003067,
+            "eve_type_id": 29624,
+            "id": 50001715,
+            "name": "Stargate (Otelen)",
+            "position_x": -1764827504640.0,
+            "position_y": -228636303360.0,
+            "position_z": -3296066150400.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003068,
+            "destination_eve_stargate_id": 50001857,
+            "eve_solar_system_id": 30003067,
+            "eve_type_id": 29624,
+            "id": 50001716,
+            "name": "Stargate (Kourmonen)",
+            "position_x": -184618721280.0,
+            "position_y": -23928053760.0,
+            "position_z": 297164513280.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003067,
+            "eve_type_id": 29626,
+            "id": 50001717,
+            "name": "Stargate (Roushzar)",
+            "position_x": -3360239984640.0,
+            "position_y": -496687964160.0,
+            "position_z": -2332240896000.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003063,
+            "destination_eve_stargate_id": 50000131,
+            "eve_solar_system_id": 30003068,
+            "eve_type_id": 29624,
+            "id": 50001856,
+            "name": "Stargate (Lamaa)",
+            "position_x": 2860801597440.0,
+            "position_y": -370413035520.0,
+            "position_z": -4112926433280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003067,
+            "destination_eve_stargate_id": 50001716,
+            "eve_solar_system_id": 30003068,
+            "eve_type_id": 29624,
+            "id": 50001857,
+            "name": "Stargate (Huola)",
+            "position_x": 2860720496640.0,
+            "position_y": -370135326720.0,
+            "position_z": -4112873840640.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003069,
+            "destination_eve_stargate_id": 50001998,
+            "eve_solar_system_id": 30003068,
+            "eve_type_id": 29624,
+            "id": 50001858,
+            "name": "Stargate (Kamela)",
+            "position_x": 2860796436480.0,
+            "position_y": -370151301120.0,
+            "position_z": -4112915128320.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003063,
+            "destination_eve_stargate_id": 50000132,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 29624,
+            "id": 50001995,
+            "name": "Stargate (Lamaa)",
+            "position_x": 1312125050880.0,
+            "position_y": -191845294080.0,
+            "position_z": -592128614400.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003064,
+            "destination_eve_stargate_id": 50000920,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 29624,
+            "id": 50001996,
+            "name": "Stargate (Tuomuta)",
+            "position_x": -941476454400.0,
+            "position_y": 137665536000.0,
+            "position_z": 169387499520.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 29626,
+            "id": 50001997,
+            "name": "Stargate (Ohide)",
+            "position_x": 897751326720.0,
+            "position_y": 576139960320.0,
+            "position_z": -1537458708480.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003068,
+            "destination_eve_stargate_id": 50001858,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 29624,
+            "id": 50001998,
+            "name": "Stargate (Kourmonen)",
+            "position_x": 37482946560.0,
+            "position_y": -5487452160.0,
+            "position_z": 283993497600.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003070,
+            "destination_eve_stargate_id": 50002522,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 17,
+            "id": 50001999,
+            "name": "Stargate (Sosala)",
+            "position_x": -1499536711680.0,
+            "position_y": -624261980160.0,
+            "position_z": -929171988480.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003069,
+            "destination_eve_stargate_id": 50001999,
+            "eve_solar_system_id": 30003070,
+            "eve_type_id": 17,
+            "id": 50002522,
+            "name": "Stargate (Kamela)",
+            "position_x": 1093783265280.0,
+            "position_y": 455345479680.0,
+            "position_z": 677751152640.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003071,
+            "destination_eve_stargate_id": 50004062,
+            "eve_solar_system_id": 30003070,
+            "eve_type_id": 29624,
+            "id": 50002523,
+            "name": "Stargate (Anka)",
+            "position_x": -1088180674560.0,
+            "position_y": 109035724800.0,
+            "position_z": 586322780160.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003074,
+            "destination_eve_stargate_id": 50004350,
+            "eve_solar_system_id": 30003070,
+            "eve_type_id": 29624,
+            "id": 50002524,
+            "name": "Stargate (Sasiekko)",
+            "position_x": -1088166174720.0,
+            "position_y": 109026877440.0,
+            "position_z": 586307297280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003076,
+            "destination_eve_stargate_id": 50004851,
+            "eve_solar_system_id": 30003070,
+            "eve_type_id": 29624,
+            "id": 50002525,
+            "name": "Stargate (Gammel)",
+            "position_x": -1088168140800.0,
+            "position_y": 109053665280.0,
+            "position_z": 586303119360.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003077,
+            "destination_eve_stargate_id": 50006364,
+            "eve_solar_system_id": 30003070,
+            "eve_type_id": 29624,
+            "id": 50002526,
+            "name": "Stargate (Uusanen)",
+            "position_x": -1088169615360.0,
+            "position_y": 109016801280.0,
+            "position_z": 586338754560.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003070,
+            "destination_eve_stargate_id": 50002523,
+            "eve_solar_system_id": 30003071,
+            "eve_type_id": 29624,
+            "id": 50004062,
+            "name": "Stargate (Sosala)",
+            "position_x": 2227541975040.0,
+            "position_y": 369093795840.0,
+            "position_z": -2804896112640.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003072,
+            "destination_eve_stargate_id": 50004247,
+            "eve_solar_system_id": 30003071,
+            "eve_type_id": 29624,
+            "id": 50004063,
+            "name": "Stargate (Iesa)",
+            "position_x": -3498008125440.0,
+            "position_y": -579623362560.0,
+            "position_z": -5493558681600.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003076,
+            "destination_eve_stargate_id": 50004852,
+            "eve_solar_system_id": 30003071,
+            "eve_type_id": 29624,
+            "id": 50004064,
+            "name": "Stargate (Gammel)",
+            "position_x": -3497999278080.0,
+            "position_y": -579589693440.0,
+            "position_z": -5493571706880.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003071,
+            "destination_eve_stargate_id": 50004063,
+            "eve_solar_system_id": 30003072,
+            "eve_type_id": 29624,
+            "id": 50004247,
+            "name": "Stargate (Anka)",
+            "position_x": 950566133760.0,
+            "position_y": 190029864960.0,
+            "position_z": 200364810240.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003073,
+            "destination_eve_stargate_id": 50004293,
+            "eve_solar_system_id": 30003072,
+            "eve_type_id": 29624,
+            "id": 50004248,
+            "name": "Stargate (Netsalakka)",
+            "position_x": -5748474224640.0,
+            "position_y": -1148145131520.0,
+            "position_z": -787502161920.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003077,
+            "destination_eve_stargate_id": 50006365,
+            "eve_solar_system_id": 30003072,
+            "eve_type_id": 29624,
+            "id": 50004249,
+            "name": "Stargate (Uusanen)",
+            "position_x": -1001025822720.0,
+            "position_y": -199947755520.0,
+            "position_z": 3071178055680.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003072,
+            "destination_eve_stargate_id": 50004248,
+            "eve_solar_system_id": 30003073,
+            "eve_type_id": 29624,
+            "id": 50004293,
+            "name": "Stargate (Iesa)",
+            "position_x": 2708665589760.0,
+            "position_y": -67196313600.0,
+            "position_z": 3161479864320.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003074,
+            "destination_eve_stargate_id": 50004351,
+            "eve_solar_system_id": 30003073,
+            "eve_type_id": 29624,
+            "id": 50004294,
+            "name": "Stargate (Sasiekko)",
+            "position_x": -1364562370560.0,
+            "position_y": 33828249600.0,
+            "position_z": -1938898083840.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003075,
+            "destination_eve_stargate_id": 50004581,
+            "eve_solar_system_id": 30003073,
+            "eve_type_id": 29624,
+            "id": 50004295,
+            "name": "Stargate (Myyhera)",
+            "position_x": -2283811676160.0,
+            "position_y": 56628387840.0,
+            "position_z": 2026599751680.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003070,
+            "destination_eve_stargate_id": 50002524,
+            "eve_solar_system_id": 30003074,
+            "eve_type_id": 29624,
+            "id": 50004350,
+            "name": "Stargate (Sosala)",
+            "position_x": 1414276915200.0,
+            "position_y": 142754242560.0,
+            "position_z": 718818385920.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003073,
+            "destination_eve_stargate_id": 50004294,
+            "eve_solar_system_id": 30003074,
+            "eve_type_id": 29624,
+            "id": 50004351,
+            "name": "Stargate (Netsalakka)",
+            "position_x": 1414275440640.0,
+            "position_y": 142755471360.0,
+            "position_z": 718817648640.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003075,
+            "destination_eve_stargate_id": 50004582,
+            "eve_solar_system_id": 30003074,
+            "eve_type_id": 29624,
+            "id": 50004352,
+            "name": "Stargate (Myyhera)",
+            "position_x": 1414259712000.0,
+            "position_y": 142713692160.0,
+            "position_z": 718822563840.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003074,
+            "eve_type_id": 29626,
+            "id": 50004353,
+            "name": "Stargate (Raravoss)",
+            "position_x": -532873666560.0,
+            "position_y": 1012994334720.0,
+            "position_z": -1326599086080.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003073,
+            "destination_eve_stargate_id": 50004295,
+            "eve_solar_system_id": 30003075,
+            "eve_type_id": 29624,
+            "id": 50004581,
+            "name": "Stargate (Netsalakka)",
+            "position_x": 905707560960.0,
+            "position_y": 95262351360.0,
+            "position_z": 2001692221440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003074,
+            "destination_eve_stargate_id": 50004352,
+            "eve_solar_system_id": 30003075,
+            "eve_type_id": 29624,
+            "id": 50004582,
+            "name": "Stargate (Sasiekko)",
+            "position_x": -2862144430080.0,
+            "position_y": -300717711360.0,
+            "position_z": -3674344611840.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003079,
+            "destination_eve_stargate_id": 50007518,
+            "eve_solar_system_id": 30003075,
+            "eve_type_id": 29624,
+            "id": 50004583,
+            "name": "Stargate (Saikamon)",
+            "position_x": 905664307200.0,
+            "position_y": 95095234560.0,
+            "position_z": 2001752186880.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003070,
+            "destination_eve_stargate_id": 50002525,
+            "eve_solar_system_id": 30003076,
+            "eve_type_id": 29624,
+            "id": 50004851,
+            "name": "Stargate (Sosala)",
+            "position_x": 415344844800.0,
+            "position_y": 72624168960.0,
+            "position_z": 3778350981120.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003071,
+            "destination_eve_stargate_id": 50004064,
+            "eve_solar_system_id": 30003076,
+            "eve_type_id": 29624,
+            "id": 50004852,
+            "name": "Stargate (Anka)",
+            "position_x": 415339683840.0,
+            "position_y": 72620974080.0,
+            "position_z": 3778353930240.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003081,
+            "destination_eve_stargate_id": 50006585,
+            "eve_solar_system_id": 30003076,
+            "eve_type_id": 17,
+            "id": 50004853,
+            "name": "Stargate (Ronne)",
+            "position_x": 1132267315200.0,
+            "position_y": 2540104458240.0,
+            "position_z": -3123267133440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003070,
+            "destination_eve_stargate_id": 50002526,
+            "eve_solar_system_id": 30003077,
+            "eve_type_id": 29624,
+            "id": 50006364,
+            "name": "Stargate (Sosala)",
+            "position_x": 1996891054080.0,
+            "position_y": 212691886080.0,
+            "position_z": 1411227279360.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003072,
+            "destination_eve_stargate_id": 50004249,
+            "eve_solar_system_id": 30003077,
+            "eve_type_id": 29624,
+            "id": 50006365,
+            "name": "Stargate (Iesa)",
+            "position_x": 518978396160.0,
+            "position_y": 55277936640.0,
+            "position_z": -1273359360000.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003078,
+            "destination_eve_stargate_id": 50006401,
+            "eve_solar_system_id": 30003077,
+            "eve_type_id": 29624,
+            "id": 50006366,
+            "name": "Stargate (Erkinen)",
+            "position_x": -103559946240.0,
+            "position_y": -11020001280.0,
+            "position_z": -261012234240.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003077,
+            "destination_eve_stargate_id": 50006366,
+            "eve_solar_system_id": 30003078,
+            "eve_type_id": 29624,
+            "id": 50006401,
+            "name": "Stargate (Uusanen)",
+            "position_x": 272847052800.0,
+            "position_y": 41042042880.0,
+            "position_z": 82646261760.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003092,
+            "destination_eve_stargate_id": 50009785,
+            "eve_solar_system_id": 30003078,
+            "eve_type_id": 17,
+            "id": 50006402,
+            "name": "Stargate (Komaa)",
+            "position_x": 87329218560.0,
+            "position_y": -3189343887360.0,
+            "position_z": -73989120000.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003080,
+            "eve_type_id": 29626,
+            "id": 50006477,
+            "name": "Stargate (Hati)",
+            "position_x": 274996715520.0,
+            "position_y": 5465188638720.0,
+            "position_z": -4025569075200.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003081,
+            "destination_eve_stargate_id": 50006586,
+            "eve_solar_system_id": 30003080,
+            "eve_type_id": 29624,
+            "id": 50006478,
+            "name": "Stargate (Ronne)",
+            "position_x": -605002260480.0,
+            "position_y": -5886320640.0,
+            "position_z": 1909729320960.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003083,
+            "destination_eve_stargate_id": 50006937,
+            "eve_solar_system_id": 30003080,
+            "eve_type_id": 29624,
+            "id": 50006479,
+            "name": "Stargate (Junsen)",
+            "position_x": -604993658880.0,
+            "position_y": -5874524160.0,
+            "position_z": 1909729812480.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003076,
+            "destination_eve_stargate_id": 50004853,
+            "eve_solar_system_id": 30003081,
+            "eve_type_id": 17,
+            "id": 50006585,
+            "name": "Stargate (Gammel)",
+            "position_x": -4024823439360.0,
+            "position_y": -9029203107840.0,
+            "position_z": 11102147174400.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003080,
+            "destination_eve_stargate_id": 50006478,
+            "eve_solar_system_id": 30003081,
+            "eve_type_id": 29624,
+            "id": 50006586,
+            "name": "Stargate (Jarkkolen)",
+            "position_x": 5535283568640.0,
+            "position_y": -259031408640.0,
+            "position_z": -12325779578880.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003082,
+            "destination_eve_stargate_id": 50006874,
+            "eve_solar_system_id": 30003081,
+            "eve_type_id": 29624,
+            "id": 50006587,
+            "name": "Stargate (Hatori)",
+            "position_x": 3028667473920.0,
+            "position_y": -141758423040.0,
+            "position_z": 7555225559040.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003085,
+            "destination_eve_stargate_id": 50007284,
+            "eve_solar_system_id": 30003081,
+            "eve_type_id": 29624,
+            "id": 50006588,
+            "name": "Stargate (Hakodan)",
+            "position_x": 3028672880640.0,
+            "position_y": -141719347200.0,
+            "position_z": 7555236618240.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003081,
+            "destination_eve_stargate_id": 50006587,
+            "eve_solar_system_id": 30003082,
+            "eve_type_id": 29624,
+            "id": 50006874,
+            "name": "Stargate (Ronne)",
+            "position_x": -1701113733120.0,
+            "position_y": 146845655040.0,
+            "position_z": 829032898560.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003084,
+            "destination_eve_stargate_id": 50007087,
+            "eve_solar_system_id": 30003082,
+            "eve_type_id": 29624,
+            "id": 50006875,
+            "name": "Stargate (Malpara)",
+            "position_x": -1701133639680.0,
+            "position_y": 146725232640.0,
+            "position_z": 829085245440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003085,
+            "destination_eve_stargate_id": 50007285,
+            "eve_solar_system_id": 30003082,
+            "eve_type_id": 29624,
+            "id": 50006876,
+            "name": "Stargate (Hakodan)",
+            "position_x": -1701097512960.0,
+            "position_y": 146839756800.0,
+            "position_z": 829052559360.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003080,
+            "destination_eve_stargate_id": 50006479,
+            "eve_solar_system_id": 30003083,
+            "eve_type_id": 29624,
+            "id": 50006937,
+            "name": "Stargate (Jarkkolen)",
+            "position_x": -330405027840.0,
+            "position_y": -63389736960.0,
+            "position_z": -272266567680.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003082,
+            "destination_eve_stargate_id": 50006875,
+            "eve_solar_system_id": 30003084,
+            "eve_type_id": 29624,
+            "id": 50007087,
+            "name": "Stargate (Hatori)",
+            "position_x": 1267956817920.0,
+            "position_y": 25170616320.0,
+            "position_z": 864734945280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003081,
+            "destination_eve_stargate_id": 50006588,
+            "eve_solar_system_id": 30003085,
+            "eve_type_id": 29624,
+            "id": 50007284,
+            "name": "Stargate (Ronne)",
+            "position_x": -2740550246400.0,
+            "position_y": 81087406080.0,
+            "position_z": 828931153920.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003082,
+            "destination_eve_stargate_id": 50006876,
+            "eve_solar_system_id": 30003085,
+            "eve_type_id": 29624,
+            "id": 50007285,
+            "name": "Stargate (Hatori)",
+            "position_x": 1596562268160.0,
+            "position_y": -47291719680.0,
+            "position_z": -957970391040.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003075,
+            "destination_eve_stargate_id": 50004583,
+            "eve_solar_system_id": 30003079,
+            "eve_type_id": 29624,
+            "id": 50007518,
+            "name": "Stargate (Myyhera)",
+            "position_x": -1130913423360.0,
+            "position_y": 146065367040.0,
+            "position_z": -3898759864320.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003086,
+            "destination_eve_stargate_id": 50007967,
+            "eve_solar_system_id": 30003079,
+            "eve_type_id": 17,
+            "id": 50007519,
+            "name": "Stargate (Sahtogas)",
+            "position_x": 1049218375680.0,
+            "position_y": -3395038126080.0,
+            "position_z": 2708939857920.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003079,
+            "destination_eve_stargate_id": 50007519,
+            "eve_solar_system_id": 30003086,
+            "eve_type_id": 17,
+            "id": 50007967,
+            "name": "Stargate (Saikamon)",
+            "position_x": -841253560320.0,
+            "position_y": 2722110136320.0,
+            "position_z": -2172002918400.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003087,
+            "destination_eve_stargate_id": 50008070,
+            "eve_solar_system_id": 30003086,
+            "eve_type_id": 29624,
+            "id": 50007968,
+            "name": "Stargate (Haras)",
+            "position_x": -197791948800.0,
+            "position_y": 38921625600.0,
+            "position_z": 221568737280.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003088,
+            "destination_eve_stargate_id": 50008208,
+            "eve_solar_system_id": 30003086,
+            "eve_type_id": 29624,
+            "id": 50007969,
+            "name": "Stargate (Oyonata)",
+            "position_x": 266239303680.0,
+            "position_y": -52310384640.0,
+            "position_z": 669009223680.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003091,
+            "destination_eve_stargate_id": 50011682,
+            "eve_solar_system_id": 30003086,
+            "eve_type_id": 29624,
+            "id": 50007970,
+            "name": "Stargate (Tannakan)",
+            "position_x": -729774366720.0,
+            "position_y": 143603589120.0,
+            "position_z": -3170941132800.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003086,
+            "destination_eve_stargate_id": 50007968,
+            "eve_solar_system_id": 30003087,
+            "eve_type_id": 29624,
+            "id": 50008070,
+            "name": "Stargate (Sahtogas)",
+            "position_x": 7508238458880.0,
+            "position_y": 437424414720.0,
+            "position_z": 2409405358080.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003086,
+            "destination_eve_stargate_id": 50007969,
+            "eve_solar_system_id": 30003088,
+            "eve_type_id": 29624,
+            "id": 50008208,
+            "name": "Stargate (Sahtogas)",
+            "position_x": -2215965204480.0,
+            "position_y": 349634027520.0,
+            "position_z": -1464965898240.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003089,
+            "destination_eve_stargate_id": 50008762,
+            "eve_solar_system_id": 30003088,
+            "eve_type_id": 29624,
+            "id": 50008209,
+            "name": "Stargate (Kurniainen)",
+            "position_x": 101147320320.0,
+            "position_y": -15966658560.0,
+            "position_z": 104752619520.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003088,
+            "destination_eve_stargate_id": 50008209,
+            "eve_solar_system_id": 30003089,
+            "eve_type_id": 29624,
+            "id": 50008762,
+            "name": "Stargate (Oyonata)",
+            "position_x": -1629593395200.0,
+            "position_y": -244063150080.0,
+            "position_z": -3342844846080.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003090,
+            "destination_eve_stargate_id": 50010071,
+            "eve_solar_system_id": 30003089,
+            "eve_type_id": 29624,
+            "id": 50008763,
+            "name": "Stargate (Saidusairos)",
+            "position_x": -1673779077120.0,
+            "position_y": -250758144000.0,
+            "position_z": -631051591680.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003078,
+            "destination_eve_stargate_id": 50006402,
+            "eve_solar_system_id": 30003092,
+            "eve_type_id": 17,
+            "id": 50009785,
+            "name": "Stargate (Erkinen)",
+            "position_x": -111831736320.0,
+            "position_y": 4084200775680.0,
+            "position_z": 94748958720.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003093,
+            "destination_eve_stargate_id": 50010731,
+            "eve_solar_system_id": 30003092,
+            "eve_type_id": 29624,
+            "id": 50009786,
+            "name": "Stargate (Ayeroilen)",
+            "position_x": -823692288000.0,
+            "position_y": 93543014400.0,
+            "position_z": 831476244480.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003096,
+            "destination_eve_stargate_id": 50012502,
+            "eve_solar_system_id": 30003092,
+            "eve_type_id": 29624,
+            "id": 50009787,
+            "name": "Stargate (Kurmaru)",
+            "position_x": -1545370460160.0,
+            "position_y": 175736463360.0,
+            "position_z": -3374174330880.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003089,
+            "destination_eve_stargate_id": 50008763,
+            "eve_solar_system_id": 30003090,
+            "eve_type_id": 29624,
+            "id": 50010071,
+            "name": "Stargate (Kurniainen)",
+            "position_x": 710029516800.0,
+            "position_y": -116143841280.0,
+            "position_z": -901285847040.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003092,
+            "destination_eve_stargate_id": 50009786,
+            "eve_solar_system_id": 30003093,
+            "eve_type_id": 29624,
+            "id": 50010731,
+            "name": "Stargate (Komaa)",
+            "position_x": -223564800000.0,
+            "position_y": -19587440640.0,
+            "position_z": -5621997772800.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003094,
+            "destination_eve_stargate_id": 50011608,
+            "eve_solar_system_id": 30003093,
+            "eve_type_id": 29624,
+            "id": 50010732,
+            "name": "Stargate (Imata)",
+            "position_x": -2725295677440.0,
+            "position_y": -238923079680.0,
+            "position_z": 456384552960.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003093,
+            "destination_eve_stargate_id": 50010732,
+            "eve_solar_system_id": 30003094,
+            "eve_type_id": 29624,
+            "id": 50011608,
+            "name": "Stargate (Ayeroilen)",
+            "position_x": 2306749931520.0,
+            "position_y": -320793354240.0,
+            "position_z": -1490394685440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003095,
+            "destination_eve_stargate_id": 50012221,
+            "eve_solar_system_id": 30003094,
+            "eve_type_id": 29624,
+            "id": 50011609,
+            "name": "Stargate (Furskeshin)",
+            "position_x": -1329915125760.0,
+            "position_y": 184979742720.0,
+            "position_z": -1258136494080.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003086,
+            "destination_eve_stargate_id": 50007970,
+            "eve_solar_system_id": 30003091,
+            "eve_type_id": 29624,
+            "id": 50011682,
+            "name": "Stargate (Sahtogas)",
+            "position_x": -3245627842560.0,
+            "position_y": 543022817280.0,
+            "position_z": 2219065958400.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003094,
+            "destination_eve_stargate_id": 50011609,
+            "eve_solar_system_id": 30003095,
+            "eve_type_id": 29624,
+            "id": 50012221,
+            "name": "Stargate (Imata)",
+            "position_x": 1719291863040.0,
+            "position_y": 96462151680.0,
+            "position_z": 4443327406080.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003097,
+            "destination_eve_stargate_id": 50012855,
+            "eve_solar_system_id": 30003095,
+            "eve_type_id": 29624,
+            "id": 50012222,
+            "name": "Stargate (Satalama)",
+            "position_x": -2461442088960.0,
+            "position_y": -138145505280.0,
+            "position_z": 1529313484800.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003092,
+            "destination_eve_stargate_id": 50009787,
+            "eve_solar_system_id": 30003096,
+            "eve_type_id": 29624,
+            "id": 50012502,
+            "name": "Stargate (Komaa)",
+            "position_x": 177755627520.0,
+            "position_y": 10382991360.0,
+            "position_z": 208418856960.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003095,
+            "destination_eve_stargate_id": 50012222,
+            "eve_solar_system_id": 30003097,
+            "eve_type_id": 29624,
+            "id": 50012855,
+            "name": "Stargate (Furskeshin)",
+            "position_x": 4349657948160.0,
+            "position_y": -547801128960.0,
+            "position_z": 2368174202880.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003069,
+            "eve_type_id": 29626,
+            "id": 50013618,
+            "name": "Stargate (Choonka)",
+            "position_x": 828975882240.0,
+            "position_y": 552598364160.0,
+            "position_z": -1584016465920.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003088,
+            "eve_type_id": 29626,
+            "id": 50013660,
+            "name": "Stargate (Sosan)",
+            "position_x": 392805703680.0,
+            "position_y": 2862036049920.0,
+            "position_z": 583791452160.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003090,
+            "eve_type_id": 29625,
+            "id": 50013661,
+            "name": "Stargate (Gratesier)",
+            "position_x": -806621306880.0,
+            "position_y": 4026709155840.0,
+            "position_z": 676611563520.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003068,
+            "eve_type_id": 29625,
+            "id": 50014062,
+            "name": "Stargate (Auga)",
+            "position_x": 1237946572800.0,
+            "position_y": 82547220480.0,
+            "position_z": 5384843796480.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003091,
+            "destination_eve_stargate_id": 50016393,
+            "eve_solar_system_id": 30003071,
+            "eve_type_id": 17,
+            "id": 50016392,
+            "name": "Stargate (Tannakan)",
+            "position_x": -1333472010240.0,
+            "position_y": -7038129070080.0,
+            "position_z": 644501053440.0
+        },
+        {
+            "destination_eve_solar_system_id": 30003071,
+            "destination_eve_stargate_id": 50016392,
+            "eve_solar_system_id": 30003091,
+            "eve_type_id": 17,
+            "id": 50016393,
+            "name": "Stargate (Anka)",
+            "position_x": 809456885760.0,
+            "position_y": 4272352174080.0,
+            "position_z": -391231119360.0
+        },
+        {
+            "destination_eve_solar_system_id": null,
+            "destination_eve_stargate_id": null,
+            "eve_solar_system_id": 30003089,
+            "eve_type_id": 29626,
+            "id": 50016485,
+            "name": "Stargate (Isbrabata)",
+            "position_x": -2064443782500.0,
+            "position_y": 18654573890.0,
+            "position_z": 1864000435360.0
+        }
+    ],
+    "EveType": [
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 10,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 17,
+            "mass": 100000000000.0,
+            "name": "Stargate (Amarr Constellation)",
+            "packaged_volume": 100000000.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 2323.0,
+            "volume": 100000000.0
+        },
+        {
+            "capacity": 150.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 25,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 603,
+            "mass": 997000.0,
+            "name": "Merlin",
+            "packaged_volume": 2500.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 39.0,
+            "volume": 16500.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 100,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 2488,
+            "mass": 4000.0,
+            "name": "Warrior II",
+            "packaged_volume": 5.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 15.0,
+            "volume": 5.0
+        },
+        {
+            "capacity": 0.05,
+            "eve_graphic_id": null,
+            "eve_group_id": 55,
+            "eve_market_group_id": null,
+            "icon_id": 389,
+            "id": 2977,
+            "mass": 500.0,
+            "name": "280mm Howitzer Artillery II",
+            "packaged_volume": 5.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 20.0,
+            "volume": 5.0
+        },
+        {
+            "capacity": 900.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 419,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 3756,
+            "mass": 10000000.0,
+            "name": "Gnosis",
+            "packaged_volume": 15000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 351.0,
+            "volume": 101000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 10,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 29624,
+            "mass": 100000000000.0,
+            "name": "Stargate (Amarr System)",
+            "packaged_volume": 10000000.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 2473.0,
+            "volume": 10000000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 10,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 29625,
+            "mass": 100000000000.0,
+            "name": "Stargate (Amarr Border)",
+            "packaged_volume": 1000000000.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 13054.0,
+            "volume": 1000000000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 10,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 29626,
+            "mass": 100000000000.0,
+            "name": "Stargate (Amarr Region)",
+            "packaged_volume": 10000000000.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 7063.0,
+            "volume": 10000000000.0
+        },
+        {
+            "capacity": 430.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 1305,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 34562,
+            "mass": 1400000.0,
+            "name": "Svipul",
+            "packaged_volume": 5000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 144.0,
+            "volume": 47000.0
+        }
+    ]
+}

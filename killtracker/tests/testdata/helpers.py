@@ -1,15 +1,12 @@
 from datetime import datetime
-
-import inspect
 import json
-import os
 
 from allianceauth.eveonline.models import EveAllianceInfo
-from eveuniverse.models import EveRegion, EveSolarSystem, EveGroup, EveType
+from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
-from ...models import EveEntity, Killmail
-
-_currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+from ...models import Killmail
+from .load_eveuniverse import load_eveuniverse
+from . import _currentdir
 
 
 def _load_json_from_file(filename: str):
@@ -19,31 +16,22 @@ def _load_json_from_file(filename: str):
     return data
 
 
-def load_evesde():
-    data = _load_json_from_file("evesde")
-    sde_models = [EveGroup, EveType, EveRegion, EveSolarSystem]
-    for SdeModel in sde_models:
-        SdeModel.objects.all().delete()
-    for SdeModel in sde_models:
-        for item in data[SdeModel.__name__]:
-            obj = SdeModel.objects.create(**item)
-            if SdeModel == EveType:
-                EveEntity.objects.create(
-                    id=obj.id,
-                    name=obj.name,
-                    category=EveEntity.CATEGORY_INVENTORY_TYPE,
-                )
-            elif SdeModel == EveSolarSystem:
-                EveEntity.objects.create(
-                    id=obj.id, name=obj.name, category=EveEntity.CATEGORY_SOLAR_SYSTEM,
-                )
-
-
 def load_eveentities():
     for item in _load_json_from_file("eveentities"):
         EveEntity.objects.update_or_create(
             id=item["id"], defaults={"name": item["name"], "category": item["category"]}
         )
+
+    for MyModel in EveUniverseEntityModel.all_models():
+        if MyModel.eve_entity_category():
+            for obj in MyModel.objects.all():
+                EveEntity.objects.update_or_create(
+                    id=obj.id,
+                    defaults={
+                        "name": obj.name,
+                        "category": MyModel.eve_entity_category(),
+                    },
+                )
 
 
 def load_evealliances():
@@ -78,7 +66,7 @@ def load_killmails(killmail_ids: set = None):
 
 def load_all():
     EveEntity.objects.all().delete()
-    load_evesde()
+    load_eveuniverse()
     load_eveentities()
     load_evealliances()
     load_killmails()

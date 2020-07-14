@@ -23,10 +23,20 @@
         "id": 2001,
         "name": "Wayne Technologies",
         "category": "corporation"
-    },    
+    },
     {
         "id": 2011,
         "name": "LexCorp",
         "category": "corporation"
+    },
+    {
+        "id": 3001,
+        "name": "Wayne Enterprise",
+        "category": "alliance"
+    },
+    {
+        "id": 3011,
+        "name": "LexGlobal",
+        "category": "alliance"
     }
 ]
