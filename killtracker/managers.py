@@ -5,6 +5,7 @@ import requests
 from django.db import models, transaction
 from django.utils.dateparse import parse_datetime
 
+from eveuniverse.models import EveEntity
 
 logger = logging.getLogger("allianceauth")
 
@@ -19,11 +20,29 @@ CHARACTER_PROPS = (
     ("ship_type_id", "ship_type"),
 )
 
-MIN_FETCHED_KILLMAILS_PER_RUN = 10
-MAX_FETCHED_KILLMAILS_PER_RUN = 100
+MAX_FETCHED_KILLMAILS_PER_RUN = 10
+
+
+class KillmailQuerySet(models.QuerySet):
+    """Custom queryset for Killmail"""
+
+    def load_entities(self) -> int:
+        """loads unknown entities for all killmails of this QuerySet. 
+        Returns count of updated entities
+        """
+        entity_ids = []
+        for killmail in self:
+            entity_ids += killmail.entity_ids()
+
+        return EveEntity.objects.filter(
+            id__in=list(set(entity_ids)), name=""
+        ).update_from_esi()
 
 
 class KillmailManager(models.Manager):
+    def get_queryset(self):
+        return KillmailQuerySet(self.model, using=self._db)
+
     def fetch_from_zkb(self, max_killmails: int = MAX_FETCHED_KILLMAILS_PER_RUN) -> int:
         killmail_counter = 0
         max_killmails = max(1, int(max_killmails))
@@ -140,7 +159,6 @@ class KillmailManager(models.Manager):
                         KillmailAttacker.objects.create(**args)
 
         killmail.refresh_from_db()
-        killmail.update_from_esi()
         return killmail
 
 

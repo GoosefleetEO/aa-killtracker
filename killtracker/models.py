@@ -41,7 +41,7 @@ class Killmail(models.Model):
     ZKB_KILLMAIL_BASEURL = "https://zkillboard.com/kill/"
 
     id = models.BigIntegerField(primary_key=True)
-    time = models.DateTimeField(default=None, null=True, blank=True)
+    time = models.DateTimeField(default=None, null=True, blank=True, db_index=True)
     solar_system = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
     )
@@ -55,6 +55,10 @@ class Killmail(models.Model):
         return f"Killmail(id={self.id})"
 
     def update_from_esi(self):
+        qs = EveEntity.objects.filter(id__in=self.entity_ids(), name="")
+        qs.update_from_esi()
+
+    def entity_ids(self) -> list:
         ids = [
             self.victim.character_id,
             self.victim.corporation_id,
@@ -70,9 +74,7 @@ class Killmail(models.Model):
                 attacker.ship_type_id,
                 attacker.weapon_type_id,
             ]
-        ids = [x for x in ids if x is not None]
-        qs = EveEntity.objects.filter(id__in=ids, name="")
-        qs.update_from_esi()
+        return [x for x in ids if x is not None]
 
 
 class KillmailCharacter(models.Model):
@@ -388,10 +390,15 @@ class Tracker(models.Model):
     def __str__(self):
         return self.name
 
-    def calculate_killmails(self, force=False):
-        """adds all calculated information to killmails for this filter """
+    def calculate_killmails(self, force: bool = False) -> None:
+        """marks all killmails that comply with all criteria of this tracker
+        and also adds additional information to killmails, like distance from origin
+        
+        Params:
+        - force: run again for already processed killmails
+        """
         logger.info("Running tracker: %s", self.name)
-        # fetch all non processed killmails and add calculated values
+
         processed_counter = 0
         if force:
             processed_ids = list()
@@ -399,25 +406,46 @@ class Tracker(models.Model):
             processed_ids = TrackerKillmail.objects.filter(
                 is_matching__isnull=False
             ).values_list("killmail_id", flat=True)
-        for killmail in Killmail.objects.exclude(id__in=processed_ids):
-            dest_solar_system, _ = killmail.solar_system.get_or_create_pendant_object()
-            if self.origin_solar_system:
-                distance = meters_to_ly(
-                    self.origin_solar_system.distance_to(dest_solar_system)
-                )
-                jumps = self.origin_solar_system.jumps_to(dest_solar_system)
+
+        killmails_qs = Killmail.objects.exclude(id__in=processed_ids)
+        killmails_qs.load_entities()
+
+        for killmail in killmails_qs:
+            if killmail.solar_system:
+                (
+                    dest_solar_system,
+                    _,
+                ) = killmail.solar_system.get_or_create_pendant_object()
+                if self.origin_solar_system:
+                    distance = meters_to_ly(
+                        self.origin_solar_system.distance_to(dest_solar_system)
+                    )
+                    jumps = self.origin_solar_system.jumps_to(dest_solar_system)
+                else:
+                    distance = None
+                    jumps = None
+
+                is_high_sec = dest_solar_system.is_high_sec
+                is_low_sec = dest_solar_system.is_low_sec
+                is_null_sec = dest_solar_system.is_null_sec
+                is_w_space = dest_solar_system.is_w_space
+
             else:
                 distance = None
                 jumps = None
+                is_high_sec = None
+                is_low_sec = None
+                is_null_sec = None
+                is_w_space = None
 
             TrackerKillmail.objects.update_or_create(
                 killmail=killmail,
                 tracker=self,
                 defaults={
-                    "is_high_sec": dest_solar_system.is_high_sec,
-                    "is_low_sec": dest_solar_system.is_low_sec,
-                    "is_null_sec": dest_solar_system.is_null_sec,
-                    "is_w_space": dest_solar_system.is_w_space,
+                    "is_high_sec": is_high_sec,
+                    "is_low_sec": is_low_sec,
+                    "is_null_sec": is_null_sec,
+                    "is_w_space": is_w_space,
                     "distance": distance,
                     "jumps": jumps,
                     "attackers_count": killmail.attackers.count(),
@@ -430,62 +458,40 @@ class Tracker(models.Model):
             is_matching__isnull=True
         ).prefetch_related()
 
-        logger.debug("start: %s", matching.all().killmail_ids())
-
         if self.max_age:
             threshold_date = now() - timedelta(hours=self.max_age)
             matching = matching.exclude(killmail__time__lt=threshold_date)
 
-        logger.debug("max_age: %s", matching.all().killmail_ids())
-
         if self.exclude_high_sec:
             matching = matching.exclude(is_high_sec=True)
-
-        logger.debug("exclude_high_sec: %s", matching.all().killmail_ids())
 
         if self.exclude_low_sec:
             matching = matching.exclude(is_low_sec=True)
 
-        logger.debug("exclude_low_sec: %s", matching.all().killmail_ids())
-
         if self.exclude_null_sec:
             matching = matching.exclude(is_null_sec=True)
-
-        logger.debug("exclude_null_sec: %s", matching.all().killmail_ids())
 
         if self.exclude_w_space:
             matching = matching.exclude(is_w_space=True)
 
-        logger.debug("exclude_w_space: %s", matching.all().killmail_ids())
-
         if self.min_attackers:
             matching = matching.exclude(attackers_count__lt=self.min_attackers)
-
-        logger.debug("min_attackers: %s", matching.all().killmail_ids())
 
         if self.max_attackers:
             matching = matching.exclude(attackers_count__gt=self.max_attackers)
 
-        logger.debug("max_attackers: %s", matching.all().killmail_ids())
-
         if self.min_value:
             matching = matching.exclude(killmail__zkb__total_value__lt=self.min_value)
-
-        logger.debug("min_value: %s", matching.all().killmail_ids())
 
         if self.max_distance:
             matching = matching.exclude(distance__isnull=True).exclude(
                 distance__gt=self.max_distance
             )
 
-        logger.debug("max_distance: %s", matching.all().killmail_ids())
-
         if self.max_jumps:
             matching = matching.exclude(jumps__isnull=True).exclude(
                 jumps__gt=self.max_jumps
             )
-
-        logger.debug("max_jumps: %s", matching.all().killmail_ids())
 
         if self.exclude_attacker_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.exclude_attacker_alliances)
@@ -493,24 +499,17 @@ class Tracker(models.Model):
                 killmail__attackers__alliance__id__in=alliance_ids
             )
 
-        logger.debug("exclude_attacker_alliances: %s", matching.all().killmail_ids())
-
         if self.required_attacker_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.required_attacker_alliances)
             matching = matching.filter(
                 killmail__attackers__alliance__id__in=alliance_ids
             )
 
-        logger.debug("required_attacker_alliances: %s", matching.all().killmail_ids())
-
         if self.require_victim_alliances.count() > 0:
             alliance_ids = self._extract_alliance_ids(self.require_victim_alliances)
             matching = matching.filter(killmail__victim__alliance__id__in=alliance_ids)
 
-        logger.debug("require_victim_alliances: %s", matching.all().killmail_ids())
-        matching_killmail_ids = set(matching.all().killmail_ids())
-
-        # store which killmails match with the tracker
+        # store which killmails match with this tracker
         for killmail in TrackerKillmail.objects.filter(is_matching__isnull=True):
             if killmail in matching:
                 killmail.is_matching = True
@@ -518,28 +517,34 @@ class Tracker(models.Model):
                 killmail.is_matching = False
             killmail.save()
 
-        logger.debug("Result: matching: %s", matching_killmail_ids)
-        return matching_killmail_ids
+        logger.debug(
+            "Result: matching killmail IDs: %s",
+            sorted(set(matching.all().killmail_ids())),
+        )
 
     @staticmethod
-    def _extract_alliance_ids(alliances) -> list:
+    def _extract_alliance_ids(alliances: list) -> list:
         return [
             int(alliance_id)
             for alliance_id in alliances.values_list("alliance_id", flat=True)
         ]
 
     def send_matching_to_webhook(self, resend=False) -> int:
-        matching_killmails = (
+        matching_killmails_qs = (
             TrackerKillmail.objects.filter(tracker=self, is_matching=True)
             .prefetch_related()
             .order_by("killmail__time")
         )
-
         if not resend:
-            matching_killmails = matching_killmails.filter(date_sent__isnull=True)
+            matching_killmails_qs = matching_killmails_qs.filter(date_sent__isnull=True)
 
+        logger.info(
+            "Tracker %s: Found %d killmails to sent to webhook",
+            self,
+            matching_killmails_qs.count(),
+        )
         killmail_counter = 0
-        for matching in matching_killmails:
+        for matching in matching_killmails_qs:
             logger.debug("Sending killmail with ID %d to webhook", matching.killmail.id)
             sleep(DISCORD_SEND_DELAY)
             try:
@@ -556,23 +561,30 @@ class TrackerKillmail(models.Model):
 
     tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE)
     killmail = models.ForeignKey(Killmail, on_delete=models.CASCADE)
-    is_matching = models.BooleanField(default=None, null=True)
-    date_sent = models.DateTimeField(default=None, null=True)
+    is_matching = models.BooleanField(default=None, db_index=True, null=True)
+    date_sent = models.DateTimeField(default=None, db_index=True, null=True)
     attackers_count = models.PositiveIntegerField(
-        default=None, null=True, help_text="Calculated number of attackers"
+        default=None,
+        null=True,
+        db_index=True,
+        help_text="Calculated number of attackers",
     )
     jumps = models.PositiveIntegerField(
-        default=None, null=True, help_text="Calculated number of jumps from origin"
+        default=None,
+        null=True,
+        db_index=True,
+        help_text="Calculated number of jumps from origin",
     )
     distance = models.FloatField(
         default=None,
         null=True,
+        db_index=True,
         help_text="Calculated distance from origin in lightyears",
     )
-    is_high_sec = models.BooleanField(default=None, null=True)
-    is_low_sec = models.BooleanField(default=None, null=True)
-    is_null_sec = models.BooleanField(default=None, null=True)
-    is_w_space = models.BooleanField(default=None, null=True)
+    is_high_sec = models.BooleanField(default=None, null=True, db_index=True)
+    is_low_sec = models.BooleanField(default=None, null=True, db_index=True)
+    is_null_sec = models.BooleanField(default=None, null=True, db_index=True)
+    is_w_space = models.BooleanField(default=None, null=True, db_index=True)
 
     objects = TrackerKillmailManager()
 
@@ -647,7 +659,11 @@ class TrackerKillmail(models.Model):
             footer=dhooks_lite.Footer(text=footer_text),
             timestamp=killmail.time,
         )
-        logger.info("Sending self to Discord")
+        logger.info(
+            "Tracker %s: Sending alert to Discord for killmail %s",
+            self.tracker,
+            self.killmail,
+        )
         hook = dhooks_lite.Webhook(url=webhook_url, username="killtracker")
         response = hook.execute(embeds=[embed], wait_for_response=True)
         logger.debug("headers: %s", response.headers)

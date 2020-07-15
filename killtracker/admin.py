@@ -5,7 +5,7 @@ from django.db.models.functions import Lower
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveSolarSystem, EveGroup
 
-from .models import EveEntity, Killmail, Webhook, Tracker
+from .models import Killmail, Webhook, Tracker
 from . import tasks
 
 EVE_CATEGORY_ID_SHIPS = 6
@@ -18,12 +18,6 @@ class EveSolarSystemAdmin(admin.ModelAdmin):
 
     def has_module_permission(self, request):
         return False
-
-
-@admin.register(EveEntity)
-class EveEntityAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category", "last_updated")
-    list_filter = ("category",)
 
 
 @admin.register(Killmail)
