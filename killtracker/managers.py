@@ -43,26 +43,24 @@ class KillmailManager(models.Manager):
     def get_queryset(self):
         return KillmailQuerySet(self.model, using=self._db)
 
-    def fetch_from_zkb(self, max_killmails: int = MAX_FETCHED_KILLMAILS_PER_RUN) -> int:
-        killmail_counter = 0
-        max_killmails = max(1, int(max_killmails))
-        for _ in range(max_killmails):
-            logger.info("Trying to fetch killmail from ZKB...")
-            r = requests.get(ZKB_REDISQ_URL, timeout=ZKB_REDISQ_TIMEOUT)
-            r.raise_for_status()
-            data = r.json()
-            if data:
-                logger.debug("data:\n%s", data)
-            if data and "package" in data and data["package"]:
-                logger.info("Received a killmail from ZKB")
-                killmail_counter += 1
-                package_data = data["package"]
-                self.create_from_dict(package_data)
-            else:
-                break
-
-        logger.info("Retrieved %s killmail from ZKB", killmail_counter)
-        return killmail_counter
+    def fetch_from_zkb(self) -> object:
+        """Fetches and returns a killmail from ZKB. 
+        
+        Returns None if no killmail is received.
+        """
+        logger.info("Trying to fetch killmail from ZKB...")
+        r = requests.get(ZKB_REDISQ_URL, timeout=ZKB_REDISQ_TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            logger.debug("data:\n%s", data)
+        if data and "package" in data and data["package"]:
+            logger.info("Received a killmail from ZKB")
+            package_data = data["package"]
+            return self.create_from_dict(package_data)
+        else:
+            logger.info("ZKB killmail queue is empty")
+            return None
 
     def create_from_dict(self, package_data: dict) -> object:
         from .models import (

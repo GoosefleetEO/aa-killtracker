@@ -17,7 +17,7 @@ def send_alerts_to_webhook(webhook_pk: int) -> None:
     except Webhook.DoesNotExist:
         logger.warning("Webhook with pk = %s does not exist", webhook_pk)
     else:
-        for tracker in Tracker.objects.filter(webhook=webhook):
+        for tracker in Tracker.objects.filter(is_activated=True, webhook=webhook):
             tracker.send_matching_to_webhook()
 
 
@@ -36,13 +36,13 @@ def run_tracker(tracker_pk: int) -> None:
 def run_killtracker() -> None:
     logger.info("Killtracker started...")
     total_killmails = 0
-    for _ in range(5):
-        killmails_fetched = Killmail.objects.fetch_from_zkb(max_killmails=10)
-        total_killmails += killmails_fetched
-        for tracker in Tracker.objects.filter(is_activated=True):
-            run_tracker.delay(tracker_pk=tracker.pk)
-
-        if killmails_fetched == 0:
+    for _ in range(50):
+        killmail = Killmail.objects.fetch_from_zkb()
+        if killmail:
+            total_killmails += 1
+            for tracker in Tracker.objects.filter(is_activated=True):
+                run_tracker.delay(tracker_pk=tracker.pk)
+        else:
             break
 
-    logger.info("Killtracker total killmails processed: %d", total_killmails)
+    logger.info("Killtracker total killmails received: %d", total_killmails)

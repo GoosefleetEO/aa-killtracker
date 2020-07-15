@@ -1,5 +1,5 @@
 from datetime import timedelta
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from django.utils.timezone import now
 
@@ -109,21 +109,21 @@ class TestTracker(NoSocketsTestCase):
         self.assertEqual(result, expected)
 
     def test_can_filter_max_distance(self):
-        load_killmails({10000101, 10000102})
+        load_killmails({10000101, 10000102, 10000103})
         tracker = Tracker.objects.create(
             name="Test", origin_solar_system_id=30003067, max_distance=2,
         )
         result = tracker.calculate_killmails()
-        expected = {10000102}
+        expected = {10000102, 10000103}
         self.assertEqual(result, expected)
 
     def test_can_filter_max_jumps(self):
-        load_killmails({10000101, 10000102})
+        load_killmails({10000101, 10000102, 10000103})
         tracker = Tracker.objects.create(
             name="Test", origin_solar_system_id=30003067, max_jumps=3,
         )
         result = tracker.calculate_killmails()
-        expected = {10000102}
+        expected = {10000102, 10000103}
         self.assertEqual(result, expected)
 
     def test_can_filter_attacker_alliance(self):
@@ -161,3 +161,10 @@ class TestTracker(NoSocketsTestCase):
         result = tracker.calculate_killmails()
         expected = {10000001, 10000002, 10000004}
         self.assertEqual(result, expected)
+
+    def test_catch_all(self):
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+        load_killmails(killmail_ids)
+        tracker = Tracker.objects.create(name="Test")
+        result = tracker.calculate_killmails()
+        self.assertEqual(result, killmail_ids)
