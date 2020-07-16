@@ -16,8 +16,24 @@ def _load_json_from_file(filename: str):
     return data
 
 
+killmails_data = dict()
+for obj in _load_json_from_file("killmails"):
+    killmail_id = obj["killID"]
+    obj["killmail"]["killmail_id"] = killmail_id
+    obj["killmail"]["killmail_time"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    my_hash = hash(killmail_id)
+    obj["zkb"]["hash"] = my_hash
+    obj["zkb"][
+        "href"
+    ] = f"https://esi.evetech.net/v1/killmails/{killmail_id}/{my_hash}/"
+    killmails_data[killmail_id] = obj
+
+eveentities_data = _load_json_from_file("eveentities")
+evealliances_data = _load_json_from_file("evealliances")
+
+
 def load_eveentities():
-    for item in _load_json_from_file("eveentities"):
+    for item in eveentities_data:
         EveEntity.objects.update_or_create(
             id=item["id"], defaults={"name": item["name"], "category": item["category"]}
         )
@@ -36,7 +52,7 @@ def load_eveentities():
 
 def load_evealliances():
     EveAllianceInfo.objects.all().delete()
-    for item in _load_json_from_file("evealliances"):
+    for item in evealliances_data:
         alliance = EveAllianceInfo.objects.create(**item)
         EveEntity.objects.create(
             id=alliance.alliance_id,
@@ -49,19 +65,9 @@ def load_killmails(killmail_ids: set = None):
     if killmail_ids:
         killmail_ids = set(killmail_ids)
     Killmail.objects.all().delete()
-    for item in _load_json_from_file("killmails"):
-        killmail_id = item["killID"]
+    for killmail_id, item in killmails_data.items():
         if not killmail_ids or killmail_id in killmail_ids:
-            item["killmail"]["killmail_id"] = killmail_id
-            item["killmail"]["killmail_time"] = datetime.utcnow().strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
-            my_hash = hash(killmail_id)
-            item["zkb"]["hash"] = my_hash
-            item["zkb"][
-                "href"
-            ] = f"https://esi.evetech.net/v1/killmails/{killmail_id}/{my_hash}/"
-            Killmail.objects.create_from_dict(item)
+            Killmail.objects._create_from_dict(item)
 
 
 def load_all():

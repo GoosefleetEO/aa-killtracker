@@ -1,6 +1,5 @@
 from datetime import timedelta
 import json
-import logging
 from time import sleep
 
 import dhooks_lite
@@ -10,17 +9,22 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo
+from allianceauth.services.hooks import get_extension_logger
+
 from eveuniverse.models import EveSolarSystem, EveGroup, EveEntity
-from eveuniverse.helpers import meters_to_ly
 
 from . import __title__
-from .managers import KillmailManager, TrackerKillmailManager
+from .managers import KillmailManager, TrackedKillmailManager
+from .utils import LoggerAddTag
 
-logger = logging.getLogger("allianceauth")
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
 WEBHOOK_URL = "https://discordapp.com/api/webhooks/519251066089373717/MOhnV35wtgIQv8nMy_bD5Eda5EVxcjdm6y3ZmpfFH8nV97i45T_g-xDuoRRo13i-KwIO"  # noqa
 
 
 DEFAULT_MAX_AGE_HOURS = 4
+EVE_CATEGORY_ID_SHIPS = 6
+
 
 # delay in seconds between every message sent to Discord
 # this needs to be >= 1 to prevent 429 Too Many Request errors
@@ -209,7 +213,7 @@ class Webhook(models.Model):
         blank=True,
         help_text="you can add notes about this webhook here if you want",
     )
-    is_active = models.BooleanField(
+    is_enabled = models.BooleanField(
         default=True,
         help_text="whether notifications are currently sent to this webhook",
     )
@@ -367,6 +371,7 @@ class Tracker(models.Model):
     )
     require_attackers_ship_groups = models.ManyToManyField(
         EveGroup,
+        limit_choices_to={"eve_category_id": EVE_CATEGORY_ID_SHIPS},
         related_name="require_attackers_ship_groups_set",
         default=None,
         blank=True,
@@ -384,7 +389,7 @@ class Tracker(models.Model):
             "this feature ensures they don't create new alerts)"
         ),
     )
-    is_activated = models.BooleanField(
+    is_enabled = models.BooleanField(
         default=True, help_text="toogle for activating or deactivating a tracker"
     )
 
@@ -398,68 +403,11 @@ class Tracker(models.Model):
         Params:
         - force: run again for already processed killmails
         """
-        logger.info("Running tracker: %s", self.name)
-
-        processed_counter = 0
-        if force:
-            processed_ids = list()
-        else:
-            processed_ids = TrackerKillmail.objects.filter(
-                is_matching__isnull=False
-            ).values_list("killmail_id", flat=True)
-
-        killmails_qs = Killmail.objects.exclude(id__in=processed_ids)
-        killmails_qs.load_entities()
-
-        matching_killmail_ids = set()
-        for killmail in killmails_qs:
-            if killmail.solar_system:
-                (
-                    dest_solar_system,
-                    _,
-                ) = killmail.solar_system.get_or_create_pendant_object()
-                if dest_solar_system and self.origin_solar_system:
-                    distance = meters_to_ly(
-                        self.origin_solar_system.distance_to(dest_solar_system)
-                    )
-                    jumps = self.origin_solar_system.jumps_to(dest_solar_system)
-                else:
-                    distance = None
-                    jumps = None
-
-                is_high_sec = (
-                    dest_solar_system.is_high_sec if dest_solar_system else None
-                )
-                is_low_sec = dest_solar_system.is_low_sec if dest_solar_system else None
-                is_null_sec = (
-                    dest_solar_system.is_null_sec if dest_solar_system else None
-                )
-                is_w_space = dest_solar_system.is_w_space if dest_solar_system else None
-
-            else:
-                distance = None
-                jumps = None
-                is_high_sec = None
-                is_low_sec = None
-                is_null_sec = None
-                is_w_space = None
-
-            TrackerKillmail.objects.update_or_create(
-                killmail=killmail,
-                defaults={
-                    "is_high_sec": is_high_sec,
-                    "is_low_sec": is_low_sec,
-                    "is_null_sec": is_null_sec,
-                    "is_w_space": is_w_space,
-                    "distance": distance,
-                    "jumps": jumps,
-                    "attackers_count": killmail.attackers.count(),
-                },
-            )
-            processed_counter += 1
+        killmail_count = TrackedKillmail.objects.generate(tracker=self, force=force)
+        logger.info("Tracker %s: Processing %d fresh killmails", self, killmail_count)
 
         # apply all filters from tracker to determine matching killmails
-        matching_qs = TrackerKillmail.objects.filter(
+        matching_qs = TrackedKillmail.objects.filter(
             tracker=self, is_matching__isnull=True
         ).prefetch_related()
 
@@ -519,11 +467,13 @@ class Tracker(models.Model):
             )
 
         # store which killmails match with this tracker
+        matching_killmail_ids = set(sorted(set(matching_qs.killmail_ids())))
         matching_qs.update(is_matching=True)
-
-        matching_killmail_ids = set(sorted(set(matching_qs.all().killmail_ids())))
-        logger.debug(
-            "Result: matching_qs killmail IDs: %s", matching_killmail_ids,
+        logger.info(
+            "Tracker %s: Found %d matching killmails", self, len(matching_killmail_ids),
+        )
+        logger.info(
+            "Tracker %s: Matching killmail IDs: %s", self, matching_killmail_ids,
         )
         return matching_killmail_ids
 
@@ -534,9 +484,21 @@ class Tracker(models.Model):
             for alliance_id in alliances.values_list("alliance_id", flat=True)
         ]
 
-    def send_matching_to_webhook(self, resend=False) -> int:
+    def send_matching_to_webhook(self, resend: bool = False) -> int:
+        """sends all matching killmails for this tracker to the webhook
+        
+        returns number of successfull sent messages
+        """
+        if not self.webhook:
+            logger.warning("Tracker %s: No webhook configured - skipping sending", self)
+            return 0
+
+        if not self.webhook.is_enabled:
+            logger.info("Tracker %s: Webhook disabled - skipping sending", self)
+            return 0
+
         matching_killmails_qs = (
-            TrackerKillmail.objects.filter(tracker=self, is_matching=True)
+            TrackedKillmail.objects.filter(tracker=self, is_matching=True)
             .prefetch_related()
             .order_by("killmail__time")
         )
@@ -549,11 +511,13 @@ class Tracker(models.Model):
             matching_killmails_qs.count(),
         )
         killmail_counter = 0
-        for matching in matching_killmails_qs:
-            logger.debug("Sending killmail with ID %d to webhook", matching.killmail.id)
+        for matching_killmail in matching_killmails_qs:
+            logger.debug(
+                "Sending killmail with ID %d to webhook", matching_killmail.killmail.id
+            )
             sleep(DISCORD_SEND_DELAY)
             try:
-                matching.send_to_webhook(self.webhook.url)
+                matching_killmail.send_to_webhook(self.webhook.url)
             except Exception as ex:
                 logger.exception(ex)
 
@@ -562,7 +526,12 @@ class Tracker(models.Model):
         return killmail_counter
 
 
-class TrackerKillmail(models.Model):
+class TrackedKillmail(models.Model):
+    """A tracked killmail
+    
+    Tracked killmails contains additional calculated information about the killmail 
+    and processing information from the related tracker
+    """
 
     tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE)
     killmail = models.ForeignKey(Killmail, on_delete=models.CASCADE)
@@ -591,7 +560,7 @@ class TrackerKillmail(models.Model):
     is_null_sec = models.BooleanField(default=None, null=True, db_index=True)
     is_w_space = models.BooleanField(default=None, null=True, db_index=True)
 
-    objects = TrackerKillmailManager()
+    objects = TrackedKillmailManager()
 
     class Meta:
         constraints = [

@@ -1,16 +1,23 @@
-import logging
-
+from datetime import timedelta
 import requests
 
 from django.db import models, transaction
 from django.utils.dateparse import parse_datetime
+from django.utils.timezone import now
 
+from allianceauth.services.hooks import get_extension_logger
+
+from eveuniverse.helpers import meters_to_ly
 from eveuniverse.models import EveEntity
 
-logger = logging.getLogger("allianceauth")
+from . import __title__
+from .app_settings import KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS
+from .utils import LoggerAddTag
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 ZKB_REDISQ_URL = "https://redisq.zkillboard.com/listen.php"
-ZKB_REDISQ_TIMEOUT = 30
+ZKB_REDISQ_TIMEOUT = (5, 30)
 
 CHARACTER_PROPS = (
     ("character_id", "character"),
@@ -57,12 +64,12 @@ class KillmailManager(models.Manager):
         if data and "package" in data and data["package"]:
             logger.info("Received a killmail from ZKB")
             package_data = data["package"]
-            return self.create_from_dict(package_data)
+            return self._create_from_dict(package_data)
         else:
             logger.info("ZKB killmail queue is empty")
             return None
 
-    def create_from_dict(self, package_data: dict) -> object:
+    def _create_from_dict(self, package_data: dict) -> object:
         from .models import (
             EveEntity,
             KillmailAttacker,
@@ -149,7 +156,7 @@ class KillmailManager(models.Manager):
                             args["damage_done"] = attacker_data["damage_done"]
 
                         if "security_status" in attacker_data:
-                            args["is_final_blow"] = attacker_data["security_status"]
+                            args["security_status"] = attacker_data["security_status"]
 
                         if "final_blow" in attacker_data:
                             args["is_final_blow"] = attacker_data["final_blow"]
@@ -159,12 +166,78 @@ class KillmailManager(models.Manager):
         killmail.refresh_from_db()
         return killmail
 
+    def delete_stale(self):
+        """deletes all stale killmail"""
+        deadline = now() - timedelta(days=KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS)
+        self.filter(time__lt=deadline).delete()
 
-class TrackerKillmailQuerySet(models.QuerySet):
+
+class TrackedKillmailQuerySet(models.QuerySet):
     def killmail_ids(self) -> list:
-        return list(self.values_list("killmail__id", flat=True))
+        return list(self.values_list("killmail_id", flat=True))
 
 
-class TrackerKillmailManager(models.Manager):
+class TrackedKillmailManager(models.Manager):
     def get_queryset(self):
-        return TrackerKillmailQuerySet(self.model, using=self._db)
+        return TrackedKillmailQuerySet(self.model, using=self._db)
+
+    def generate(self, tracker: object, force: bool = False) -> int:
+        """Generate objects for all yet unprocessed killmails
+        
+        Returns the count of generated objects
+        """
+        from .models import Killmail
+
+        processed_counter = 0
+        if force:
+            killmails_qs = Killmail.objects.all()
+        else:
+            killmails_qs = Killmail.objects.exclude(
+                trackedkillmail__tracker=tracker,
+                trackedkillmail__is_matching__isnull=False,
+            )
+
+        killmails_qs.load_entities()
+        for killmail in killmails_qs:
+            distance = None
+            jumps = None
+            is_high_sec = None
+            is_low_sec = None
+            is_null_sec = None
+            is_w_space = None
+            if killmail.solar_system:
+                (
+                    dest_solar_system,
+                    _,
+                ) = killmail.solar_system.get_or_create_pendant_object()
+                if dest_solar_system and tracker.origin_solar_system:
+                    if tracker.max_distance:
+                        distance = meters_to_ly(
+                            tracker.origin_solar_system.distance_to(dest_solar_system)
+                        )
+                    if tracker.max_jumps:
+                        jumps = tracker.origin_solar_system.jumps_to(dest_solar_system)
+
+                if dest_solar_system:
+                    is_high_sec = dest_solar_system.is_high_sec
+                    is_low_sec = dest_solar_system.is_low_sec
+                    is_null_sec = dest_solar_system.is_null_sec
+                    is_w_space = dest_solar_system.is_w_space
+
+            self.update_or_create(
+                tracker=tracker,
+                killmail=killmail,
+                defaults={
+                    "is_high_sec": is_high_sec,
+                    "is_low_sec": is_low_sec,
+                    "is_null_sec": is_null_sec,
+                    "is_w_space": is_w_space,
+                    "distance": distance,
+                    "jumps": jumps,
+                    "attackers_count": killmail.attackers.count(),
+                },
+            )
+            processed_counter += 1
+
+        logger.debug("Generated %s objects for tracker %s", processed_counter, tracker)
+        return processed_counter

@@ -3,21 +3,10 @@ from django.db.models import Max
 from django.db.models.functions import Lower
 
 from allianceauth.eveonline.models import EveAllianceInfo
-from eveuniverse.models import EveSolarSystem, EveGroup
+from eveuniverse.models import EveGroup
 
 from .models import Killmail, Webhook, Tracker
 from . import tasks
-
-EVE_CATEGORY_ID_SHIPS = 6
-
-
-@admin.register(EveSolarSystem)
-class EveSolarSystemAdmin(admin.ModelAdmin):
-    ordering = ["name"]
-    search_fields = ["name"]
-
-    def has_module_permission(self, request):
-        return False
 
 
 @admin.register(Killmail)
@@ -41,7 +30,7 @@ class KillmailAdmin(admin.ModelAdmin):
 class WebhookAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "is_active",
+        "is_enabled",
         "is_default",
     )
 
@@ -59,16 +48,16 @@ class Tracker(admin.ModelAdmin):
     autocomplete_fields = ["origin_solar_system"]
 
     def _processed_count(self, obj):
-        return obj.trackerkillmail_set.count()
+        return obj.trackedkillmail_set.count()
 
     def _matching_count(self, obj):
-        return obj.trackerkillmail_set.filter(is_matching=True).count()
+        return obj.trackedkillmail_set.filter(is_matching=True).count()
 
     def _sent_count(self, obj):
-        return obj.trackerkillmail_set.filter(date_sent__isnull=False).count()
+        return obj.trackedkillmail_set.filter(date_sent__isnull=False).count()
 
     def _last_sent(self, obj):
-        result = obj.trackerkillmail_set.all().aggregate(Max("date_sent"))
+        result = obj.trackedkillmail_set.all().aggregate(Max("date_sent"))
         return result["date_sent__max"]
 
     actions = ["run_tracker"]
@@ -99,7 +88,5 @@ class Tracker(admin.ModelAdmin):
                 Lower("alliance_name")
             )
         elif db_field.name == "require_attackers_ship_groups":
-            kwargs["queryset"] = EveGroup.objects.filter(
-                id=EVE_CATEGORY_ID_SHIPS
-            ).order_by(Lower("name"))
+            kwargs["queryset"] = EveGroup.objects.all().order_by(Lower("name"))
         return super().formfield_for_manytomany(db_field, request, **kwargs)

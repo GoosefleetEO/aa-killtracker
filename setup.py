@@ -36,5 +36,5 @@ setup(
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     ],
     python_requires="~=3.6",
-    install_requires=["dhooks-lite>=0.3.0",],
+    install_requires=["dhooks-lite>=0.4.0",],
 )

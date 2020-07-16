@@ -13,8 +13,12 @@ coverage.xml
 .tox/
 announce_release.py
 htmlcov/
-contracts_raw.json
+structures_notifications_archive/
+starbases_raw*.json
+customs_offices_raw*.json
+notifications_raw*.json
+structures_raw*.json
+starbases_raw*.json
 todos.md
 .mypy_cache
-Makefile
-todos.md
+

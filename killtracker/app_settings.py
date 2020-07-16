@@ -1,12 +1,6 @@
-from django.conf import settings
+from .utils import clean_setting
 
-
-# put your app settings here
-
-"""
-EXAMPLE_SETTING_ONE = getattr(
-    settings, 
-    'EXAMPLE_SETTING_ONE', 
-    None
+# when true will automatically be with every solar system
+KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS = clean_setting(
+    "KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS", 30
 )
-"""
