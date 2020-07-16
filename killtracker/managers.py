@@ -224,7 +224,7 @@ class TrackedKillmailManager(models.Manager):
                     is_null_sec = dest_solar_system.is_null_sec
                     is_w_space = dest_solar_system.is_w_space
 
-            self.update_or_create(
+            obj, _ = self.update_or_create(
                 tracker=tracker,
                 killmail=killmail,
                 defaults={
@@ -237,6 +237,12 @@ class TrackedKillmailManager(models.Manager):
                     "attackers_count": killmail.attackers.count(),
                 },
             )
+
+            for attacker in killmail.attackers.all():
+                ship_type, _ = attacker.ship_type.get_or_create_pendant_object()
+                if ship_type:
+                    obj.attackers_ship_groups.add(ship_type.eve_group)
+
             processed_counter += 1
 
         logger.debug("Generated %s objects for tracker %s", processed_counter, tracker)

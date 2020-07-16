@@ -65,6 +65,12 @@ class Tracker(admin.ModelAdmin):
     )
     autocomplete_fields = ["origin_solar_system"]
 
+    exclude = (
+        "identify_fleets",
+        "exclude_blue_attackers",
+        "require_blue_victim",
+    )
+
     def _processed_count(self, obj):
         return obj.trackedkillmail_set.count()
 
@@ -92,7 +98,7 @@ class Tracker(admin.ModelAdmin):
 
     filter_horizontal = (
         "exclude_attacker_alliances",
-        "required_attacker_alliances",
+        "require_attacker_alliances",
         "require_victim_alliances",
         "require_attackers_ship_groups",
     )
@@ -103,7 +109,7 @@ class Tracker(admin.ModelAdmin):
             kwargs["queryset"] = EveAllianceInfo.objects.all().order_by(
                 Lower("alliance_name")
             )
-        elif db_field.name == "required_attacker_alliances":
+        elif db_field.name == "require_attacker_alliances":
             kwargs["queryset"] = EveAllianceInfo.objects.all().order_by(
                 Lower("alliance_name")
             )

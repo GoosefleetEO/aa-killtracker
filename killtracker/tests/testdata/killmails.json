@@ -460,5 +460,69 @@
             "awox": false,
             "href": ""
         }
+    },
+    {
+        "killID": 10000201,
+        "killmail": {
+            "attackers": [
+                {
+                    "alliance_id": 3001,
+                    "character_id": 1001,
+                    "corporation_id": 2001,
+                    "damage_done": 434,
+                    "final_blow": true,
+                    "security_status": -10,
+                    "ship_type_id": 3756,
+                    "weapon_type_id": 2488
+                },
+                {
+                    "alliance_id": 3001,
+                    "character_id": 1002,
+                    "corporation_id": 2001,
+                    "damage_done": 50,
+                    "final_blow": false,
+                    "security_status": -10,
+                    "ship_type_id": 3756,
+                    "weapon_type_id": 2488
+                },
+                {
+                    "alliance_id": 3001,
+                    "character_id": 1003,
+                    "corporation_id": 2001,
+                    "damage_done": 99,
+                    "final_blow": false,
+                    "security_status": 5,
+                    "ship_type_id": 3756,
+                    "weapon_type_id": 2488
+                }
+            ],
+            "killmail_id": null,
+            "killmail_time": null,
+            "solar_system_id": 30003087,
+            "victim": {
+                "alliance_id": 3011,
+                "character_id": 1011,
+                "corporation_id": 2011,
+                "damage_taken": 434,
+                "items": [],
+                "position": {
+                    "x": -1090788346073.3304,
+                    "y": 215361914442.54877,
+                    "z": -22223971337.631683
+                },
+                "ship_type_id": 603
+            }
+        },
+        "zkb": {
+            "locationID": 50012306,
+            "hash": "low sec kill - no T3 destroyer",
+            "fittedValue": 10000,
+            "totalValue": 10000,
+            "points": 1,
+            "npc": false,
+            "solo": false,
+            "awox": false,
+            "href": ""
+        }
     }
 ]

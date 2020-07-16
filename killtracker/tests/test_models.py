@@ -7,6 +7,8 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo
 
+from eveuniverse.models import EveGroup
+
 from ..models import Killmail, Tracker, TrackedKillmail, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
@@ -208,7 +210,7 @@ class TestTrackerCalculate(TestCaseBase):
         load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
         tracker = Tracker.objects.create(name="Test")
         excluded_alliance = EveAllianceInfo.objects.get(alliance_id=3011)
-        tracker.required_attacker_alliances.add(excluded_alliance)
+        tracker.require_attacker_alliances.add(excluded_alliance)
         result = tracker.calculate_killmails()
         expected = {10000005}
         self.assertEqual(result, expected)
@@ -226,9 +228,18 @@ class TestTrackerCalculate(TestCaseBase):
         load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
         tracker = Tracker.objects.create(name="Test", exclude_null_sec=True)
         excluded_alliance = EveAllianceInfo.objects.get(alliance_id=3001)
-        tracker.required_attacker_alliances.add(excluded_alliance)
+        tracker.require_attacker_alliances.add(excluded_alliance)
         result = tracker.calculate_killmails()
         expected = {10000001, 10000002, 10000004}
+        self.assertEqual(result, expected)
+
+    def test_can_require_attackers_ship_groups(self):
+        load_killmails({10000101, 10000201})
+        tracker = Tracker.objects.create(name="Test")
+        td3s = EveGroup.objects.get(id=1305)
+        tracker.require_attackers_ship_groups.add(td3s)
+        result = tracker.calculate_killmails()
+        expected = {10000101}
         self.assertEqual(result, expected)
 
     def test_creates_correct_results(self):

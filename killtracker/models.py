@@ -309,7 +309,7 @@ class Tracker(models.Model):
         blank=True,
         help_text="exclude killmails with attackers are from one of these alliances",
     )
-    required_attacker_alliances = models.ManyToManyField(
+    require_attacker_alliances = models.ManyToManyField(
         EveAllianceInfo,
         related_name="required_attacker_alliances_set",
         default=None,
@@ -329,15 +329,16 @@ class Tracker(models.Model):
         default=False,
         help_text="when true: kills are interpreted and shown as fleet kills",
     )
-    """
+
     exclude_blue_attackers = models.BooleanField(
-        default=False, 
-        help_text=(
-            'exclude killmails where the main group of the attackers '
-            'has blue standing with our alliance'
-        )
+        default=False, help_text=("exclude killmails with blue attackers"),
     )
-    """
+    require_blue_victim = models.BooleanField(
+        default=False,
+        help_text=(
+            "only include killmails where the victim has standing with our group"
+        ),
+    )
     exclude_high_sec = models.BooleanField(
         default=False,
         help_text=(
@@ -397,7 +398,7 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "exclude killmails where attackers are flying one of these ship groups"
+            "Only include killmails where at least one attacker is flying one of these ship groups"
         ),
     )
     max_age = models.PositiveIntegerField(
@@ -481,8 +482,8 @@ class Tracker(models.Model):
                 killmail__attackers__alliance__id__in=alliance_ids
             )
 
-        if self.required_attacker_alliances.count() > 0:
-            alliance_ids = self._extract_alliance_ids(self.required_attacker_alliances)
+        if self.require_attacker_alliances.count() > 0:
+            alliance_ids = self._extract_alliance_ids(self.require_attacker_alliances)
             matching_qs = matching_qs.filter(
                 killmail__attackers__alliance__id__in=alliance_ids
             )
@@ -491,6 +492,11 @@ class Tracker(models.Model):
             alliance_ids = self._extract_alliance_ids(self.require_victim_alliances)
             matching_qs = matching_qs.filter(
                 killmail__victim__alliance__id__in=alliance_ids
+            )
+
+        if self.require_attackers_ship_groups.count() > 0:
+            matching_qs = matching_qs.filter(
+                attackers_ship_groups__in=self.require_attackers_ship_groups.all()
             )
 
         # store which killmails match with this tracker
@@ -586,6 +592,7 @@ class TrackedKillmail(models.Model):
     is_low_sec = models.BooleanField(default=None, null=True, db_index=True)
     is_null_sec = models.BooleanField(default=None, null=True, db_index=True)
     is_w_space = models.BooleanField(default=None, null=True, db_index=True)
+    attackers_ship_groups = models.ManyToManyField(EveGroup, default=None,)
 
     objects = TrackedKillmailManager()
 
