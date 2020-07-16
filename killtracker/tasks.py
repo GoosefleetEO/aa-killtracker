@@ -3,10 +3,10 @@ from celery import shared_task
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
-from eveuniverse.models import EveEntity
+from eveuniverse.models import EveEntity, EveCategory
 
 from . import __title__
-from .models import Killmail, Tracker, Webhook
+from .models import Killmail, Tracker, Webhook, EVE_CATEGORY_ID_SHIPS
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -16,14 +16,26 @@ MAX_KILLMAILS_PER_BATCH = 5
 
 
 @shared_task(base=QueueOnce)
+def load_ship_types() -> None:
+    """Loads all ship types"""
+    logger.info("Started loading all ship types into eveuniverse")
+    EveCategory.objects.update_or_create_esi(
+        id=EVE_CATEGORY_ID_SHIPS, include_children=True, wait_for_children=False
+    )
+
+
+@shared_task(base=QueueOnce)
 def send_alerts_to_webhook(webhook_pk: int) -> None:
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
         logger.warning("Webhook with pk = %s does not exist", webhook_pk)
     else:
+        logger.info("Started sending alerts to webhook %s", webhook)
         for tracker in Tracker.objects.filter(is_enabled=True, webhook=webhook):
             tracker.send_matching_to_webhook()
+
+        logger.info("Completed sending alerts to webhook %s", webhook)
 
 
 @shared_task(base=QueueOnce)
@@ -33,8 +45,10 @@ def run_tracker(tracker_pk: int) -> None:
     except Tracker.DoesNotExist:
         logger.warning("Tracker with pk = %s does not exist", tracker_pk)
     else:
+        logger.info("Started running tracker %s", tracker)
         tracker.calculate_killmails()
         send_alerts_to_webhook.delay(webhook_pk=tracker.webhook.pk)
+        logger.info("Finished running tracker %s", tracker)
 
 
 @shared_task(base=QueueOnce)
