@@ -9,13 +9,14 @@ from allianceauth.services.tasks import QueueOnce
 from eveuniverse.models import EveEntity, EveCategory
 
 from . import __title__
+from .app_settings import (
+    KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+    KILLTRACKER_MAX_KILLMAILS_PER_BATCH,
+)
 from .models import Killmail, Tracker, Webhook, EVE_CATEGORY_ID_SHIPS
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-MAX_KILLMAILS_IN_TOTAL = 50
-MAX_KILLMAILS_PER_BATCH = 5
 
 
 @shared_task(base=QueueOnce)
@@ -56,10 +57,10 @@ def run_tracker(tracker_pk: int) -> None:
 
 @shared_task(base=QueueOnce)
 def run_killtracker(
-    max_killmails_in_total=MAX_KILLMAILS_IN_TOTAL,
-    max_killmails_per_batch=MAX_KILLMAILS_PER_BATCH,
+    max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+    max_killmails_per_batch=KILLTRACKER_MAX_KILLMAILS_PER_BATCH,
 ) -> None:
-    logger.info("Killtracker started...")
+    logger.info("Killtracker run started...")
     total_killmails = 0
     killmail = None
     while total_killmails < max_killmails_in_total:
@@ -78,7 +79,7 @@ def run_killtracker(
             break
 
     Killmail.objects.delete_stale()
-    logger.info("Killtracker total killmails received: %d", total_killmails)
+    logger.info("Total killmails received from ZKB in this run: %d", total_killmails)
 
 
 def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:

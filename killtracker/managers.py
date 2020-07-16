@@ -239,9 +239,10 @@ class TrackedKillmailManager(models.Manager):
             )
 
             for attacker in killmail.attackers.all():
-                ship_type, _ = attacker.ship_type.get_or_create_pendant_object()
-                if ship_type:
-                    obj.attackers_ship_groups.add(ship_type.eve_group)
+                if attacker.ship_type:
+                    ship_type, _ = attacker.ship_type.get_or_create_pendant_object()
+                    if ship_type:
+                        obj.attackers_ship_groups.add(ship_type.eve_group)
 
             processed_counter += 1
 

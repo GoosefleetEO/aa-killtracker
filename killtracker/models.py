@@ -439,6 +439,12 @@ class Tracker(models.Model):
             tracker=self, is_matching__isnull=True
         ).prefetch_related()
 
+        logger.debug(
+            "Tracker %s: Processing fresh killmail IDs: %s",
+            self,
+            set(sorted(set(matching_qs.killmail_ids()))),
+        )
+
         if self.max_age:
             threshold_date = now() - timedelta(hours=self.max_age)
             matching_qs = matching_qs.exclude(killmail__time__lt=threshold_date)
@@ -505,7 +511,7 @@ class Tracker(models.Model):
         logger.info(
             "Tracker %s: Found %d matching killmails", self, len(matching_killmail_ids),
         )
-        logger.info(
+        logger.debug(
             "Tracker %s: Matching killmail IDs: %s", self, matching_killmail_ids,
         )
         return matching_killmail_ids
