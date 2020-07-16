@@ -336,7 +336,9 @@ class TestTrackerSendMatching(TestCaseBase):
         self.tracker_2.calculate_killmails()
 
     def test_log_warning_when_no_webhook_configured(self, mock_execute):
-        tracker = Tracker.objects.create(name="Missing webhook",)
+        tracker = Tracker.objects.create(name="Missing webhook")
+        tracker.webhook = None
+        tracker.save()
         tracker.calculate_killmails()
         result = tracker.send_matching_to_webhook()
         self.assertEqual(result, 0)

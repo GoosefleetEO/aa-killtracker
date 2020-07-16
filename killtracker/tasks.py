@@ -1,5 +1,8 @@
 from celery import shared_task
 
+from django.contrib.auth.models import User
+
+from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
@@ -76,3 +79,30 @@ def run_killtracker(
 
     Killmail.objects.delete_stale()
     logger.info("Killtracker total killmails received: %d", total_killmails)
+
+
+def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
+    try:
+        webhook = Webhook.objects.get(pk=webhook_pk)
+    except Webhook.DoesNotExist:
+        logger.warning("Webhook with pk = %s does not exist", webhook_pk)
+    else:
+        logger.info("Sending test message to webhook %s", webhook)
+        send_report, success = webhook.send_test_notification()
+
+        if user_pk:
+            try:
+                user = User.objects.get(pk=user_pk)
+            except User.DoesNotExist:
+                logger.warning("User with pk = %s does not exist", user_pk)
+            else:
+                level = "success" if success else "error"
+                notify(
+                    user=user,
+                    title=(
+                        f"{__title__}: Result of test message to webhook {webhook}: "
+                        f"{level.upper()}"
+                    ),
+                    message=send_report,
+                    level=level,
+                )

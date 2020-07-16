@@ -1,9 +1,11 @@
 from datetime import timedelta
 import json
 from time import sleep
+from urllib.parse import urljoin
 
 import dhooks_lite
 
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
@@ -15,7 +17,7 @@ from eveuniverse.models import EveSolarSystem, EveGroup, EveEntity
 
 from . import __title__
 from .managers import KillmailManager, TrackedKillmailManager
-from .utils import LoggerAddTag
+from .utils import LoggerAddTag, get_site_base_url
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -230,22 +232,41 @@ class Webhook(models.Model):
             self.__class__.__name__, self.id, self.name
         )
 
-    def send_test_notification(self) -> str:
+    def send_test_notification(self) -> tuple:
         """Sends a test notification to this webhook and returns send report"""
         hook = dhooks_lite.Webhook(self.url)
         response = hook.execute(
-            _(
+            content=_(
                 "This is a test notification from %s.\n"
                 "The webhook appears to be correctly configured."
             )
             % __title__,
+            username=self.default_username(),
+            avatar_url=self.default_avatar_url(),
             wait_for_response=True,
         )
         if response.status_ok:
-            send_report_json = json.dumps(response.content, indent=4, sort_keys=True)
+            success = True
+            send_report = json.dumps(response.content, indent=4, sort_keys=True)
         else:
-            send_report_json = "HTTP status code {}".format(response.status_code)
-        return send_report_json
+            success = False
+            send_report = "HTTP status code {}. Please see log for details".format(
+                response.status_code
+            )
+        return send_report, success
+
+    @staticmethod
+    def default_avatar_url():
+        """avatar url for all messages"""
+        return urljoin(
+            get_site_base_url(),
+            staticfiles_storage.url("killtracker/killtracker_logo.png"),
+        )
+
+    @staticmethod
+    def default_username():
+        """avatar username for all messages"""
+        return __title__
 
 
 class Tracker(models.Model):
@@ -395,6 +416,12 @@ class Tracker(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Overriding save in order to add default webhooks to newly created objects"""
+        if self.pk is None and self.webhook is None:
+            self.webhook = Webhook.objects.filter(is_default=True).first()
+        super().save(*args, **kwargs)
 
     def calculate_killmails(self, force: bool = False) -> set:
         """marks all killmails that comply with all criteria of this tracker
@@ -633,13 +660,20 @@ class TrackedKillmail(models.Model):
             footer=dhooks_lite.Footer(text=footer_text),
             timestamp=killmail.time,
         )
+        intro = f"Tracker **{self.tracker.name}**:"
         logger.info(
             "Tracker %s: Sending alert to Discord for killmail %s",
             self.tracker,
             self.killmail,
         )
-        hook = dhooks_lite.Webhook(url=webhook_url, username="killtracker")
-        response = hook.execute(embeds=[embed], wait_for_response=True)
+        hook = dhooks_lite.Webhook(url=webhook_url)
+        response = hook.execute(
+            content=intro,
+            embeds=[embed],
+            username=Webhook.default_username(),
+            avatar_url=Webhook.default_avatar_url(),
+            wait_for_response=True,
+        )
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)

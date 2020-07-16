@@ -34,11 +34,29 @@ class WebhookAdmin(admin.ModelAdmin):
         "is_default",
     )
 
+    actions = ["send_test_message"]
+
+    def send_test_message(self, request, queryset):
+        actions_count = 0
+        for webhook in queryset:
+            tasks.send_test_message_to_webhook(webhook.pk, request.user.pk)
+            actions_count += 1
+
+        self.message_user(
+            request,
+            f"Initiated sending of {actions_count} test messages to "
+            f"selected webhooks. You will receive a notification with the result",
+        )
+
+    send_test_message.short_description = "Send test message to selected webhooks"
+
 
 @admin.register(Tracker)
 class Tracker(admin.ModelAdmin):
     list_display = (
         "name",
+        "is_enabled",
+        "origin_solar_system",
         "webhook",
         "_processed_count",
         "_matching_count",
@@ -63,8 +81,14 @@ class Tracker(admin.ModelAdmin):
     actions = ["run_tracker"]
 
     def run_tracker(self, request, queryset):
+        actions_count = 0
         for tracker in queryset:
             tasks.run_tracker.delay(tracker.pk)
+            actions_count += 1
+
+        self.message_user(request, f"Started {actions_count} trackers.")
+
+    run_tracker.short_description = "Run selected trackers"
 
     filter_horizontal = (
         "exclude_attacker_alliances",

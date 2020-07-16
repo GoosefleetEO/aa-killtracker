@@ -1,6 +1,7 @@
 {% extends 'killtracker/base.html' %}
 {% load i18n %}
 {% load humanize %}
+{% load staticfiles %}
 
 {% block details %}
 
@@ -11,6 +12,7 @@
         <div class="panel-body" style="min-height: 100px;">  
             {{ text }}
         </div>
+        <img src="{% static 'killtracker/killtracker_logo.png' %}"/>
     </div>
     
 {% endblock %}
