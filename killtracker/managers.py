@@ -205,24 +205,30 @@ class TrackedKillmailManager(models.Manager):
             is_low_sec = None
             is_null_sec = None
             is_w_space = None
+            solar_system = None
             if killmail.solar_system:
                 (
-                    dest_solar_system,
+                    solar_system,
                     _,
                 ) = killmail.solar_system.get_or_create_pendant_object()
-                if dest_solar_system and tracker.origin_solar_system:
+                if solar_system and tracker.origin_solar_system:
                     if tracker.max_distance:
                         distance = meters_to_ly(
-                            tracker.origin_solar_system.distance_to(dest_solar_system)
+                            tracker.origin_solar_system.distance_to(solar_system)
                         )
                     if tracker.max_jumps:
-                        jumps = tracker.origin_solar_system.jumps_to(dest_solar_system)
+                        jumps = tracker.origin_solar_system.jumps_to(solar_system)
 
-                if dest_solar_system:
-                    is_high_sec = dest_solar_system.is_high_sec
-                    is_low_sec = dest_solar_system.is_low_sec
-                    is_null_sec = dest_solar_system.is_null_sec
-                    is_w_space = dest_solar_system.is_w_space
+                if solar_system:
+                    is_high_sec = solar_system.is_high_sec
+                    is_low_sec = solar_system.is_low_sec
+                    is_null_sec = solar_system.is_null_sec
+                    is_w_space = solar_system.is_w_space
+
+            (
+                victim_ship_type,
+                _,
+            ) = killmail.victim.ship_type.get_or_create_pendant_object()
 
             obj, _ = self.update_or_create(
                 tracker=tracker,
@@ -235,6 +241,8 @@ class TrackedKillmailManager(models.Manager):
                     "distance": distance,
                     "jumps": jumps,
                     "attackers_count": killmail.attackers.count(),
+                    "solar_system": solar_system,
+                    "victim_ship_type": victim_ship_type,
                 },
             )
 
@@ -242,7 +250,7 @@ class TrackedKillmailManager(models.Manager):
                 if attacker.ship_type:
                     ship_type, _ = attacker.ship_type.get_or_create_pendant_object()
                     if ship_type:
-                        obj.attackers_ship_groups.add(ship_type.eve_group)
+                        obj.attackers_ship_types.add(ship_type)
 
             processed_counter += 1
 

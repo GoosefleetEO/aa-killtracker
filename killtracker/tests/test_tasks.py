@@ -43,7 +43,7 @@ class TestTrackerBase(NoSocketsTestCase):
         load_eveuniverse()
         load_evealliances()
         load_eveentities()
-        cls.webhook = Webhook.objects.create(name="dummy", url="dummy", is_default=True)
+        cls.webhook = Webhook.objects.create(name="dummy", url="dummy")
 
         cls.tracker_1 = Tracker.objects.create(
             name="Low Sec Only",

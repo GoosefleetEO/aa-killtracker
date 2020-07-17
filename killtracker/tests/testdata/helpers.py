@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 
-from allianceauth.eveonline.models import EveAllianceInfo
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
 from ...models import Killmail
@@ -30,6 +30,7 @@ for obj in _load_json_from_file("killmails"):
 
 eveentities_data = _load_json_from_file("eveentities")
 evealliances_data = _load_json_from_file("evealliances")
+evecorporations_data = _load_json_from_file("evecorporations")
 
 
 def load_eveentities():
@@ -58,6 +59,17 @@ def load_evealliances():
             id=alliance.alliance_id,
             name=alliance.alliance_name,
             category=EveEntity.CATEGORY_ALLIANCE,
+        )
+
+
+def load_evecorporations():
+    EveCorporationInfo.objects.all().delete()
+    for item in evecorporations_data:
+        corporation = EveCorporationInfo.objects.create(**item)
+        EveEntity.objects.create(
+            id=corporation.corporation_id,
+            name=corporation.corporation_name,
+            category=EveEntity.CATEGORY_CORPORATION,
         )
 
 

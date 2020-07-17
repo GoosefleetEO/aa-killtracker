@@ -3,7 +3,7 @@ from django.db.models import Max
 from django.db.models.functions import Lower
 
 from allianceauth.eveonline.models import EveAllianceInfo
-from eveuniverse.models import EveGroup
+from eveuniverse.models import EveGroup, EveType
 
 from .models import Killmail, Webhook, Tracker
 from . import tasks
@@ -25,14 +25,23 @@ class KillmailAdmin(admin.ModelAdmin):
 
     _victim_ship_type.admin_order_field = "victim__ship_type__name"
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
 
 @admin.register(Webhook)
 class WebhookAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "is_enabled",
-        "is_default",
     )
+    list_filter = ("is_enabled",)
 
     actions = ["send_test_message"]
 
@@ -63,6 +72,12 @@ class Tracker(admin.ModelAdmin):
         "_sent_count",
         "_last_sent",
     )
+    list_filter = (
+        "is_enabled",
+        ("origin_solar_system", admin.RelatedOnlyFieldListFilter),
+        ("webhook", admin.RelatedOnlyFieldListFilter),
+    )
+
     autocomplete_fields = ["origin_solar_system"]
 
     exclude = (
@@ -98,9 +113,73 @@ class Tracker(admin.ModelAdmin):
 
     filter_horizontal = (
         "exclude_attacker_alliances",
+        "exclude_attacker_corporations",
         "require_attacker_alliances",
+        "require_attacker_corporations",
         "require_victim_alliances",
+        "require_victim_corporations",
+        "require_regions",
+        "require_constellations",
+        "require_solar_systems",
         "require_attackers_ship_groups",
+        "require_attackers_ship_types",
+        "require_victim_ship_groups",
+    )
+
+    fieldsets = (
+        (None, {"fields": ("name", "description")}),
+        (
+            "Discord Configuration",
+            {"fields": ("webhook", "ping_type", "is_posting_name",),},
+        ),
+        (
+            "Locations",
+            {
+                "fields": (
+                    "origin_solar_system",
+                    "require_max_jumps",
+                    "require_max_distance",
+                    (
+                        "exclude_low_sec",
+                        "exclude_null_sec",
+                        "exclude_w_space",
+                        "exclude_high_sec",
+                    ),
+                    "require_regions",
+                    "require_constellations",
+                    "require_solar_systems",
+                ),
+            },
+        ),
+        (
+            "Organizations",
+            {
+                "fields": (
+                    "exclude_attacker_alliances",
+                    "exclude_attacker_corporations",
+                    "require_attacker_alliances",
+                    "require_attacker_corporations",
+                    "require_victim_alliances",
+                    "require_victim_corporations",
+                ),
+            },
+        ),
+        (
+            "Attacker counts",
+            {"fields": ("require_min_attackers", "require_max_attackers",),},
+        ),
+        ("Value", {"fields": ("require_min_value",),},),
+        (
+            "Ship types",
+            {
+                "fields": (
+                    "require_attackers_ship_groups",
+                    "require_attackers_ship_types",
+                    "require_victim_ship_groups",
+                ),
+            },
+        ),
+        ("Other", {"fields": ("max_age", "is_enabled",),},),
     )
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
@@ -119,4 +198,8 @@ class Tracker(admin.ModelAdmin):
             )
         elif db_field.name == "require_attackers_ship_groups":
             kwargs["queryset"] = EveGroup.objects.all().order_by(Lower("name"))
+
+        elif db_field.name == "require_attackers_ship_types":
+            kwargs["queryset"] = EveType.objects.all().order_by(Lower("name"))
+
         return super().formfield_for_manytomany(db_field, request, **kwargs)

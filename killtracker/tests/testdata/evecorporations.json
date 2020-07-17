@@ -4,5 +4,11 @@
         "corporation_name": "Wayne Technologies",
         "corporation_ticker": "NPC1",
         "member_count": 1234
+    },
+    {
+        "corporation_id": 2011,
+        "corporation_name": "LexCorp",
+        "corporation_ticker": "LEX",
+        "member_count": 666
     }
 ]
