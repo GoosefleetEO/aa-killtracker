@@ -120,7 +120,9 @@ class TestCleanSetting(TestCase):
     @patch(MODULE_PATH + ".settings")
     def test_default_if_below_minimum_2(self, mock_settings):
         mock_settings.TEST_SETTING_DUMMY = -50
-        result = clean_setting("TEST_SETTING_DUMMY", default_value=50, min_value=-10)
+        result = clean_setting(
+            "TEST_SETTING_DUMMY", default_value=50, require_min_value=-10
+        )
         self.assertEqual(result, 50)
 
     @patch(MODULE_PATH + ".settings")

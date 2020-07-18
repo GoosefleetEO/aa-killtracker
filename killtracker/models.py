@@ -24,6 +24,7 @@ from eveuniverse.models import (
 )
 
 from . import __title__
+from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
 from .managers import KillmailManager, TrackedKillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
@@ -482,6 +483,12 @@ class Tracker(models.Model):
             "Only include killmails where victim is flying one of these ship groups"
         ),
     )
+    exclude_npc_kills = models.BooleanField(
+        default=False, help_text="exclude npc kills"
+    )
+    require_npc_kills = models.BooleanField(
+        default=False, help_text="only include killmails that are npc kills"
+    )
     webhook = models.ForeignKey(
         Webhook,
         on_delete=models.CASCADE,
@@ -496,16 +503,6 @@ class Tracker(models.Model):
     is_posting_name = models.BooleanField(
         default=True, help_text="whether posted messages include the tracker's name"
     )
-    max_age = models.PositiveIntegerField(
-        default=DEFAULT_MAX_AGE_HOURS,
-        null=True,
-        blank=True,
-        help_text=(
-            "ignore killmails that are older than the given number in hours "
-            "(sometimes killmails appear belated on ZKB - "
-            "this feature ensures they don't create new alerts)"
-        ),
-    )
     is_enabled = models.BooleanField(
         default=True, help_text="toogle for activating or deactivating a tracker"
     )
@@ -513,30 +510,39 @@ class Tracker(models.Model):
     def __str__(self):
         return self.name
 
-    def calculate_killmails(self, force: bool = False) -> set:
+    def calculate_killmails(self, force: bool = False) -> int:
         """marks all killmails that comply with all criteria of this tracker
         and also adds additional information to killmails, like distance from origin
         
         Params:
         - force: run again for already processed killmails
+
+        Returns the number of matching killmails
         """
         killmail_count = TrackedKillmail.objects.generate(tracker=self, force=force)
         logger.info("Tracker %s: Processing %d fresh killmails", self, killmail_count)
 
         # apply all filters from tracker to determine matching killmails
-        matching_qs = TrackedKillmail.objects.filter(
-            tracker=self, is_matching__isnull=True
-        ).prefetch_related()
 
+        threshold_date = now() - timedelta(
+            hours=KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
+        )
+        matching_qs = (
+            TrackedKillmail.objects.filter(tracker=self, is_matching__isnull=True)
+            .exclude(killmail__time__lt=threshold_date)
+            .select_related(
+                "killmail__victim",
+                "killmail__solar_system",
+                "killmail__zkb",
+                "solar_system",
+            )
+            .prefetch_related("killmail__attackers")
+        )
         logger.debug(
             "Tracker %s: Processing fresh killmail IDs: %s",
             self,
-            set(sorted(set(matching_qs.killmail_ids()))),
+            matching_qs.killmail_ids(),
         )
-
-        if self.max_age:
-            threshold_date = now() - timedelta(hours=self.max_age)
-            matching_qs = matching_qs.exclude(killmail__time__lt=threshold_date)
 
         if self.exclude_high_sec:
             matching_qs = matching_qs.exclude(is_high_sec=True)
@@ -550,25 +556,35 @@ class Tracker(models.Model):
         if self.exclude_w_space:
             matching_qs = matching_qs.exclude(is_w_space=True)
 
-        if self.min_attackers:
-            matching_qs = matching_qs.exclude(attackers_count__lt=self.min_attackers)
-
-        if self.max_attackers:
-            matching_qs = matching_qs.exclude(attackers_count__gt=self.max_attackers)
-
-        if self.min_value:
+        if self.require_min_attackers:
             matching_qs = matching_qs.exclude(
-                killmail__zkb__total_value__lt=self.min_value
+                attackers_count__lt=self.require_min_attackers
             )
 
-        if self.max_distance:
+        if self.require_max_attackers:
+            matching_qs = matching_qs.exclude(
+                attackers_count__gt=self.require_max_attackers
+            )
+
+        if self.exclude_npc_kills:
+            matching_qs = matching_qs.exclude(killmail__zkb__is_npc=True)
+
+        if self.require_npc_kills:
+            matching_qs = matching_qs.filter(killmail__zkb__is_npc=True)
+
+        if self.require_min_value:
+            matching_qs = matching_qs.exclude(
+                killmail__zkb__total_value__lt=self.require_min_value
+            )
+
+        if self.require_max_distance:
             matching_qs = matching_qs.exclude(distance__isnull=True).exclude(
-                distance__gt=self.max_distance
+                distance__gt=self.require_max_distance
             )
 
-        if self.max_jumps:
+        if self.require_max_jumps:
             matching_qs = matching_qs.exclude(jumps__isnull=True).exclude(
-                jumps__gt=self.max_jumps
+                jumps__gt=self.require_max_jumps
             )
 
         if self.require_regions.count() > 0:
@@ -644,15 +660,14 @@ class Tracker(models.Model):
             )
 
         # store which killmails match with this tracker
-        matching_killmail_ids = set(sorted(set(matching_qs.killmail_ids())))
-        matching_qs.update(is_matching=True)
-        logger.info(
-            "Tracker %s: Found %d matching killmails", self, len(matching_killmail_ids),
-        )
         logger.debug(
-            "Tracker %s: Matching killmail IDs: %s", self, matching_killmail_ids,
+            "Tracker %s: Matching killmail IDs: %s", self, matching_qs.killmail_ids(),
         )
-        return matching_killmail_ids
+        matching_count = matching_qs.update(is_matching=True)
+        logger.info(
+            "Tracker %s: Found %d matching killmails", self, matching_count,
+        )
+        return matching_count
 
     @staticmethod
     def _extract_alliance_ids(alliances: models.QuerySet) -> list:

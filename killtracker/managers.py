@@ -173,8 +173,8 @@ class KillmailManager(models.Manager):
 
 
 class TrackedKillmailQuerySet(models.QuerySet):
-    def killmail_ids(self) -> list:
-        return list(self.values_list("killmail_id", flat=True))
+    def killmail_ids(self) -> set:
+        return set(self.order_by("killmail_id").values_list("killmail_id", flat=True))
 
 
 class TrackedKillmailManager(models.Manager):
@@ -212,11 +212,11 @@ class TrackedKillmailManager(models.Manager):
                     _,
                 ) = killmail.solar_system.get_or_create_pendant_object()
                 if solar_system and tracker.origin_solar_system:
-                    if tracker.max_distance:
+                    if tracker.require_max_distance:
                         distance = meters_to_ly(
                             tracker.origin_solar_system.distance_to(solar_system)
                         )
-                    if tracker.max_jumps:
+                    if tracker.require_max_jumps:
                         jumps = tracker.origin_solar_system.jumps_to(solar_system)
 
                 if solar_system:

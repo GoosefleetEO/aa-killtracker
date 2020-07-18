@@ -168,7 +168,16 @@ class Tracker(admin.ModelAdmin):
             "Attacker counts",
             {"fields": ("require_min_attackers", "require_max_attackers",),},
         ),
-        ("Value", {"fields": ("require_min_value",),},),
+        (
+            "Killmail properties",
+            {
+                "fields": (
+                    "require_min_value",
+                    "exclude_npc_kills",
+                    "require_npc_kills",
+                ),
+            },
+        ),
         (
             "Ship types",
             {
@@ -179,7 +188,6 @@ class Tracker(admin.ModelAdmin):
                 ),
             },
         ),
-        ("Other", {"fields": ("max_age", "is_enabled",),},),
     )
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
