@@ -61,7 +61,7 @@ class WebhookAdmin(admin.ModelAdmin):
 
 
 @admin.register(Tracker)
-class Tracker(admin.ModelAdmin):
+class TrackerAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "is_enabled",

@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 
 import dhooks_lite
 
+from django.core.exceptions import ValidationError
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
 from django.db.models import Q
@@ -29,9 +30,6 @@ from .managers import KillmailManager, TrackedKillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-WEBHOOK_URL = "https://discordapp.com/api/webhooks/519251066089373717/MOhnV35wtgIQv8nMy_bD5Eda5EVxcjdm6y3ZmpfFH8nV97i45T_g-xDuoRRo13i-KwIO"  # noqa
-
 
 DEFAULT_MAX_AGE_HOURS = 4
 EVE_CATEGORY_ID_SHIP = 6
@@ -270,6 +268,13 @@ class Webhook(models.Model):
         )
 
     @staticmethod
+    def zkb_icon_url():
+        """avatar url for all messages"""
+        return urljoin(
+            get_site_base_url(), staticfiles_storage.url("killtracker/zkb_icon.png"),
+        )
+
+    @staticmethod
     def default_username():
         """avatar username for all messages"""
         return __title__
@@ -306,8 +311,8 @@ class Tracker(models.Model):
         blank=True,
         related_name="tracker_origin_solar_systems_set",
         help_text=(
-            "Solar system to calculate ranges and jumps from. "
-            "(usually the staging system)."
+            "Solar system to calculate distance and jumps from. "
+            "When provided distance and jumps will be shown on killmail messages"
         ),
     )
     require_max_jumps = models.PositiveIntegerField(
@@ -510,6 +515,25 @@ class Tracker(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        if self.require_max_jumps and self.origin_solar_system is None:
+            raise ValidationError(
+                {
+                    "origin_solar_system": _(
+                        "'require max jumps' needs an origin solar system to work"
+                    )
+                }
+            )
+
+        if self.require_max_distance and self.origin_solar_system is None:
+            raise ValidationError(
+                {
+                    "origin_solar_system": _(
+                        "'require max distance' needs an origin solar system to work"
+                    )
+                }
+            )
+
     def calculate_killmails(self, force: bool = False) -> int:
         """marks all killmails that comply with all criteria of this tracker
         and also adds additional information to killmails, like distance from origin
@@ -711,12 +735,8 @@ class Tracker(models.Model):
                 "Sending killmail with ID %d to webhook", matching_killmail.killmail.id
             )
             sleep(DISCORD_SEND_DELAY)
-            try:
-                matching_killmail.send_to_webhook(self.webhook.url)
-            except Exception as ex:
-                logger.exception(ex)
-
-            killmail_counter += 1
+            if matching_killmail.send_to_webhook():
+                killmail_counter += 1
 
         return killmail_counter
 
@@ -788,12 +808,12 @@ class TrackedKillmail(models.Model):
             f", killmail_id={self.killmail_id})"
         )
 
-    def send_to_webhook(self, webhook_url: str = WEBHOOK_URL):
+    def send_to_webhook(self) -> bool:
         killmail = self.killmail
         if killmail.victim.character:
             victim_str = (
                 f"{self._entity_zkb_link(killmail.victim.character)} "
-                f"{self._entity_zkb_link(killmail.victim.corporation)} "
+                f"({self._entity_zkb_link(killmail.victim.corporation)}) "
             )
             victim_name = killmail.victim.character.name
         else:
@@ -814,18 +834,27 @@ class TrackedKillmail(models.Model):
             attacker_str = "(Unknown attacker)"
 
         value_mio = int(killmail.zkb.total_value / 1000000)
+        try:
+            victim_ship_type_name = killmail.victim.ship_type.name
+        except AttributeError:
+            victim_ship_type_name = ""
+
+        try:
+            attacker_ship_type_name = attacker.ship_type.name
+        except AttributeError:
+            attacker_ship_type_name = ""
+
         description = (
-            f"{victim_str} lost their **{killmail.victim.ship_type.name}** "
-            f"in {self._entity_zkb_link(killmail.solar_system)} "
+            f"{victim_str} lost their **{victim_ship_type_name}** "
+            f"in {self._entity_dotlan_link(killmail.solar_system)} "
             f"worth **{value_mio} M** ISK.\n"
             f"Final blow by {attacker_str} "
-            f"in a **{attacker.ship_type.name}**.\n"
+            f"in a **{attacker_ship_type_name}**.\n"
             f"Attackers: {killmail.attackers.count()}"
         )
         if self.tracker.origin_solar_system:
-            origin_solar_system_link = (
-                f"[{self.tracker.origin_solar_system.name}]"
-                f"({self._entity_dotlan_link(self.tracker.origin_solar_system)})"
+            origin_solar_system_link = self._entity_dotlan_link(
+                self.tracker.origin_solar_system
             )
             distance = f"{self.distance:,.2f}" if self.distance is not None else "?"
             jumps = self.jumps if self.jumps is not None else "?"
@@ -834,16 +863,20 @@ class TrackedKillmail(models.Model):
                 f"{distance} LY | {jumps} jumps"
             )
 
-        title = f"{killmail.solar_system.name} | {victim_name} | Killmail"
+        title = (
+            f"{killmail.solar_system.name} | {victim_ship_type_name} | "
+            f"{victim_name} | Killmail"
+        )
         thumbnail_url = killmail.victim.ship_type.icon_url()
-        footer_text = "zKillboard"
-        zkb_killmail_url = f"{self.killmail.ZKB_KILLMAIL_BASEURL}{self.id}/"
+        zkb_killmail_url = f"{self.killmail.ZKB_KILLMAIL_BASEURL}{self.killmail_id}/"
         embed = dhooks_lite.Embed(
             description=description,
             title=title,
             url=zkb_killmail_url,
             thumbnail=dhooks_lite.Thumbnail(url=thumbnail_url),
-            footer=dhooks_lite.Footer(text=footer_text),
+            footer=dhooks_lite.Footer(
+                text="zKillboard", icon_url=Webhook.zkb_icon_url()
+            ),
             timestamp=killmail.time,
         )
         if self.tracker.ping_type == Tracker.PING_TYPE_EVERYBODY:
@@ -861,7 +894,7 @@ class TrackedKillmail(models.Model):
             self.tracker,
             self.killmail,
         )
-        hook = dhooks_lite.Webhook(url=webhook_url)
+        hook = dhooks_lite.Webhook(url=self.tracker.webhook.url)
         response = hook.execute(
             content=intro,
             embeds=[embed],
@@ -872,8 +905,17 @@ class TrackedKillmail(models.Model):
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)
-        self.date_sent = now()
-        self.save()
+        if response.status_ok:
+            self.date_sent = now()
+            self.save()
+            return True
+        else:
+            logger.warning(
+                "Failed to send message to Discord. HTTP status code: %d, response: %s",
+                response.status_code,
+                response.content,
+            )
+            return False
 
     @classmethod
     def _entity_zkb_link(cls, eve_obj: object) -> str:

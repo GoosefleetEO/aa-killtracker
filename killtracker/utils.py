@@ -23,8 +23,8 @@ format_html_lazy = lazy(format_html, str)
 class LoggerAddTag(logging.LoggerAdapter):
     """add custom tag to a logger"""
 
-    def __init__(self, logger, prefix):
-        super(LoggerAddTag, self).__init__(logger, {})
+    def __init__(self, my_logger, prefix):
+        super(LoggerAddTag, self).__init__(my_logger, {})
         self.prefix = prefix
 
     def process(self, msg, kwargs):
@@ -143,7 +143,7 @@ def chunks(lst, size):
 def clean_setting(
     name: str,
     default_value: object,
-    require_min_value: int = None,
+    min_value: int = None,
     max_value: int = None,
     required_type: type = None,
     choices: list = None,
@@ -155,7 +155,7 @@ def clean_setting(
 
     Need to define `required_type` if `default_value` is `None`
 
-    Will assume `require_min_value` of 0 for int (can be overriden)
+    Will assume `min_value` of 0 for int (can be overriden)
 
     Returns cleaned value for setting
     """
@@ -165,8 +165,8 @@ def clean_setting(
     if not required_type:
         required_type = type(default_value)
 
-    if require_min_value is None and required_type == int:
-        require_min_value = 0
+    if min_value is None and required_type == int:
+        min_value = 0
 
     if not hasattr(settings, name):
         cleaned_value = default_value
@@ -174,7 +174,7 @@ def clean_setting(
         dirty_value = getattr(settings, name)
         if (
             isinstance(dirty_value, required_type)
-            and (require_min_value is None or dirty_value >= require_min_value)
+            and (min_value is None or dirty_value >= min_value)
             and (max_value is None or dirty_value <= max_value)
             and (choices is None or dirty_value in choices)
         ):
@@ -205,11 +205,11 @@ def set_test_logger(logger_name: str, name: str) -> object:
     )
     f_handler = logging.FileHandler("{}.log".format(os.path.splitext(name)[0]), "w+")
     f_handler.setFormatter(f_format)
-    logger = logging.getLogger(logger_name)
-    logger.level = logging.DEBUG
-    logger.addHandler(f_handler)
-    logger.propagate = False
-    return logger
+    my_logger = logging.getLogger(logger_name)
+    my_logger.level = logging.DEBUG
+    my_logger.addHandler(f_handler)
+    my_logger.propagate = False
+    return my_logger
 
 
 def timeuntil_str(duration: timedelta) -> str:

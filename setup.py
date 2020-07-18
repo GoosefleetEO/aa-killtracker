@@ -21,8 +21,8 @@ setup(
     description="Killtracker app for Alliance Auth",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="John Doe",
-    author_email="john.doe@killtracker.com",
+    author="Erik Kalkoken",
+    author_email="kalkoken87@gmail.com",
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Django",

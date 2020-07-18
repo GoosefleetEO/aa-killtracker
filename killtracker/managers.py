@@ -71,7 +71,6 @@ class KillmailManager(models.Manager):
 
     def _create_from_dict(self, package_data: dict) -> object:
         from .models import (
-            EveEntity,
             KillmailAttacker,
             KillmailPosition,
             KillmailVictim,
@@ -212,12 +211,10 @@ class TrackedKillmailManager(models.Manager):
                     _,
                 ) = killmail.solar_system.get_or_create_pendant_object()
                 if solar_system and tracker.origin_solar_system:
-                    if tracker.require_max_distance:
-                        distance = meters_to_ly(
-                            tracker.origin_solar_system.distance_to(solar_system)
-                        )
-                    if tracker.require_max_jumps:
-                        jumps = tracker.origin_solar_system.jumps_to(solar_system)
+                    distance = meters_to_ly(
+                        tracker.origin_solar_system.distance_to(solar_system)
+                    )
+                    jumps = tracker.origin_solar_system.jumps_to(solar_system)
 
                 if solar_system:
                     is_high_sec = solar_system.is_high_sec

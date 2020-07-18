@@ -1,3 +1,4 @@
+"""
 from django.utils.translation import ugettext_lazy as _
 
 from allianceauth.services.hooks import MenuItemHook, UrlHook
@@ -6,8 +7,7 @@ from allianceauth import hooks
 from . import urls
 
 
-class KillmailsMenuItem(MenuItemHook):
-    """ This class ensures only authorized users will see the menu entry """
+class KillmailsMenuItem(MenuItemHook):    
     def __init__(self):
         # setup menu entry for sidebar
         MenuItemHook.__init__(
@@ -32,3 +32,4 @@ def register_menu():
 @hooks.register('url_hook')
 def register_urls():
     return UrlHook(urls, 'killtracker', r'^killtracker/')
+"""

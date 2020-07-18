@@ -530,34 +530,9 @@
         "killmail": {
             "attackers": [
                 {
-                    "alliance_id": 3001,
-                    "character_id": 1001,
                     "corporation_id": 2001,
                     "damage_done": 434,
-                    "final_blow": true,
-                    "security_status": -10,
-                    "ship_type_id": 3756,
-                    "weapon_type_id": 2488
-                },
-                {
-                    "alliance_id": 3001,
-                    "character_id": 1002,
-                    "corporation_id": 2001,
-                    "damage_done": 50,
-                    "final_blow": false,
-                    "security_status": -10,
-                    "ship_type_id": 3756,
-                    "weapon_type_id": 2488
-                },
-                {
-                    "alliance_id": 3001,
-                    "character_id": 1003,
-                    "corporation_id": 2001,
-                    "damage_done": 99,
-                    "final_blow": false,
-                    "security_status": 5,
-                    "ship_type_id": 3756,
-                    "weapon_type_id": 2488
+                    "final_blow": true
                 }
             ],
             "killmail_id": null,

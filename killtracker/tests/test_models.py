@@ -577,3 +577,44 @@ class TestTrackerSendMatching(TestCaseBase):
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("Ping Nobody", kwargs["content"])
+
+
+@patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
+class TestTrackedKillmailSend(TestCaseBase):
+    def setUp(self) -> None:
+        load_killmails({10000001, 10000002, 10000003, 10000301})
+        self.tracker = Tracker.objects.create(
+            name="Low Sec Only",
+            exclude_high_sec=True,
+            exclude_null_sec=True,
+            exclude_w_space=True,
+            webhook=self.webhook_1,
+        )
+        self.tracker.calculate_killmails()
+        self.tracked_killmail = TrackedKillmail.objects.filter(is_matching=True).first()
+
+    def test_when_send_ok_marks_as_sent_and_returns_true(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+
+        result = self.tracked_killmail.send_to_webhook()
+        self.assertTrue(result)
+        self.tracked_killmail.refresh_from_db()
+        self.assertTrue(self.tracked_killmail.date_sent)
+
+    def test_when_send_not_ok_returns_false(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
+
+        result = self.tracked_killmail.send_to_webhook()
+        self.assertFalse(result)
+        self.tracked_killmail.refresh_from_db()
+        self.assertFalse(self.tracked_killmail.date_sent)
+
+    def test_can_send_npc_killmail(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+
+        tracker = Tracker.objects.create(
+            name="NPC", require_npc_kills=True, webhook=self.webhook_1,
+        )
+        tracker.calculate_killmails()
+        result = self.tracked_killmail.send_to_webhook()
+        self.assertTrue(result)

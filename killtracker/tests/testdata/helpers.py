@@ -16,18 +16,25 @@ def _load_json_from_file(filename: str):
     return data
 
 
-killmails_data = dict()
-for obj in _load_json_from_file("killmails"):
-    killmail_id = obj["killID"]
-    obj["killmail"]["killmail_id"] = killmail_id
-    obj["killmail"]["killmail_time"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    my_hash = hash(killmail_id)
-    obj["zkb"]["hash"] = my_hash
-    obj["zkb"][
-        "href"
-    ] = f"https://esi.evetech.net/v1/killmails/{killmail_id}/{my_hash}/"
-    killmails_data[killmail_id] = obj
+def _load_killmails_data():
+    data = dict()
+    for obj in _load_json_from_file("killmails"):
+        killmail_id = obj["killID"]
+        obj["killmail"]["killmail_id"] = killmail_id
+        obj["killmail"]["killmail_time"] = datetime.utcnow().strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        my_hash = hash(killmail_id)
+        obj["zkb"]["hash"] = my_hash
+        obj["zkb"][
+            "href"
+        ] = f"https://esi.evetech.net/v1/killmails/{killmail_id}/{my_hash}/"
+        data[killmail_id] = obj
 
+    return data
+
+
+killmails_data = _load_killmails_data()
 eveentities_data = _load_json_from_file("eveentities")
 evealliances_data = _load_json_from_file("evealliances")
 evecorporations_data = _load_json_from_file("evecorporations")
