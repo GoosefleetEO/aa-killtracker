@@ -15,14 +15,15 @@ from eveuniverse.models import (
     EveType,
 )
 
-from ..models import Killmail, Tracker, TrackedKillmail, Webhook
+from . import ResponseStub
+from ..models import Killmail, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
     load_evealliances,
     load_evecorporations,
-    load_killmails,
     killmails_data,
+    load_temp_killmail,
 )
 from ..utils import NoSocketsTestCase, set_test_logger
 
@@ -42,19 +43,6 @@ class CacheStub:
 
     def set(self, key, value, timeout=None):
         return None
-
-
-class ResponseStub:
-    """Stub for replacing requests Response"""
-
-    def __init__(self, data) -> None:
-        self._data = data
-
-    def raise_for_status(self) -> None:
-        pass
-
-    def json(self):
-        return self._data
 
 
 class TestCaseBase(NoSocketsTestCase):
@@ -122,232 +110,248 @@ class TestKillmails(TestCaseBase):
 @patch("eveuniverse.models.cache", new=CacheStub())
 class TestTrackerCalculate(TestCaseBase):
     @staticmethod
-    def _result_set():
-        return set(
-            TrackedKillmail.objects.filter(is_matching=True).values_list(
-                "killmail_id", flat=True
-            )
-        )
+    def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
+        results = set()
+        for killmail_id in killmail_ids:
+            killmail = load_temp_killmail(killmail_id)
+            if tracker.calculate_killmail(killmail):
+                results.add(killmail_id)
+
+        return results
 
     def test_can_match_all(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
-        self.assertEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
+
+    def test_returns_augmented_killmail(self):
+        tracker = Tracker.objects.create(
+            name="Test", webhook=self.webhook_1, origin_solar_system_id=30003067
+        )
+        killmail = load_temp_killmail(10000101)
+        killmail_plus = tracker.calculate_killmail(killmail)
+        self.assertTrue(killmail_plus.tracker_info)
+        self.assertEqual(killmail_plus.tracker_info.tracker_pk, tracker.pk)
+        self.assertEqual(killmail_plus.tracker_info.jumps, 7)
+        self.assertAlmostEqual(killmail_plus.tracker_info.distance, 5.85, delta=0.01)
 
     @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 1)
     def test_excludes_older_killmails(self):
-        load_killmails({10000001, 10000002})
-        killmail = Killmail.objects.get(id=10000002)
-        killmail.time = now() - timedelta(hours=1, seconds=1)
-        killmail.save()
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
-        tracker.calculate_killmails()
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
+        killmail_1 = load_temp_killmail(10000001)
+        killmail_2 = load_temp_killmail(10000002)
+        killmail_2.time = now() - timedelta(hours=1, seconds=1)
+        results = set()
+        for killmail in [killmail_1, killmail_2]:
+            if tracker.calculate_killmail(killmail):
+                results.add(killmail.id)
+
         expected = {10000001}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_high_sec_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", exclude_high_sec=True, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000003, 10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_low_sec_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", exclude_low_sec=True, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000002, 10000003, 10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_null_sec_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", exclude_null_sec=True, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_w_space_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", exclude_w_space=True, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_min_attackers(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", require_min_attackers=3, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_max_attackers(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", require_max_attackers=2, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000002, 10000003, 10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_min_value(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
             name="Test", require_min_value=1000000000, webhook=self.webhook_1
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_max_distance(self):
-        load_killmails({10000101, 10000102, 10000103})
+        killmail_ids = {10000101, 10000102, 10000103}
         tracker = Tracker.objects.create(
             name="Test",
             origin_solar_system_id=30003067,
             require_max_distance=2,
             webhook=self.webhook_1,
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000102, 10000103}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_max_jumps(self):
-        load_killmails({10000101, 10000102, 10000103})
+        killmail_ids = {10000101, 10000102, 10000103}
         tracker = Tracker.objects.create(
             name="Test",
             origin_solar_system_id=30003067,
             require_max_jumps=3,
             webhook=self.webhook_1,
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000102, 10000103}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_attacker_alliance(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.exclude_attacker_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_attacker_corporation(self):
-        load_killmails({10000003, 10000004, 10000005})
+        killmail_ids = {10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.exclude_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_required_attacker_alliance(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_attacker_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3011)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_required_attacker_corporation(self):
-        load_killmails({10000003, 10000004, 10000005})
+        killmail_ids = {10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2011)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_required_victim_alliances(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_victim_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_required_victim_corporation(self):
-        load_killmails({10000003, 10000004, 10000005})
+        killmail_ids = {10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_victim_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_filter_nullsec_and_attacker_alliance(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(
             name="Test", exclude_null_sec=True, webhook=self.webhook_1
         )
         excluded_alliance = EveAllianceInfo.objects.get(alliance_id=3001)
         tracker.require_attacker_alliances.add(excluded_alliance)
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000004}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_region(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_regions.add(EveRegion.objects.get(id=10000014))
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000003}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_constellation(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_constellations.add(EveConstellation.objects.get(id=20000169))
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000003}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_solar_system(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_solar_systems.add(EveSolarSystem.objects.get(id=30001161))
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000003}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_attackers_ship_groups(self):
-        load_killmails({10000101, 10000201})
+        killmail_ids = {10000101, 10000201}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         frigate = EveGroup.objects.get(id=25)
         td3s = EveGroup.objects.get(id=1305)
         tracker.require_attackers_ship_groups.add(frigate)
         tracker.require_attackers_ship_groups.add(td3s)
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000101}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_victim_ship_group(self):
-        load_killmails({10000101, 10000201})
+        killmail_ids = {10000101, 10000201}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         td3s = EveGroup.objects.get(id=1305)
         tracker.require_victim_ship_groups.add(td3s)
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000101}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_attackers_ship_types(self):
         """
@@ -355,207 +359,92 @@ class TestTrackerCalculate(TestCaseBase):
         then tracker finds killmail that has attacker with TD3 and no attacker with frigate
         and ignores killmail that attackers with neither
         """
-        load_killmails({10000101, 10000201})
+        killmail_ids = {10000101, 10000201}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         svipul = EveType.objects.get(id=34562)
         tracker.require_attackers_ship_types.add(svipul)
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000101}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_exclude_npc_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005, 10000301})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005, 10000301}
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, exclude_npc_kills=True
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
-        self.assertSetEqual(self._result_set(), expected)
+        self.assertSetEqual(results, expected)
 
     def test_can_require_npc_kills(self):
-        load_killmails({10000001, 10000002, 10000003, 10000004, 10000005, 10000301})
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005, 10000301}
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, require_npc_kills=True
         )
-        tracker.calculate_killmails()
+        results = self._calculate_results(tracker, killmail_ids)
         expected = {10000301}
-        self.assertSetEqual(self._result_set(), expected)
-
-    def test_creates_correct_results(self):
-        load_killmails({10000001, 10000002, 10000003})
-        tracker_1 = Tracker.objects.create(
-            name="Low Sec Only",
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-        tracker_2 = Tracker.objects.create(
-            name="High Sec Only",
-            exclude_low_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-        tracker_1.calculate_killmails()
-        tracker_2.calculate_killmails()
-
-        self.assertEqual(TrackedKillmail.objects.filter(tracker=tracker_1).count(), 3)
-
-        result_1_1 = TrackedKillmail.objects.get(
-            tracker=tracker_1, killmail_id=10000001
-        )
-        self.assertTrue(result_1_1.is_low_sec)
-        self.assertTrue(result_1_1.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-        result_1_2 = TrackedKillmail.objects.get(
-            tracker=tracker_1, killmail_id=10000002
-        )
-        self.assertTrue(result_1_2.is_high_sec)
-        self.assertFalse(result_1_2.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-        result_1_3 = TrackedKillmail.objects.get(
-            tracker=tracker_1, killmail_id=10000003
-        )
-        self.assertTrue(result_1_3.is_null_sec)
-        self.assertFalse(result_1_3.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-        self.assertEqual(TrackedKillmail.objects.filter(tracker=tracker_2).count(), 3)
-
-        result_2_1 = TrackedKillmail.objects.get(
-            tracker=tracker_2, killmail_id=10000001
-        )
-        self.assertTrue(result_2_1.is_low_sec)
-        self.assertFalse(result_2_1.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-        result_2_2 = TrackedKillmail.objects.get(
-            tracker=tracker_2, killmail_id=10000002
-        )
-        self.assertTrue(result_2_2.is_high_sec)
-        self.assertTrue(result_2_2.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-        result_2_3 = TrackedKillmail.objects.get(
-            tracker=tracker_2, killmail_id=10000003
-        )
-        self.assertTrue(result_2_3.is_null_sec)
-        self.assertFalse(result_2_3.is_matching)
-        self.assertFalse(result_1_1.date_sent)
-
-    def test_runs_only_once(self):
-        load_killmails({10000001, 10000002, 10000003})
-        tracker = Tracker.objects.create(
-            name="Low Sec Only",
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-
-        # run first
-        result = tracker.calculate_killmails()
-        self.assertEqual(result, 1)
-
-        # run second
-        result = tracker.calculate_killmails()
-        self.assertEqual(result, 0)
+        self.assertSetEqual(results, expected)
 
 
-@patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-@patch(MODULE_PATH + ".sleep", new=lambda x: None)
 @patch("eveuniverse.models.cache", new=CacheStub())
-class TestTrackerSendMatching(TestCaseBase):
-    def setUp(self) -> None:
-        load_killmails({10000001, 10000002, 10000003})
-        self.tracker_1 = Tracker.objects.create(
-            name="Low Sec Only",
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-        self.tracker_2 = Tracker.objects.create(
-            name="High Sec Only",
-            exclude_low_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-        self.tracker_1.calculate_killmails()
-        self.tracker_2.calculate_killmails()
-
+@patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
+class TestWebhookSendKillmail(TestCaseBase):
     def test_normal(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
 
-        self.tracker_1.send_matching_to_webhook()
+        self.webhook_1.send_killmail(killmail_plus)
 
-        self.assertEqual(mock_execute.call_count, 1)
-        sent_qs = TrackedKillmail.objects.exclude(date_sent__isnull=True)
-        self.assertEqual(sent_qs.count(), 1)
-        self.assertEqual(sent_qs.first().killmail_id, 10000001)
+        self.assertTrue(mock_execute.called, True)
 
-        _, kwargs = mock_execute.call_args
-        self.assertIn("Low Sec Only", kwargs["content"])
+    def test_without_tracker_info(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        killmail = load_temp_killmail(10000001)
 
-    def test_dont_send_to_disabeled_webhook(self, mock_execute):
-        tracker = Tracker.objects.create(
-            name="Disabled webhook", webhook=self.webhook_2
-        )
-        tracker.calculate_killmails()
-        result = tracker.send_matching_to_webhook()
-        self.assertEqual(result, 0)
+        self.webhook_1.send_killmail(killmail)
+
+        self.assertTrue(mock_execute.called, True)
 
     def test_can_ping_everybody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
         tracker = Tracker.objects.create(
-            name="Ping Everybody",
-            webhook=self.webhook_1,
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            ping_type=Tracker.PING_TYPE_EVERYBODY,
+            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_EVERYBODY,
         )
-        tracker.calculate_killmails()
-        tracker.send_matching_to_webhook()
+
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        self.webhook_1.send_killmail(killmail_plus)
 
         _, kwargs = mock_execute.call_args
         self.assertIn("@everybody", kwargs["content"])
 
     def test_can_ping_here(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
         tracker = Tracker.objects.create(
-            name="Ping Here",
-            webhook=self.webhook_1,
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            ping_type=Tracker.PING_TYPE_HERE,
+            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_HERE,
         )
-        tracker.calculate_killmails()
-        tracker.send_matching_to_webhook()
+
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        self.webhook_1.send_killmail(killmail_plus)
 
         _, kwargs = mock_execute.call_args
         self.assertIn("@here", kwargs["content"])
 
     def test_can_ping_nobody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
         tracker = Tracker.objects.create(
-            name="Ping Nobody",
-            webhook=self.webhook_1,
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            ping_type=Tracker.PING_TYPE_NONE,
+            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_NONE,
         )
-        tracker.calculate_killmails()
-        tracker.send_matching_to_webhook()
+
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        self.webhook_1.send_killmail(killmail_plus)
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("@everybody", kwargs["content"])
@@ -563,58 +452,49 @@ class TestTrackerSendMatching(TestCaseBase):
 
     def test_can_disable_posting_name(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
         tracker = Tracker.objects.create(
-            name="Ping Nobody",
-            webhook=self.webhook_1,
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            is_posting_name=False,
+            name="Ping Nobody", webhook=self.webhook_1, is_posting_name=False,
         )
-        tracker.calculate_killmails()
-        tracker.send_matching_to_webhook()
+
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        self.webhook_1.send_killmail(killmail_plus)
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("Ping Nobody", kwargs["content"])
 
-
-@patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-class TestTrackedKillmailSend(TestCaseBase):
-    def setUp(self) -> None:
-        load_killmails({10000001, 10000002, 10000003, 10000301})
-        self.tracker = Tracker.objects.create(
-            name="Low Sec Only",
-            exclude_high_sec=True,
-            exclude_null_sec=True,
-            exclude_w_space=True,
-            webhook=self.webhook_1,
-        )
-        self.tracker.calculate_killmails()
-        self.tracked_killmail = TrackedKillmail.objects.filter(is_matching=True).first()
-
-    def test_when_send_ok_marks_as_sent_and_returns_true(self, mock_execute):
+    def test_can_send_npc_killmail(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
-        result = self.tracked_killmail.send_to_webhook()
+        killmail = load_temp_killmail(10000301)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        self.webhook_1.send_killmail(killmail_plus)
+
+        self.assertTrue(mock_execute.called, True)
+
+    def test_when_send_ok_returns_true(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        result = self.webhook_1.send_killmail(killmail_plus)
+
         self.assertTrue(result)
-        self.tracked_killmail.refresh_from_db()
-        self.assertTrue(self.tracked_killmail.date_sent)
+        self.assertTrue(mock_execute.called, True)
 
     def test_when_send_not_ok_returns_false(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
-        result = self.tracked_killmail.send_to_webhook()
+        killmail = load_temp_killmail(10000001)
+        killmail_plus = tracker.calculate_killmail(killmail)
+
+        result = self.webhook_1.send_killmail(killmail_plus)
+
         self.assertFalse(result)
-        self.tracked_killmail.refresh_from_db()
-        self.assertFalse(self.tracked_killmail.date_sent)
-
-    def test_can_send_npc_killmail(self, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
-        tracker = Tracker.objects.create(
-            name="NPC", require_npc_kills=True, webhook=self.webhook_1,
-        )
-        tracker.calculate_killmails()
-        result = self.tracked_killmail.send_to_webhook()
-        self.assertTrue(result)
+        self.assertTrue(mock_execute.called, True)

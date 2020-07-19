@@ -9,10 +9,6 @@ KILLTRACKER_MAX_KILLMAILS_PER_RUN = clean_setting(
     "KILLTRACKER_MAX_KILLMAILS_PER_RUN", 50
 )
 
-KILLTRACKER_MAX_KILLMAILS_PER_BATCH = clean_setting(
-    "KILLTRACKER_MAX_KILLMAILS_PER_BATCH", 5
-)
-
 # ignore killmails that are older than the given number in hours
 # sometimes killmails appear belated on ZKB,
 # this feature ensures they don't create new alerts

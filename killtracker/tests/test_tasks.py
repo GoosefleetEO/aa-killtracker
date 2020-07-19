@@ -11,7 +11,7 @@ from .testdata.helpers import (
     load_evealliances,
     load_killmails,
 )
-from ..tasks import run_tracker, send_alerts_to_webhook, run_killtracker
+from ..tasks import run_tracker, send_killmails_to_webhook, run_killtracker
 from ..utils import NoSocketsTestCase, set_test_logger
 
 
@@ -62,7 +62,7 @@ class TestTrackerBase(NoSocketsTestCase):
         load_killmails({10000001, 10000002, 10000003})
 
 
-@patch(MODULE_PATH + ".send_alerts_to_webhook")
+@patch(MODULE_PATH + ".send_killmails_to_webhook")
 class TestRunTracker(TestTrackerBase):
     @patch(MODULE_PATH + ".logger")
     def test_log_warning_when_pk_is_invalid(
@@ -90,13 +90,13 @@ class TestSendAlertsToWebhook(TestTrackerBase):
     def test_log_warning_when_pk_is_invalid(
         self, mock_logger, mock_send_matching_to_webhook
     ):
-        send_alerts_to_webhook(generate_invalid_pk(Webhook))
+        send_killmails_to_webhook(generate_invalid_pk(Webhook))
 
         self.assertFalse(mock_send_matching_to_webhook.called)
         self.assertTrue(mock_logger.warning.called)
 
     def test_run_normal(self, mock_send_matching_to_webhook):
-        send_alerts_to_webhook(self.webhook.pk)
+        send_killmails_to_webhook(self.webhook.pk)
         self.assertEqual(mock_send_matching_to_webhook.call_count, 2)
 
 

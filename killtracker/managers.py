@@ -7,7 +7,6 @@ from django.utils.timezone import now
 
 from allianceauth.services.hooks import get_extension_logger
 
-from eveuniverse.helpers import meters_to_ly
 from eveuniverse.models import EveEntity
 
 from . import __title__
@@ -26,8 +25,6 @@ CHARACTER_PROPS = (
     ("faction_id", "faction"),
     ("ship_type_id", "ship_type"),
 )
-
-MAX_FETCHED_KILLMAILS_PER_RUN = 10
 
 
 class KillmailQuerySet(models.QuerySet):
@@ -179,77 +176,3 @@ class TrackedKillmailQuerySet(models.QuerySet):
 class TrackedKillmailManager(models.Manager):
     def get_queryset(self):
         return TrackedKillmailQuerySet(self.model, using=self._db)
-
-    def generate(self, tracker: object, force: bool = False) -> int:
-        """Generate objects for all yet unprocessed killmails
-        
-        Returns the count of generated objects
-        """
-        from .models import Killmail
-
-        processed_counter = 0
-        if force:
-            killmails_qs = Killmail.objects.all()
-        else:
-            killmails_qs = Killmail.objects.exclude(
-                trackedkillmail__tracker=tracker,
-                trackedkillmail__is_matching__isnull=False,
-            )
-
-        killmails_qs.load_entities()
-        for killmail in killmails_qs:
-            distance = None
-            jumps = None
-            is_high_sec = None
-            is_low_sec = None
-            is_null_sec = None
-            is_w_space = None
-            solar_system = None
-            if killmail.solar_system:
-                (
-                    solar_system,
-                    _,
-                ) = killmail.solar_system.get_or_create_pendant_object()
-                if solar_system and tracker.origin_solar_system:
-                    distance = meters_to_ly(
-                        tracker.origin_solar_system.distance_to(solar_system)
-                    )
-                    jumps = tracker.origin_solar_system.jumps_to(solar_system)
-
-                if solar_system:
-                    is_high_sec = solar_system.is_high_sec
-                    is_low_sec = solar_system.is_low_sec
-                    is_null_sec = solar_system.is_null_sec
-                    is_w_space = solar_system.is_w_space
-
-            (
-                victim_ship_type,
-                _,
-            ) = killmail.victim.ship_type.get_or_create_pendant_object()
-
-            obj, _ = self.update_or_create(
-                tracker=tracker,
-                killmail=killmail,
-                defaults={
-                    "is_high_sec": is_high_sec,
-                    "is_low_sec": is_low_sec,
-                    "is_null_sec": is_null_sec,
-                    "is_w_space": is_w_space,
-                    "distance": distance,
-                    "jumps": jumps,
-                    "attackers_count": killmail.attackers.count(),
-                    "solar_system": solar_system,
-                    "victim_ship_type": victim_ship_type,
-                },
-            )
-
-            for attacker in killmail.attackers.all():
-                if attacker.ship_type:
-                    ship_type, _ = attacker.ship_type.get_or_create_pendant_object()
-                    if ship_type:
-                        obj.attackers_ship_types.add(ship_type)
-
-            processed_counter += 1
-
-        logger.debug("Generated %s objects for tracker %s", processed_counter, tracker)
-        return processed_counter

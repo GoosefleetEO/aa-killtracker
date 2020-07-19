@@ -1,9 +1,11 @@
 from datetime import datetime
+from hashlib import md5
 import json
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
+from ...helpers.killmails import KillmailTemp
 from ...models import Killmail
 from .load_eveuniverse import load_eveuniverse
 from . import _currentdir
@@ -24,7 +26,7 @@ def _load_killmails_data():
         obj["killmail"]["killmail_time"] = datetime.utcnow().strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         )
-        my_hash = hash(killmail_id)
+        my_hash = md5(str(killmail_id).encode("utf8")).hexdigest()
         obj["zkb"]["hash"] = my_hash
         obj["zkb"][
             "href"
@@ -87,6 +89,14 @@ def load_killmails(killmail_ids: set = None):
     for killmail_id, item in killmails_data.items():
         if not killmail_ids or killmail_id in killmail_ids:
             Killmail.objects._create_from_dict(item)
+
+
+def load_temp_killmail(killmail_id: int):
+    for item_id, item in killmails_data.items():
+        if killmail_id == item_id:
+            return KillmailTemp._create_from_dict(item)
+
+    raise ValueError(f"Killmail with id {killmail_id} not found.")
 
 
 def load_all():

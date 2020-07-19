@@ -5,43 +5,17 @@ from django.db.models.functions import Lower
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
 
-from .models import Killmail, Webhook, Tracker
+from .models import Webhook, Tracker
 from . import tasks
-
-
-@admin.register(Killmail)
-class KillmailAdmin(admin.ModelAdmin):
-    list_select_related = True
-    list_display = (
-        "id",
-        "time",
-        "solar_system",
-        "_victim_ship_type",
-        "victim",
-    )
-
-    def _victim_ship_type(self, obj):
-        return obj.victim.ship_type
-
-    _victim_ship_type.admin_order_field = "victim__ship_type__name"
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_add_permission(self, request):
-        return False
 
 
 @admin.register(Webhook)
 class WebhookAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "is_enabled",
-    )
+    list_display = ("name", "is_enabled", "_queue_size")
     list_filter = ("is_enabled",)
+
+    def _queue_size(self, obj):
+        return obj.queue_size()
 
     actions = ["send_test_message"]
 
