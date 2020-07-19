@@ -32,7 +32,7 @@ from eveuniverse.models import (
 from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
 from .helpers.killmails import KillmailTemp, TrackerInfo
-from .managers import KillmailManager, TrackedKillmailManager
+from .managers import KillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -56,7 +56,7 @@ class General(models.Model):
         permissions = (("basic_access", "Can access this app"),)
 
 
-class Killmail(models.Model):
+class EveKillmail(models.Model):
 
     id = models.BigIntegerField(primary_key=True)
     time = models.DateTimeField(default=None, null=True, blank=True, db_index=True)
@@ -70,7 +70,7 @@ class Killmail(models.Model):
         return f"ID:{self.id}"
 
     def __repr__(self):
-        return f"Killmail(id={self.id})"
+        return f"EveKillmail(id={self.id})"
 
     def load_entities(self):
         """loads unknown entities for this killmail"""
@@ -96,7 +96,7 @@ class Killmail(models.Model):
         return [x for x in ids if x is not None]
 
 
-class KillmailCharacter(models.Model):
+class EveKillmailCharacter(models.Model):
 
     character = models.ForeignKey(
         EveEntity,
@@ -153,18 +153,18 @@ class KillmailCharacter(models.Model):
             return f"PK:{self.pk}"
 
 
-class KillmailVictim(KillmailCharacter):
+class EveKillmailVictim(EveKillmailCharacter):
 
     killmail = models.OneToOneField(
-        Killmail, primary_key=True, on_delete=models.CASCADE, related_name="victim"
+        EveKillmail, primary_key=True, on_delete=models.CASCADE, related_name="victim"
     )
     damage_taken = models.BigIntegerField(default=None, null=True, blank=True)
 
 
-class KillmailAttacker(KillmailCharacter):
+class EveKillmailAttacker(EveKillmailCharacter):
 
     killmail = models.ForeignKey(
-        Killmail, on_delete=models.CASCADE, related_name="attackers"
+        EveKillmail, on_delete=models.CASCADE, related_name="attackers"
     )
     damage_done = models.BigIntegerField(default=None, null=True, blank=True)
     is_final_blow = models.BooleanField(default=None, null=True, blank=True)
@@ -174,19 +174,19 @@ class KillmailAttacker(KillmailCharacter):
     )
 
 
-class KillmailPosition(models.Model):
+class EveKillmailPosition(models.Model):
     killmail = models.OneToOneField(
-        Killmail, primary_key=True, on_delete=models.CASCADE, related_name="position"
+        EveKillmail, primary_key=True, on_delete=models.CASCADE, related_name="position"
     )
     x = models.FloatField(default=None, null=True, blank=True)
     y = models.FloatField(default=None, null=True, blank=True)
     z = models.FloatField(default=None, null=True, blank=True)
 
 
-class KillmailZkb(models.Model):
+class EveKillmailZkb(models.Model):
 
     killmail = models.OneToOneField(
-        Killmail, primary_key=True, on_delete=models.CASCADE, related_name="zkb"
+        EveKillmail, primary_key=True, on_delete=models.CASCADE, related_name="zkb"
     )
     location_id = models.PositiveIntegerField(default=None, null=True, blank=True)
     hash = models.CharField(max_length=64, default="", blank=True)
@@ -369,7 +369,7 @@ class Webhook(models.Model):
 
         title = (
             f"{solar_system_name} | {victim_ship_type_name} | "
-            f"{victim_name} | Killmail"
+            f"{victim_name} | EveKillmail"
         )
         thumbnail_url = eveimageserver.type_icon_url(
             killmail.victim.ship_type_id, size=128
@@ -953,71 +953,3 @@ class Tracker(models.Model):
             return killmail_new
         else:
             return None
-
-
-class TrackedKillmail(models.Model):
-    """A tracked killmail
-    
-    Tracked killmails contains additional calculated information about the killmail 
-    and processing information from the related tracker
-    """
-
-    tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE)
-    killmail = models.ForeignKey(Killmail, on_delete=models.CASCADE)
-    is_matching = models.BooleanField(default=None, db_index=True, null=True)
-    date_sent = models.DateTimeField(default=None, db_index=True, null=True)
-    attackers_count = models.PositiveIntegerField(
-        default=None,
-        null=True,
-        db_index=True,
-        help_text="Calculated number of attackers",
-    )
-    jumps = models.PositiveIntegerField(
-        default=None,
-        null=True,
-        db_index=True,
-        help_text="Calculated number of jumps from origin",
-    )
-    distance = models.FloatField(
-        default=None,
-        null=True,
-        db_index=True,
-        help_text="Calculated distance from origin in lightyears",
-    )
-    solar_system = models.ForeignKey(
-        EveSolarSystem,
-        on_delete=models.SET_DEFAULT,
-        default=None,
-        null=True,
-        blank=True,
-    )
-    is_high_sec = models.BooleanField(default=None, null=True, db_index=True)
-    is_low_sec = models.BooleanField(default=None, null=True, db_index=True)
-    is_null_sec = models.BooleanField(default=None, null=True, db_index=True)
-    is_w_space = models.BooleanField(default=None, null=True, db_index=True)
-    victim_ship_type = models.ForeignKey(
-        EveType,
-        on_delete=models.SET_DEFAULT,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="trackedkillmail_victim_ship_types_set",
-    )
-    attackers_ship_types = models.ManyToManyField(
-        EveType, default=None, related_name="trackedkillmail_attackers_ship_types_set"
-    )
-
-    objects = TrackedKillmailManager()
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["tracker", "killmail"], name="functional_key"
-            )
-        ]
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(tracker='{self.tracker}'"
-            f", killmail_id={self.killmail_id})"
-        )

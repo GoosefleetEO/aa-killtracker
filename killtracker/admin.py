@@ -143,7 +143,7 @@ class TrackerAdmin(admin.ModelAdmin):
             {"fields": ("require_min_attackers", "require_max_attackers",),},
         ),
         (
-            "Killmail properties",
+            "EveKillmail properties",
             {
                 "fields": (
                     "require_min_value",

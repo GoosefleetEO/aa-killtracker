@@ -6,7 +6,7 @@ from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
 from ...helpers.killmails import KillmailTemp
-from ...models import Killmail
+from ...models import EveKillmail
 from .load_eveuniverse import load_eveuniverse
 from . import _currentdir
 
@@ -85,10 +85,10 @@ def load_evecorporations():
 def load_killmails(killmail_ids: set = None):
     if killmail_ids:
         killmail_ids = set(killmail_ids)
-    Killmail.objects.all().delete()
+    EveKillmail.objects.all().delete()
     for killmail_id, item in killmails_data.items():
         if not killmail_ids or killmail_id in killmail_ids:
-            Killmail.objects._create_from_dict(item)
+            EveKillmail.objects._create_from_dict(item)
 
 
 def load_temp_killmail(killmail_id: int):
@@ -96,7 +96,7 @@ def load_temp_killmail(killmail_id: int):
         if killmail_id == item_id:
             return KillmailTemp._create_from_dict(item)
 
-    raise ValueError(f"Killmail with id {killmail_id} not found.")
+    raise ValueError(f"EveKillmail with id {killmail_id} not found.")
 
 
 def load_all():

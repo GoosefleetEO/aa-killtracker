@@ -28,7 +28,7 @@ CHARACTER_PROPS = (
 
 
 class KillmailQuerySet(models.QuerySet):
-    """Custom queryset for Killmail"""
+    """Custom queryset for EveKillmail"""
 
     def load_entities(self) -> int:
         """loads unknown entities for all killmails of this QuerySet. 
@@ -68,10 +68,10 @@ class KillmailManager(models.Manager):
 
     def _create_from_dict(self, package_data: dict) -> object:
         from .models import (
-            KillmailAttacker,
-            KillmailPosition,
-            KillmailVictim,
-            KillmailZkb,
+            EveKillmailAttacker,
+            EveKillmailPosition,
+            EveKillmailVictim,
+            EveKillmailZkb,
         )
 
         with transaction.atomic():
@@ -110,7 +110,7 @@ class KillmailManager(models.Manager):
                         else:
                             args[prop] = zkb_data[prop]
 
-                KillmailZkb.objects.create(**args)
+                EveKillmailZkb.objects.create(**args)
 
             if "killmail" in package_data:
                 package_data = package_data["killmail"]
@@ -126,7 +126,7 @@ class KillmailManager(models.Manager):
                     if "damage_taken" in victim_data:
                         args["damage_taken"] = victim_data["damage_taken"]
 
-                    KillmailVictim.objects.create(**args)
+                    EveKillmailVictim.objects.create(**args)
 
                     if "position" in victim_data:
                         position_data = victim_data["position"]
@@ -135,7 +135,7 @@ class KillmailManager(models.Manager):
                             if prop in position_data:
                                 args[prop] = position_data[prop]
 
-                        KillmailPosition.objects.create(**args)
+                        EveKillmailPosition.objects.create(**args)
 
                 if "attackers" in package_data:
                     for attacker_data in package_data["attackers"]:
@@ -157,7 +157,7 @@ class KillmailManager(models.Manager):
                         if "final_blow" in attacker_data:
                             args["is_final_blow"] = attacker_data["final_blow"]
 
-                        KillmailAttacker.objects.create(**args)
+                        EveKillmailAttacker.objects.create(**args)
 
         killmail.refresh_from_db()
         return killmail
@@ -166,13 +166,3 @@ class KillmailManager(models.Manager):
         """deletes all stale killmail"""
         deadline = now() - timedelta(days=KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS)
         self.filter(time__lt=deadline).delete()
-
-
-class TrackedKillmailQuerySet(models.QuerySet):
-    def killmail_ids(self) -> set:
-        return set(self.order_by("killmail_id").values_list("killmail_id", flat=True))
-
-
-class TrackedKillmailManager(models.Manager):
-    def get_queryset(self):
-        return TrackedKillmailQuerySet(self.model, using=self._db)

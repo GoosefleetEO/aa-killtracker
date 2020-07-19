@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.db.models import Max
 from django.utils.timezone import now
 
-from ..models import Killmail, Tracker, TrackedKillmail, Webhook
+from ..models import EveKillmail, Tracker, TrackedKillmail, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
@@ -100,12 +100,12 @@ class TestSendAlertsToWebhook(TestTrackerBase):
         self.assertEqual(mock_send_matching_to_webhook.call_count, 2)
 
 
-@patch(MODULE_PATH + ".Killmail.objects.fetch_from_zkb")
+@patch(MODULE_PATH + ".EveKillmail.objects.fetch_from_zkb")
 @patch(MODULE_PATH + ".run_tracker")
 class TestRunKilltracker(TestTrackerBase):
     @staticmethod
     def my_fetch_from_zkb():
-        for killmail in Killmail.objects.all():
+        for killmail in EveKillmail.objects.all():
             yield killmail
 
     def test_normal(self, mock_run_tracker, mock_fetch_from_zkb):
@@ -116,12 +116,12 @@ class TestRunKilltracker(TestTrackerBase):
 
     @patch("killtracker.managers.KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS", 1)
     def test_delete_stale_killmails(self, mock_run_tracker, mock_fetch_from_zkb):
-        km = Killmail.objects.get(id=10000001)
+        km = EveKillmail.objects.get(id=10000001)
         km.time = now() - timedelta(days=1, seconds=1)
         km.save()
 
         run_killtracker(max_killmails_in_total=3)
 
-        self.assertEqual(Killmail.objects.count(), 2)
-        self.assertTrue(Killmail.objects.filter(id=10000002).exists())
-        self.assertTrue(Killmail.objects.filter(id=10000003).exists())
+        self.assertEqual(EveKillmail.objects.count(), 2)
+        self.assertTrue(EveKillmail.objects.filter(id=10000002).exists())
+        self.assertTrue(EveKillmail.objects.filter(id=10000003).exists())

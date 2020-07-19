@@ -16,7 +16,7 @@ from eveuniverse.models import (
 )
 
 from . import ResponseStub
-from ..models import Killmail, Tracker, Webhook
+from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
@@ -68,10 +68,10 @@ class TestKillmails(TestCaseBase):
             {"package": killmails_data[10000001]}
         )
 
-        killmail = Killmail.objects.fetch_from_zkb()
+        killmail = EveKillmail.objects.fetch_from_zkb()
 
         self.assertIsNotNone(killmail)
-        self.assertTrue(Killmail.objects.filter(id=killmail.id).exists())
+        self.assertTrue(EveKillmail.objects.filter(id=killmail.id).exists())
         self.assertEqual(killmail.id, 10000001)
         self.assertEqual(killmail.solar_system_id, 30004984)
 
@@ -103,7 +103,7 @@ class TestKillmails(TestCaseBase):
     def test_fetch_from_zkb_no_data(self, mock_requests):
         mock_requests.get.return_value = ResponseStub({"package": None})
 
-        killmail = Killmail.objects.fetch_from_zkb()
+        killmail = EveKillmail.objects.fetch_from_zkb()
         self.assertIsNone(killmail)
 
 
