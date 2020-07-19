@@ -6,6 +6,7 @@ import json
 from json import JSONDecoder
 from json import JSONEncoder
 from pytz import timezone
+from typing import Any
 
 
 class JsonDateTimeDecoder(json.JSONDecoder):
@@ -16,14 +17,14 @@ class JsonDateTimeDecoder(json.JSONDecoder):
         if "__type__" not in dct:
             return dct
 
-        type = dct.pop("__type__")
+        type_str = dct.pop("__type__")
         zone, _ = dct.pop("tz")
         dct["tzinfo"] = timezone(zone)
         try:
             dateobj = datetime(**dct)
             return dateobj
         except Exception:
-            dct["__type__"] = type
+            dct["__type__"] = type_str
             return dct
 
 
@@ -33,18 +34,18 @@ class JsonDateTimeEncoder(JSONEncoder):
         JsonDateTimeDecoder
     """
 
-    def default(self, obj) -> object:
-        if isinstance(obj, datetime):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
             return {
                 "__type__": "datetime",
-                "year": obj.year,
-                "month": obj.month,
-                "day": obj.day,
-                "hour": obj.hour,
-                "minute": obj.minute,
-                "second": obj.second,
-                "microsecond": obj.microsecond,
-                "tz": (obj.tzinfo.tzname(obj), obj.utcoffset().total_seconds()),
+                "year": o.year,
+                "month": o.month,
+                "day": o.day,
+                "hour": o.hour,
+                "minute": o.minute,
+                "second": o.second,
+                "microsecond": o.microsecond,
+                "tz": (o.tzinfo.tzname(o), o.utcoffset().total_seconds()),
             }
         else:
-            return JSONEncoder.default(self, obj)
+            return JSONEncoder.default(self, o)

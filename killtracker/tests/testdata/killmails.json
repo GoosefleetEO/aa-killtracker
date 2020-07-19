@@ -530,7 +530,8 @@
         "killmail": {
             "attackers": [
                 {
-                    "corporation_id": 2001,
+                    "corporation_id": 2011,
+                    "ship_type_id": 3756,
                     "damage_done": 434,
                     "final_blow": true
                 }

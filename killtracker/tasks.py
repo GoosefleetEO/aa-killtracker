@@ -10,7 +10,7 @@ from eveuniverse.tasks import update_or_create_eve_object
 
 from . import __title__
 from .app_settings import KILLTRACKER_MAX_KILLMAILS_PER_RUN
-from .helpers.killmails import KillmailTemp
+from .helpers.killmails import Killmail
 from .models import (
     Tracker,
     Webhook,
@@ -59,8 +59,8 @@ def run_tracker(tracker_pk: int, killmail_id: id, killmail_json: str) -> None:
         logger.warning("Tracker with pk = %s does not exist", tracker_pk)
     else:
         logger.info("Started running tracker %s", tracker)
-        killmail = KillmailTemp.from_json(killmail_json)
-        killmail_new = tracker.calculate_killmail(killmail)
+        killmail = Killmail.from_json(killmail_json)
+        killmail_new = tracker.process_killmail(killmail)
         if killmail_new:
             tracker.webhook.add_killmail_to_queue(killmail_new)
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
@@ -74,7 +74,7 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
     total_killmails = 0
     killmail = None
     while total_killmails < max_killmails_in_total:
-        killmail = KillmailTemp.fetch_from_zkb()
+        killmail = Killmail.fetch_from_zkb_redisq()
         if killmail:
             total_killmails += 1
         else:

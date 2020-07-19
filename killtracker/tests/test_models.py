@@ -15,15 +15,13 @@ from eveuniverse.models import (
     EveType,
 )
 
-from . import ResponseStub
-from ..models import EveKillmail, Tracker, Webhook
+from ..models import Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
     load_evealliances,
     load_evecorporations,
-    killmails_data,
-    load_temp_killmail,
+    load_killmail,
 )
 from ..utils import NoSocketsTestCase, set_test_logger
 
@@ -61,60 +59,14 @@ class TestCaseBase(NoSocketsTestCase):
         )
 
 
-@patch("killtracker.managers.requests", spec=True)
-class TestKillmails(TestCaseBase):
-    def test_fetch_from_zkb_normal(self, mock_requests):
-        mock_requests.get.return_value = ResponseStub(
-            {"package": killmails_data[10000001]}
-        )
-
-        killmail = EveKillmail.objects.fetch_from_zkb()
-
-        self.assertIsNotNone(killmail)
-        self.assertTrue(EveKillmail.objects.filter(id=killmail.id).exists())
-        self.assertEqual(killmail.id, 10000001)
-        self.assertEqual(killmail.solar_system_id, 30004984)
-
-        self.assertEqual(killmail.victim.alliance_id, 3011)
-        self.assertEqual(killmail.victim.character_id, 1011)
-        self.assertEqual(killmail.victim.corporation_id, 2011)
-        self.assertEqual(killmail.victim.damage_taken, 434)
-        self.assertEqual(killmail.victim.ship_type_id, 603)
-
-        self.assertEqual(killmail.attackers.count(), 3)
-
-        attacker_1 = killmail.attackers.filter(is_final_blow=True).first()
-        self.assertEqual(attacker_1.alliance_id, 3001)
-        self.assertEqual(attacker_1.character_id, 1001)
-        self.assertEqual(attacker_1.corporation_id, 2001)
-        self.assertEqual(attacker_1.damage_done, 434)
-        self.assertEqual(attacker_1.security_status, -10)
-        self.assertEqual(attacker_1.ship_type_id, 34562)
-        self.assertEqual(attacker_1.weapon_type_id, 2977)
-
-        self.assertEqual(killmail.zkb.location_id, 50012306)
-        self.assertEqual(killmail.zkb.fitted_value, 10000)
-        self.assertEqual(killmail.zkb.total_value, 10000)
-        self.assertEqual(killmail.zkb.points, 1)
-        self.assertFalse(killmail.zkb.is_npc)
-        self.assertFalse(killmail.zkb.is_solo)
-        self.assertFalse(killmail.zkb.is_awox)
-
-    def test_fetch_from_zkb_no_data(self, mock_requests):
-        mock_requests.get.return_value = ResponseStub({"package": None})
-
-        killmail = EveKillmail.objects.fetch_from_zkb()
-        self.assertIsNone(killmail)
-
-
 @patch("eveuniverse.models.cache", new=CacheStub())
 class TestTrackerCalculate(TestCaseBase):
     @staticmethod
     def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
         results = set()
         for killmail_id in killmail_ids:
-            killmail = load_temp_killmail(killmail_id)
-            if tracker.calculate_killmail(killmail):
+            killmail = load_killmail(killmail_id)
+            if tracker.process_killmail(killmail):
                 results.add(killmail_id)
 
         return results
@@ -130,8 +82,8 @@ class TestTrackerCalculate(TestCaseBase):
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, origin_solar_system_id=30003067
         )
-        killmail = load_temp_killmail(10000101)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000101)
+        killmail_plus = tracker.process_killmail(killmail)
         self.assertTrue(killmail_plus.tracker_info)
         self.assertEqual(killmail_plus.tracker_info.tracker_pk, tracker.pk)
         self.assertEqual(killmail_plus.tracker_info.jumps, 7)
@@ -140,12 +92,12 @@ class TestTrackerCalculate(TestCaseBase):
     @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 1)
     def test_excludes_older_killmails(self):
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
-        killmail_1 = load_temp_killmail(10000001)
-        killmail_2 = load_temp_killmail(10000002)
+        killmail_1 = load_killmail(10000001)
+        killmail_2 = load_killmail(10000002)
         killmail_2.time = now() - timedelta(hours=1, seconds=1)
         results = set()
         for killmail in [killmail_1, killmail_2]:
-            if tracker.calculate_killmail(killmail):
+            if tracker.process_killmail(killmail):
                 results.add(killmail.id)
 
         expected = {10000001}
@@ -392,8 +344,8 @@ class TestWebhookSendKillmail(TestCaseBase):
     def test_normal(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -401,7 +353,7 @@ class TestWebhookSendKillmail(TestCaseBase):
 
     def test_without_tracker_info(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        killmail = load_temp_killmail(10000001)
+        killmail = load_killmail(10000001)
 
         self.webhook_1.send_killmail(killmail)
 
@@ -413,8 +365,8 @@ class TestWebhookSendKillmail(TestCaseBase):
             name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_EVERYBODY,
         )
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -427,8 +379,8 @@ class TestWebhookSendKillmail(TestCaseBase):
             name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_HERE,
         )
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -441,8 +393,8 @@ class TestWebhookSendKillmail(TestCaseBase):
             name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_NONE,
         )
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -456,8 +408,8 @@ class TestWebhookSendKillmail(TestCaseBase):
             name="Ping Nobody", webhook=self.webhook_1, is_posting_name=False,
         )
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -468,8 +420,8 @@ class TestWebhookSendKillmail(TestCaseBase):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
-        killmail = load_temp_killmail(10000301)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000301)
+        killmail_plus = tracker.process_killmail(killmail)
 
         self.webhook_1.send_killmail(killmail_plus)
 
@@ -479,8 +431,8 @@ class TestWebhookSendKillmail(TestCaseBase):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         result = self.webhook_1.send_killmail(killmail_plus)
 
@@ -491,8 +443,8 @@ class TestWebhookSendKillmail(TestCaseBase):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
-        killmail = load_temp_killmail(10000001)
-        killmail_plus = tracker.calculate_killmail(killmail)
+        killmail = load_killmail(10000001)
+        killmail_plus = tracker.process_killmail(killmail)
 
         result = self.webhook_1.send_killmail(killmail_plus)
 

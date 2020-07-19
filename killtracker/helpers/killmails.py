@@ -29,7 +29,7 @@ CHARACTER_PROPS = [
 
 
 @dataclass
-class _KillmailCharacterTemp:
+class _KillmailCharacter:
     character_id: Optional[int] = None
     corporation_id: Optional[int] = None
     alliance_id: Optional[int] = None
@@ -38,12 +38,12 @@ class _KillmailCharacterTemp:
 
 
 @dataclass
-class KillmailVictimTemp(_KillmailCharacterTemp):
+class KillmailVictim(_KillmailCharacter):
     damage_taken: Optional[int] = None
 
 
 @dataclass
-class KillmailAttackerTemp(_KillmailCharacterTemp):
+class KillmailAttacker(_KillmailCharacter):
     damage_done: Optional[int] = None
     is_final_blow: Optional[bool] = None
     security_status: Optional[float] = None
@@ -51,14 +51,14 @@ class KillmailAttackerTemp(_KillmailCharacterTemp):
 
 
 @dataclass
-class KillmailPositionTemp:
+class KillmailPosition:
     x: Optional[float] = None
     y: Optional[float] = None
     z: Optional[float] = None
 
 
 @dataclass
-class KillmailZkbTemp:
+class KillmailZkb:
     location_id: Optional[int] = None
     hash: Optional[str] = None
     fitted_value: Optional[float] = None
@@ -77,13 +77,13 @@ class TrackerInfo:
 
 
 @dataclass
-class KillmailTemp:
+class Killmail:
     id: int
     time: datetime
-    victim: KillmailVictimTemp
-    attackers: List[KillmailAttackerTemp]
-    position: KillmailPositionTemp
-    zkb: KillmailZkbTemp
+    victim: KillmailVictim
+    attackers: List[KillmailAttacker]
+    position: KillmailPosition
+    zkb: KillmailZkb
     solar_system_id: Optional[int] = None
     tracker_info: Optional[TrackerInfo] = None
 
@@ -92,6 +92,7 @@ class KillmailTemp:
             self.victim.character_id,
             self.victim.corporation_id,
             self.victim.alliance_id,
+            self.victim.faction_id,
             self.victim.ship_type_id,
             self.solar_system_id,
         ]
@@ -100,6 +101,7 @@ class KillmailTemp:
                 attacker.character_id,
                 attacker.corporation_id,
                 attacker.alliance_id,
+                attacker.faction_id,
                 attacker.ship_type_id,
                 attacker.weapon_type_id,
             ]
@@ -111,7 +113,7 @@ class KillmailTemp:
     @classmethod
     def from_dict(cls, data: dict) -> object:
         try:
-            return from_dict(data_class=KillmailTemp, data=data)
+            return from_dict(data_class=Killmail, data=data)
         except DaciteError as ex:
             logger.error("Failed to convert dict to %s", type(cls), exc_info=True)
             raise ex
@@ -124,7 +126,7 @@ class KillmailTemp:
         return cls.from_dict(json.loads(json_str, cls=JsonDateTimeDecoder))
 
     @classmethod
-    def fetch_from_zkb(cls) -> object:
+    def fetch_from_zkb_redisq(cls) -> object:
         """Fetches and returns a killmail from ZKB. 
         
         Returns None if no killmail is received.
@@ -145,7 +147,7 @@ class KillmailTemp:
 
     @staticmethod
     def _create_from_dict(package_data: dict) -> object:
-        zkb = KillmailZkbTemp()
+        zkb = KillmailZkb()
         if "zkb" in package_data:
             zkb_data = package_data["zkb"]
             args = {}
@@ -165,12 +167,12 @@ class KillmailTemp:
                     else:
                         args[prop] = zkb_data[prop]
 
-            zkb = KillmailZkbTemp(**args)
+            zkb = KillmailZkb(**args)
 
         killmail = None
         if "killmail" in package_data:
-            victim = KillmailVictimTemp()
-            position = KillmailPositionTemp()
+            victim = KillmailVictim()
+            position = KillmailPosition()
             attackers = list()
             killmail_data = package_data["killmail"]
             if "victim" in killmail_data:
@@ -180,7 +182,7 @@ class KillmailTemp:
                     if prop in victim_data:
                         args[prop] = victim_data[prop]
 
-                victim = KillmailVictimTemp(**args)
+                victim = KillmailVictim(**args)
 
                 if "position" in victim_data:
                     position_data = victim_data["position"]
@@ -189,7 +191,7 @@ class KillmailTemp:
                         if prop in position_data:
                             args[prop] = position_data[prop]
 
-                    position = KillmailPositionTemp(**args)
+                    position = KillmailPosition(**args)
 
             if "attackers" in killmail_data:
                 for attacker_data in killmail_data["attackers"]:
@@ -205,7 +207,7 @@ class KillmailTemp:
                     if "final_blow" in attacker_data:
                         args["is_final_blow"] = attacker_data["final_blow"]
 
-                    attackers.append(KillmailAttackerTemp(**args))
+                    attackers.append(KillmailAttacker(**args))
 
             args = {
                 "id": killmail_data["killmail_id"],
@@ -218,6 +220,6 @@ class KillmailTemp:
             if "solar_system_id" in killmail_data:
                 args["solar_system_id"] = killmail_data["solar_system_id"]
 
-            killmail = KillmailTemp(**args)
+            killmail = Killmail(**args)
 
         return killmail

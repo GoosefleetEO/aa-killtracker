@@ -47,7 +47,7 @@ class TestIntegration(TestCase):
 
     @staticmethod
     def my_redisq(*args, **kwargs):
-        for killmail_id in [10000001, None]:
+        for killmail_id in [10000001, 10000002, 10000003, None]:
             if killmail_id:
                 yield ResponseStub({"package": killmails_data[killmail_id]})
             else:
@@ -59,4 +59,5 @@ class TestIntegration(TestCase):
 
         run_killtracker()
         self.assertTrue(mock_execute.called, True)
-        print()
+        _, kwargs = mock_execute.call_args
+        self.assertIn("Low Sec Only", kwargs["content"])

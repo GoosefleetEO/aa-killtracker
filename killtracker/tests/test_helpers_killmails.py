@@ -2,8 +2,8 @@ import unittest
 from unittest.mock import patch
 
 from . import ResponseStub
-from ..helpers.killmails import KillmailTemp
-from .testdata.helpers import killmails_data, load_temp_killmail
+from ..helpers.killmails import Killmail
+from .testdata.helpers import killmails_data, load_killmail
 from ..utils import NoSocketsTestCase, set_test_logger
 
 
@@ -19,7 +19,7 @@ class TestKillmailsFetch(NoSocketsTestCase):
             {"package": killmails_data[10000001]}
         )
 
-        killmail = KillmailTemp.fetch_from_zkb()
+        killmail = Killmail.fetch_from_zkb_redisq()
 
         self.assertIsNotNone(killmail)
         self.assertEqual(killmail.id, 10000001)
@@ -53,27 +53,27 @@ class TestKillmailsFetch(NoSocketsTestCase):
     def test_fetch_from_zkb_no_data(self, mock_requests):
         mock_requests.get.return_value = ResponseStub({"package": None})
 
-        killmail = KillmailTemp.fetch_from_zkb()
+        killmail = Killmail.fetch_from_zkb_redisq()
         self.assertIsNone(killmail)
 
 
 class TestKillmailsBasics(NoSocketsTestCase):
     def test_dict_serialization(self):
-        killmail = load_temp_killmail(10000001)
+        killmail = load_killmail(10000001)
         dct_1 = killmail.asdict()
-        killmail_2 = KillmailTemp.from_dict(dct_1)
+        killmail_2 = Killmail.from_dict(dct_1)
         self.maxDiff = None
         self.assertEqual(killmail, killmail_2)
 
     def test_json_serialization(self):
-        killmail = load_temp_killmail(10000001)
+        killmail = load_killmail(10000001)
         json_1 = killmail.asjson()
-        killmail_2 = KillmailTemp.from_json(json_1)
+        killmail_2 = Killmail.from_json(json_1)
         self.maxDiff = None
         self.assertEqual(killmail, killmail_2)
 
     def test_entity_ids(self):
-        killmail = load_temp_killmail(10000001)
+        killmail = load_killmail(10000001)
         result = killmail.entity_ids()
         expected = {
             1011,

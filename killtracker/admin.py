@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.db.models import Max
 from django.db.models.functions import Lower
 
 from allianceauth.eveonline.models import EveAllianceInfo
@@ -17,7 +16,22 @@ class WebhookAdmin(admin.ModelAdmin):
     def _queue_size(self, obj):
         return obj.queue_size()
 
-    actions = ["send_test_message"]
+    actions = ["send_test_message", "clear_queue"]
+
+    def clear_queue(self, request, queryset):
+        actions_count = 0
+        killmails_deleted = 0
+        for webhook in queryset:
+            killmails_deleted += webhook.clear_queue()
+            actions_count += 1
+
+        self.message_user(
+            request,
+            f"Cleared queues for {actions_count} webhooks, "
+            f"deleting a total of {killmails_deleted} killmails.",
+        )
+
+    clear_queue.short_description = "Clear queues of selected webhooks"
 
     def send_test_message(self, request, queryset):
         actions_count = 0
@@ -41,10 +55,6 @@ class TrackerAdmin(admin.ModelAdmin):
         "is_enabled",
         "origin_solar_system",
         "webhook",
-        "_processed_count",
-        "_matching_count",
-        "_sent_count",
-        "_last_sent",
     )
     list_filter = (
         "is_enabled",
@@ -59,31 +69,6 @@ class TrackerAdmin(admin.ModelAdmin):
         "exclude_blue_attackers",
         "require_blue_victim",
     )
-
-    def _processed_count(self, obj):
-        return obj.trackedkillmail_set.count()
-
-    def _matching_count(self, obj):
-        return obj.trackedkillmail_set.filter(is_matching=True).count()
-
-    def _sent_count(self, obj):
-        return obj.trackedkillmail_set.filter(date_sent__isnull=False).count()
-
-    def _last_sent(self, obj):
-        result = obj.trackedkillmail_set.all().aggregate(Max("date_sent"))
-        return result["date_sent__max"]
-
-    actions = ["run_tracker"]
-
-    def run_tracker(self, request, queryset):
-        actions_count = 0
-        for tracker in queryset:
-            tasks.run_tracker.delay(tracker.pk)
-            actions_count += 1
-
-        self.message_user(request, f"Started {actions_count} trackers.")
-
-    run_tracker.short_description = "Run selected trackers"
 
     filter_horizontal = (
         "exclude_attacker_alliances",
