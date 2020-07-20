@@ -59,7 +59,7 @@ class TestTrackerBase(NoSocketsTestCase):
         )
 
 
-@patch(MODULE_PATH + ".Killmail.fetch_from_zkb_redisq")
+@patch(MODULE_PATH + ".Killmail.create_from_zkb_redisq")
 @patch(MODULE_PATH + ".run_tracker")
 class TestRunKilltracker(TestTrackerBase):
     @staticmethod

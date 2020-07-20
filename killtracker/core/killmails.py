@@ -12,12 +12,14 @@ from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
 from .json_serializer import JsonDateTimeDecoder, JsonDateTimeEncoder
+from ..providers import esi
 from ..utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 ZKB_REDISQ_URL = "https://redisq.zkillboard.com/listen.php"
-ZKB_REDISQ_TIMEOUT = (5, 30)
+ZKB_API_URL = "https://zkillboard.com/api/"
+REQUESTS_TIMEOUT = (5, 30)
 
 CHARACTER_PROPS = [
     "character_id",
@@ -126,13 +128,13 @@ class Killmail:
         return cls.from_dict(json.loads(json_str, cls=JsonDateTimeDecoder))
 
     @classmethod
-    def fetch_from_zkb_redisq(cls) -> object:
+    def create_from_zkb_redisq(cls) -> object:
         """Fetches and returns a killmail from ZKB. 
         
         Returns None if no killmail is received.
         """
-        logger.info("Trying to fetch killmail from ZKB...")
-        r = requests.get(ZKB_REDISQ_URL, timeout=ZKB_REDISQ_TIMEOUT)
+        logger.info("Trying to fetch killmail from ZKB RedisQ...")
+        r = requests.get(ZKB_REDISQ_URL, timeout=REQUESTS_TIMEOUT)
         r.raise_for_status()
         data = r.json()
         if data:
@@ -144,6 +146,49 @@ class Killmail:
         else:
             logger.info("ZKB killmail queue is empty")
             return None
+
+    @classmethod
+    def create_from_zkb_api(cls, killmail_id: int) -> "Killmail":
+        """Fetches and returns a killmail from ZKB API. """
+
+        logger.info(
+            "Trying to fetch killmail from ZKB API with killmail ID %d ...", killmail_id
+        )
+        url = f"{ZKB_API_URL}killID/{killmail_id}/"
+        r = requests.get(url, timeout=REQUESTS_TIMEOUT)
+        r.raise_for_status()
+        zkb_data = r.json()
+        if not zkb_data:
+            logger.warning(
+                "ZKB API did not return any data for killmail ID %d", killmail_id
+            )
+            return None
+
+        logger.debug("data:\n%s", zkb_data)
+        try:
+            killmail_zkb = zkb_data[0]
+        except KeyError:
+            return None
+
+        killmail_esi = esi.client.Killmails.get_killmails_killmail_id_killmail_hash(
+            killmail_id=killmail_id, killmail_hash=killmail_zkb["zkb"]["hash"]
+        ).results()
+        if not killmail_esi:
+            logger.warning(
+                "ESI did not return any data for killmail ID %d", killmail_id
+            )
+            return None
+
+        # esi returns datetime, but _create_from_dict() expects a string
+        # like returned from zkb redisq
+        killmail_esi["killmail_time"] = killmail_esi["killmail_time"].isoformat()
+
+        killmail_dict = {
+            "killID": killmail_id,
+            "killmail": killmail_esi,
+            "zkb": killmail_zkb["zkb"],
+        }
+        return cls._create_from_dict(killmail_dict)
 
     @staticmethod
     def _create_from_dict(package_data: dict) -> object:

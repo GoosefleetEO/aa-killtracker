@@ -23,7 +23,7 @@ PACKAGE_PATH = "killtracker"
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(PACKAGE_PATH + ".models.sleep", new=lambda x: None)
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
-@patch(PACKAGE_PATH + ".helpers.killmails.requests", spec=True)
+@patch(PACKAGE_PATH + ".core.killmails.requests", spec=True)
 class TestIntegration(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -47,9 +47,10 @@ class TestIntegration(TestCase):
 
     @staticmethod
     def my_redisq(*args, **kwargs):
+        my_killmails_data = killmails_data()
         for killmail_id in [10000001, 10000002, 10000003, None]:
             if killmail_id:
-                yield ResponseStub({"package": killmails_data[killmail_id]})
+                yield ResponseStub({"package": my_killmails_data[killmail_id]})
             else:
                 yield ResponseStub({"package": None})
 

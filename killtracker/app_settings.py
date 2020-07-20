@@ -6,7 +6,7 @@ KILLTRACKER_KILLMAIL_STALE_AFTER_DAYS = clean_setting(
 )
 
 KILLTRACKER_MAX_KILLMAILS_PER_RUN = clean_setting(
-    "KILLTRACKER_MAX_KILLMAILS_PER_RUN", 50
+    "KILLTRACKER_MAX_KILLMAILS_PER_RUN", 250
 )
 
 # ignore killmails that are older than the given number in hours

@@ -1,9 +1,8 @@
 from copy import deepcopy
 from datetime import timedelta
-import json
 from time import sleep
 from urllib.parse import urljoin
-from typing import Optional, List, Tuple, Set
+from typing import Optional, List, Set, Tuple
 
 import dhooks_lite
 from redismq import RedisMQ
@@ -32,7 +31,7 @@ from eveuniverse.models import (
 
 from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
-from .helpers.killmails import Killmail, TrackerInfo
+from .core.killmails import Killmail, TrackerInfo
 from .managers import KillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
@@ -236,7 +235,7 @@ class Webhook(models.Model):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._redis_mq = RedisMQ(
+        self._queue = RedisMQ(
             cache.get_master_client(), f"{__title__}_webhook_{self.pk}"
         )
 
@@ -253,7 +252,7 @@ class Webhook(models.Model):
         
         Returns updated size of queue
         """
-        return self._queue().enqueue(killmail.asjson())
+        return self._queue.enqueue(killmail.asjson())
 
     def send_queued_killmails(self) -> int:
         """sends all killmails in the queue to this webhook
@@ -263,9 +262,8 @@ class Webhook(models.Model):
         Killmails that could not be sent are put back into the queue for later retry
         """
         killmail_counter = 0
-        queue = self._queue()
         while True:
-            message = queue.dequeue()
+            message = self._queue.dequeue()
             if message:
                 killmail = Killmail.from_json(message)
                 logger.debug(
@@ -284,14 +282,13 @@ class Webhook(models.Model):
 
     def queue_size(self) -> int:
         """returns current size of the queue"""
-        return self._queue().size()
+        return self._queue.size()
 
     def clear_queue(self) -> int:
         """deletes all killmails from the queue. Return number of cleared messages."""
         counter = 0
-        queue = self._queue()
         while True:
-            y = queue.dequeue()
+            y = self._queue.dequeue()
             if y is None:
                 break
             else:
@@ -299,11 +296,7 @@ class Webhook(models.Model):
 
         return counter
 
-    def _queue(self) -> RedisMQ:
-        """returns the queue object for this webhook"""
-        return self._redis_mq
-
-    def send_killmail(self, killmail: Killmail) -> bool:
+    def send_killmail(self, killmail: Killmail, intro_text: str = None) -> bool:
         """send given killmail to webhook
         
         returns True if successful, else False        
@@ -447,6 +440,9 @@ class Webhook(models.Model):
         else:
             intro = ""
 
+        if intro_text:
+            intro = f"{intro_text}\n{intro}"
+
         logger.info(
             "%sSending killmail to Discord for killmail %s",
             f"Tracker {tracker.name}: " if tracker else "",
@@ -494,28 +490,23 @@ class Webhook(models.Model):
     def _convert_to_discord_link(cls, name: str, url: str) -> str:
         return f"[{str(name)}]({str(url)})"
 
-    def send_test_notification(self) -> Tuple[str, bool]:
+    def send_test_notification(self, killmail_id: int = 85773909) -> Tuple[str, bool]:
         """Sends a test notification to this webhook and returns send report"""
-        hook = dhooks_lite.Webhook(self.url)
-        response = hook.execute(
-            content=_(
-                "This is a test notification from %s.\n"
-                "The webhook appears to be correctly configured."
+        try:
+            self.send_killmail(
+                Killmail.create_from_zkb_api(killmail_id=killmail_id),
+                f"Test notification for webhook {self.name}:",
             )
-            % __title__,
-            username=self.default_username(),
-            avatar_url=self.default_avatar_url(),
-            wait_for_response=True,
-        )
-        if response.status_ok:
-            success = True
-            send_report = json.dumps(response.content, indent=4, sort_keys=True)
+        except Exception as ex:
+            logger.warning(
+                "Failed to send test notification to webhook %s: %s",
+                self,
+                ex,
+                exc_info=True,
+            )
+            return str(ex), False
         else:
-            success = False
-            send_report = "HTTP status code {}. Please see log for details".format(
-                response.status_code
-            )
-        return send_report, success
+            return "", True
 
     @staticmethod
     def default_avatar_url() -> str:

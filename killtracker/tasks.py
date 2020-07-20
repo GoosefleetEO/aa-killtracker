@@ -1,3 +1,5 @@
+from timeit import default_timer as timer
+
 from celery import shared_task
 
 from django.contrib.auth.models import User
@@ -10,7 +12,7 @@ from eveuniverse.tasks import update_or_create_eve_object
 
 from . import __title__
 from .app_settings import KILLTRACKER_MAX_KILLMAILS_PER_RUN
-from .helpers.killmails import Killmail
+from .core.killmails import Killmail
 from .models import (
     Tracker,
     Webhook,
@@ -70,11 +72,12 @@ def run_tracker(tracker_pk: int, killmail_id: id, killmail_json: str) -> None:
 
 @shared_task(base=QueueOnce)
 def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -> None:
+    start = timer()
     logger.info("Killtracker run started...")
     total_killmails = 0
     killmail = None
     while total_killmails < max_killmails_in_total:
-        killmail = Killmail.fetch_from_zkb_redisq()
+        killmail = Killmail.create_from_zkb_redisq()
         if killmail:
             total_killmails += 1
         else:
@@ -87,9 +90,13 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
                 killmail_json=killmail.asjson(),
             )
 
-    logger.info("Total killmails received from ZKB in this run: %d", total_killmails)
+    end = timer()
+    logger.info(
+        "Total killmails received from ZKB in %d secs: %d", end - start, total_killmails
+    )
 
 
+@shared_task
 def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
@@ -97,9 +104,14 @@ def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
         logger.warning("Webhook with pk = %s does not exist", webhook_pk)
     else:
         logger.info("Sending test message to webhook %s", webhook)
-        send_report, success = webhook.send_test_notification()
+        error_text, success = webhook.send_test_notification()
 
         if user_pk:
+            message = (
+                f"Error text: {error_text}\nCheck log files for details."
+                if not success
+                else "No errors"
+            )
             try:
                 user = User.objects.get(pk=user_pk)
             except User.DoesNotExist:
@@ -112,6 +124,6 @@ def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
                         f"{__title__}: Result of test message to webhook {webhook}: "
                         f"{level.upper()}"
                     ),
-                    message=send_report,
+                    message=message,
                     level=level,
                 )

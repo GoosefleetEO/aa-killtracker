@@ -3,15 +3,16 @@
 
 from datetime import datetime
 import json
-from json import JSONDecoder
-from json import JSONEncoder
-from pytz import timezone
 from typing import Any
+
+from pytz import timezone
 
 
 class JsonDateTimeDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs):
-        JSONDecoder.__init__(self, object_hook=self.dict_to_object, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        json.JSONDecoder.__init__(
+            self, object_hook=self.dict_to_object, *args, **kwargs
+        )
 
     def dict_to_object(self, dct: dict) -> object:
         if "__type__" not in dct:
@@ -28,7 +29,7 @@ class JsonDateTimeDecoder(json.JSONDecoder):
             return dct
 
 
-class JsonDateTimeEncoder(JSONEncoder):
+class JsonDateTimeEncoder(json.JSONEncoder):
     """ Instead of letting the default encoder convert datetime to string,
         convert datetime objects into a dict, which can be decoded by the
         JsonDateTimeDecoder
@@ -48,4 +49,4 @@ class JsonDateTimeEncoder(JSONEncoder):
                 "tz": (o.tzinfo.tzname(o), o.utcoffset().total_seconds()),
             }
         else:
-            return JSONEncoder.default(self, o)
+            return json.JSONEncoder.default(self, o)

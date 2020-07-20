@@ -36,13 +36,13 @@ class WebhookAdmin(admin.ModelAdmin):
     def send_test_message(self, request, queryset):
         actions_count = 0
         for webhook in queryset:
-            tasks.send_test_message_to_webhook(webhook.pk, request.user.pk)
+            tasks.send_test_message_to_webhook.delay(webhook.pk, request.user.pk)
             actions_count += 1
 
         self.message_user(
             request,
             f"Initiated sending of {actions_count} test messages to "
-            f"selected webhooks. You will receive a notification with the result",
+            f"selected webhooks. You will receive a notification with the result.",
         )
 
     send_test_message.short_description = "Send test message to selected webhooks"

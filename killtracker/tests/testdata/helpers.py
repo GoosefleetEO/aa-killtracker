@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 from hashlib import md5
 import json
@@ -7,7 +8,7 @@ from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
 from . import _currentdir
 from .load_eveuniverse import load_eveuniverse  # noqa
-from ...helpers.killmails import Killmail
+from ...core.killmails import Killmail
 from ...models import EveKillmail
 
 
@@ -36,14 +37,18 @@ def _load_killmails_data() -> dict:
     return data
 
 
-killmails_data = _load_killmails_data()
-eveentities_data = _load_json_from_file("eveentities")
-evealliances_data = _load_json_from_file("evealliances")
-evecorporations_data = _load_json_from_file("evecorporations")
+_killmails_data = _load_killmails_data()
+_eveentities_data = _load_json_from_file("eveentities")
+_evealliances_data = _load_json_from_file("evealliances")
+_evecorporations_data = _load_json_from_file("evecorporations")
+
+
+def killmails_data() -> dict:
+    return deepcopy(_killmails_data)
 
 
 def load_eveentities() -> None:
-    for item in eveentities_data:
+    for item in _eveentities_data:
         EveEntity.objects.update_or_create(
             id=item["id"], defaults={"name": item["name"], "category": item["category"]}
         )
@@ -62,7 +67,7 @@ def load_eveentities() -> None:
 
 def load_evealliances() -> None:
     EveAllianceInfo.objects.all().delete()
-    for item in evealliances_data:
+    for item in _evealliances_data:
         alliance = EveAllianceInfo.objects.create(**item)
         EveEntity.objects.create(
             id=alliance.alliance_id,
@@ -73,7 +78,7 @@ def load_evealliances() -> None:
 
 def load_evecorporations() -> None:
     EveCorporationInfo.objects.all().delete()
-    for item in evecorporations_data:
+    for item in _evecorporations_data:
         corporation = EveCorporationInfo.objects.create(**item)
         EveEntity.objects.create(
             id=corporation.corporation_id,
@@ -86,13 +91,13 @@ def load_eve_killmails(killmail_ids: set = None) -> None:
     if killmail_ids:
         killmail_ids = set(killmail_ids)
     EveKillmail.objects.all().delete()
-    for killmail_id, item in killmails_data.items():
+    for killmail_id, item in _killmails_data.items():
         if not killmail_ids or killmail_id in killmail_ids:
             EveKillmail.objects._create_from_dict(item)
 
 
 def load_killmail(killmail_id: int) -> Killmail:
-    for item_id, item in killmails_data.items():
+    for item_id, item in _killmails_data.items():
         if killmail_id == item_id:
             return Killmail._create_from_dict(item)
 
