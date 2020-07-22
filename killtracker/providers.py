@@ -9,4 +9,3 @@ from .utils import LoggerAddTag, get_swagger_spec_path
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 esi = EsiClientProvider(spec_file=get_swagger_spec_path())
-

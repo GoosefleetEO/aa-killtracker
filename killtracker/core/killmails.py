@@ -1,7 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import json
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from dacite import from_dict, DaciteError
 import requests
@@ -21,17 +21,23 @@ ZKB_REDISQ_URL = "https://redisq.zkillboard.com/listen.php"
 ZKB_API_URL = "https://zkillboard.com/api/"
 REQUESTS_TIMEOUT = (5, 30)
 
-CHARACTER_PROPS = [
-    "character_id",
-    "corporation_id",
-    "alliance_id",
-    "faction_id",
-    "ship_type_id",
-]
+
+@dataclass
+class _KillmailBase:
+    def asdict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
-class _KillmailCharacter:
+class _KillmailCharacter(_KillmailBase):
+    ENTITY_PROPS = [
+        "character_id",
+        "corporation_id",
+        "alliance_id",
+        "faction_id",
+        "ship_type_id",
+    ]
+
     character_id: Optional[int] = None
     corporation_id: Optional[int] = None
     alliance_id: Optional[int] = None
@@ -46,6 +52,8 @@ class KillmailVictim(_KillmailCharacter):
 
 @dataclass
 class KillmailAttacker(_KillmailCharacter):
+    ENTITY_PROPS = _KillmailCharacter.ENTITY_PROPS + ["weapon_type_id"]
+
     damage_done: Optional[int] = None
     is_final_blow: Optional[bool] = None
     security_status: Optional[float] = None
@@ -53,14 +61,14 @@ class KillmailAttacker(_KillmailCharacter):
 
 
 @dataclass
-class KillmailPosition:
+class KillmailPosition(_KillmailBase):
     x: Optional[float] = None
     y: Optional[float] = None
     z: Optional[float] = None
 
 
 @dataclass
-class KillmailZkb:
+class KillmailZkb(_KillmailBase):
     location_id: Optional[int] = None
     hash: Optional[str] = None
     fitted_value: Optional[float] = None
@@ -72,14 +80,14 @@ class KillmailZkb:
 
 
 @dataclass
-class TrackerInfo:
+class TrackerInfo(_KillmailBase):
     tracker_pk: int
     jumps: Optional[int] = None
     distance: Optional[float] = None
 
 
 @dataclass
-class Killmail:
+class Killmail(_KillmailBase):
     id: int
     time: datetime
     victim: KillmailVictim
@@ -89,7 +97,7 @@ class Killmail:
     solar_system_id: Optional[int] = None
     tracker_info: Optional[TrackerInfo] = None
 
-    def entity_ids(self) -> set:
+    def entity_ids(self) -> Set[int]:
         ids = [
             self.victim.character_id,
             self.victim.corporation_id,
@@ -109,11 +117,8 @@ class Killmail:
             ]
         return {x for x in ids if x is not None}
 
-    def asdict(self) -> dict:
-        return asdict(self)
-
     @classmethod
-    def from_dict(cls, data: dict) -> object:
+    def from_dict(cls, data: dict) -> "Killmail":
         try:
             return from_dict(data_class=Killmail, data=data)
         except DaciteError as ex:
@@ -124,11 +129,11 @@ class Killmail:
         return json.dumps(asdict(self), cls=JsonDateTimeEncoder)
 
     @classmethod
-    def from_json(cls, json_str: str) -> object:
+    def from_json(cls, json_str: str) -> "Killmail":
         return cls.from_dict(json.loads(json_str, cls=JsonDateTimeDecoder))
 
     @classmethod
-    def create_from_zkb_redisq(cls) -> object:
+    def create_from_zkb_redisq(cls) -> "Killmail":
         """Fetches and returns a killmail from ZKB. 
         
         Returns None if no killmail is received.
@@ -140,11 +145,11 @@ class Killmail:
         if data:
             logger.debug("data:\n%s", data)
         if data and "package" in data and data["package"]:
-            logger.info("Received a killmail from ZKB")
+            logger.info("Received a killmail from ZKB RedisQ")
             package_data = data["package"]
             return cls._create_from_dict(package_data)
         else:
-            logger.info("ZKB killmail queue is empty")
+            logger.debug("Did not received a killmail from ZKB RedisQ")
             return None
 
     @classmethod
@@ -191,7 +196,7 @@ class Killmail:
         return cls._create_from_dict(killmail_dict)
 
     @staticmethod
-    def _create_from_dict(package_data: dict) -> object:
+    def _create_from_dict(package_data: dict) -> "Killmail":
         zkb = KillmailZkb()
         if "zkb" in package_data:
             zkb_data = package_data["zkb"]
@@ -223,7 +228,7 @@ class Killmail:
             if "victim" in killmail_data:
                 victim_data = killmail_data["victim"]
                 args = dict()
-                for prop in CHARACTER_PROPS + ["damage_taken"]:
+                for prop in KillmailVictim.ENTITY_PROPS + ["damage_taken"]:
                     if prop in victim_data:
                         args[prop] = victim_data[prop]
 
@@ -241,8 +246,7 @@ class Killmail:
             if "attackers" in killmail_data:
                 for attacker_data in killmail_data["attackers"]:
                     args = dict()
-                    for prop in CHARACTER_PROPS + [
-                        "weapon_type_id",
+                    for prop in KillmailAttacker.ENTITY_PROPS + [
                         "damage_done",
                         "security_status",
                     ]:

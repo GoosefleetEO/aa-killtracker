@@ -1,5 +1,6 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+from bravado.exception import HTTPNotFound
 
 import dhooks_lite
 
@@ -7,40 +8,31 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
+from eveuniverse.tests.my_test_data import BravadoOperationStub
+
 from eveuniverse.models import (
     EveConstellation,
+    EveEntity,
     EveGroup,
     EveRegion,
     EveSolarSystem,
     EveType,
 )
 
-from ..models import Tracker, Webhook
+from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
     load_evealliances,
     load_evecorporations,
     load_killmail,
+    load_eve_killmails,
 )
 from ..utils import NoSocketsTestCase, set_test_logger
 
 
 MODULE_PATH = "killtracker.models"
 logger = set_test_logger(MODULE_PATH, __file__)
-
-
-class CacheStub:
-    """Stub for replacing Django cache"""
-
-    def get(self, key, default=None, version=None):
-        return None
-
-    def get_or_set(self, key, default, timeout=None):
-        return default()
-
-    def set(self, key, value, timeout=None):
-        return None
 
 
 class TestCaseBase(NoSocketsTestCase):
@@ -59,7 +51,80 @@ class TestCaseBase(NoSocketsTestCase):
         )
 
 
-@patch("eveuniverse.models.cache", new=CacheStub())
+class TestEveKillmailManager(TestCaseBase):
+    def test_create_from_killmail(self):
+        killmail = load_killmail(10000001)
+        eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
+
+        self.assertIsInstance(eve_killmail, EveKillmail)
+        self.assertEqual(eve_killmail.id, 10000001)
+        self.assertEqual(eve_killmail.solar_system_id, 30004984)
+        self.assertAlmostEqual(eve_killmail.time, now(), delta=timedelta(seconds=30))
+
+        self.assertEqual(eve_killmail.victim.alliance_id, 3011)
+        self.assertEqual(eve_killmail.victim.character_id, 1011)
+        self.assertEqual(eve_killmail.victim.corporation_id, 2011)
+        self.assertEqual(eve_killmail.victim.damage_taken, 434)
+        self.assertEqual(eve_killmail.victim.ship_type_id, 603)
+
+        self.assertEqual(eve_killmail.attackers.count(), 3)
+
+        attacker_1 = eve_killmail.attackers.first()
+        self.assertEqual(attacker_1.alliance_id, 3001)
+        self.assertEqual(attacker_1.character_id, 1001)
+        self.assertEqual(attacker_1.corporation_id, 2001)
+        self.assertEqual(attacker_1.damage_done, 434)
+        self.assertEqual(attacker_1.security_status, -10)
+        self.assertEqual(attacker_1.ship_type_id, 34562)
+        self.assertEqual(attacker_1.weapon_type_id, 2977)
+
+        self.assertEqual(eve_killmail.zkb.location_id, 50012306)
+        self.assertEqual(eve_killmail.zkb.fitted_value, 10000)
+        self.assertEqual(eve_killmail.zkb.total_value, 10000)
+        self.assertEqual(eve_killmail.zkb.points, 1)
+        self.assertFalse(eve_killmail.zkb.is_npc)
+        self.assertFalse(eve_killmail.zkb.is_solo)
+        self.assertFalse(eve_killmail.zkb.is_awox)
+
+    def test_update_or_create_from_killmail(self):
+        killmail = load_killmail(10000001)
+
+        # first time will be created
+        eve_killmail, created = EveKillmail.objects.update_or_create_from_killmail(
+            killmail
+        )
+        self.assertTrue(created)
+        self.assertEqual(eve_killmail.solar_system_id, 30004984)
+
+        # update record
+        eve_killmail.solar_system = EveEntity.objects.get(id=30045349)
+        eve_killmail.save()
+        eve_killmail.refresh_from_db()
+        self.assertEqual(eve_killmail.solar_system_id, 30045349)
+
+        # 2nd time will be updated
+        eve_killmail, created = EveKillmail.objects.update_or_create_from_killmail(
+            killmail
+        )
+        self.assertEqual(eve_killmail.id, 10000001)
+        self.assertFalse(created)
+        self.assertEqual(eve_killmail.solar_system_id, 30004984)
+
+    @patch("killtracker.managers.KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 1)
+    def test_delete_stale(self):
+        load_eve_killmails([10000001, 10000002, 10000003])
+        km = EveKillmail.objects.get(id=10000001)
+        km.time = now() - timedelta(days=1, seconds=1)
+        km.save()
+
+        total_count, details = EveKillmail.objects.delete_stale()
+
+        self.assertEqual(details["killtracker.EveKillmail"], 1)
+        self.assertEqual(EveKillmail.objects.count(), 2)
+        self.assertTrue(EveKillmail.objects.filter(id=10000002).exists())
+        self.assertTrue(EveKillmail.objects.filter(id=10000003).exists())
+
+
 class TestTrackerCalculate(TestCaseBase):
     @staticmethod
     def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
@@ -71,6 +136,29 @@ class TestTrackerCalculate(TestCaseBase):
 
         return results
 
+    @staticmethod
+    def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
+        routes = {
+            30003067: {
+                30003087: [
+                    30003067,
+                    30003068,
+                    30003069,
+                    30003070,
+                    30003071,
+                    30003091,
+                    30003086,
+                    30003087,
+                ],
+                30003070: [30003067, 30003068, 30003069, 30003070],
+                30003067: [30003067],
+            },
+        }
+        if origin in routes and destination in routes[origin]:
+            return BravadoOperationStub(routes[origin][destination])
+        else:
+            raise HTTPNotFound(Mock(**{"response.status_code": 404}))
+
     def test_can_match_all(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
@@ -78,7 +166,12 @@ class TestTrackerCalculate(TestCaseBase):
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
         self.assertSetEqual(results, expected)
 
-    def test_returns_augmented_killmail(self):
+    @patch("eveuniverse.models.esi")
+    def test_returns_augmented_killmail(self, mock_esi):
+        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
+            self.esi_get_route_origin_destination
+        )
+
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, origin_solar_system_id=30003067
         )
@@ -89,7 +182,7 @@ class TestTrackerCalculate(TestCaseBase):
         self.assertEqual(killmail_plus.tracker_info.jumps, 7)
         self.assertAlmostEqual(killmail_plus.tracker_info.distance, 5.85, delta=0.01)
 
-    @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 1)
+    @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 60)
     def test_excludes_older_killmails(self):
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
         killmail_1 = load_killmail(10000001)
@@ -166,24 +259,34 @@ class TestTrackerCalculate(TestCaseBase):
         expected = {10000004}
         self.assertSetEqual(results, expected)
 
-    def test_can_filter_max_distance(self):
+    @patch("eveuniverse.models.esi")
+    def test_can_filter_max_jumps(self, mock_esi):
+        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
+            self.esi_get_route_origin_destination
+        )
+
         killmail_ids = {10000101, 10000102, 10000103}
         tracker = Tracker.objects.create(
             name="Test",
             origin_solar_system_id=30003067,
-            require_max_distance=2,
+            require_max_jumps=3,
             webhook=self.webhook_1,
         )
         results = self._calculate_results(tracker, killmail_ids)
         expected = {10000102, 10000103}
         self.assertSetEqual(results, expected)
 
-    def test_can_filter_max_jumps(self):
+    @patch("eveuniverse.models.esi")
+    def test_can_filter_max_distance(self, mock_esi):
+        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
+            self.esi_get_route_origin_destination
+        )
+
         killmail_ids = {10000101, 10000102, 10000103}
         tracker = Tracker.objects.create(
             name="Test",
             origin_solar_system_id=30003067,
-            require_max_jumps=3,
+            require_max_distance=2,
             webhook=self.webhook_1,
         )
         results = self._calculate_results(tracker, killmail_ids)
@@ -338,7 +441,6 @@ class TestTrackerCalculate(TestCaseBase):
         self.assertSetEqual(results, expected)
 
 
-@patch("eveuniverse.models.cache", new=CacheStub())
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
 class TestWebhookSendKillmail(TestCaseBase):
     def test_normal(self, mock_execute):

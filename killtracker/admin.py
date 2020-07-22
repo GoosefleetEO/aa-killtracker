@@ -10,28 +10,28 @@ from . import tasks
 
 @admin.register(Webhook)
 class WebhookAdmin(admin.ModelAdmin):
-    list_display = ("name", "is_enabled", "_queue_size")
+    list_display = ("name", "is_enabled", "_messages_in_queue")
     list_filter = ("is_enabled",)
 
-    def _queue_size(self, obj):
+    def _messages_in_queue(self, obj):
         return obj.queue_size()
 
-    actions = ["send_test_message", "clear_queue"]
+    actions = ["send_test_message", "purge_messages"]
 
-    def clear_queue(self, request, queryset):
+    def purge_messages(self, request, queryset):
         actions_count = 0
         killmails_deleted = 0
         for webhook in queryset:
-            killmails_deleted += webhook.clear_queue()
+            killmails_deleted += webhook.purge_messages()
             actions_count += 1
 
         self.message_user(
             request,
-            f"Cleared queues for {actions_count} webhooks, "
-            f"deleting a total of {killmails_deleted} killmails.",
+            f"Purged queued messages for {actions_count} webhooks, "
+            f"deleting a total of {killmails_deleted} messages.",
         )
 
-    clear_queue.short_description = "Clear queues of selected webhooks"
+    purge_messages.short_description = "Purge queued messages of selected webhooks"
 
     def send_test_message(self, request, queryset):
         actions_count = 0
@@ -86,7 +86,7 @@ class TrackerAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        (None, {"fields": ("name", "description")}),
+        (None, {"fields": ("name", "description", "is_enabled")}),
         (
             "Discord Configuration",
             {"fields": ("webhook", "ping_type", "is_posting_name",),},

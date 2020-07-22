@@ -2,6 +2,7 @@ from timeit import default_timer as timer
 
 from celery import shared_task
 
+from django.db import IntegrityError
 from django.contrib.auth.models import User
 
 from allianceauth.notifications import notify
@@ -11,9 +12,14 @@ from allianceauth.services.tasks import QueueOnce
 from eveuniverse.tasks import update_or_create_eve_object
 
 from . import __title__
-from .app_settings import KILLTRACKER_MAX_KILLMAILS_PER_RUN
+from .app_settings import (
+    KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+    KILLTRACKER_STORING_KILLMAILS_ENABLED,
+    KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
+)
 from .core.killmails import Killmail
 from .models import (
+    EveKillmail,
     Tracker,
     Webhook,
     EVE_CATEGORY_ID_SHIP,
@@ -37,12 +43,33 @@ def load_ship_types() -> None:
         )
 
 
+@shared_task
+def store_killmail(killmail_json: str) -> None:
+    killmail = Killmail.from_json(killmail_json)
+    try:
+        EveKillmail.objects.create_from_killmail(killmail)
+    except IntegrityError:
+        logger.warning(
+            "Failed to store killmail with ID %d, because it already exists",
+            killmail.id,
+        )
+    else:
+        logger.info("Stored killmail with ID %d", killmail.id)
+
+
+@shared_task
+def delete_stale_killmails() -> None:
+    _, details = EveKillmail.objects.delete_stale()
+    if details:
+        logger.info("Deleted %d stale killmails", details["killtracker.EveKillmail"])
+
+
 @shared_task(base=QueueOnce)
 def send_killmails_to_webhook(webhook_pk: int) -> None:
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
-        logger.warning("Webhook with pk = %s does not exist", webhook_pk)
+        logger.error("Webhook with pk = %s does not exist", webhook_pk)
     else:
         if not webhook.is_enabled:
             logger.info("Tracker %s: Webhook disabled - skipping sending", webhook)
@@ -53,12 +80,12 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         logger.info("Completed sending killmails to webhook %s", webhook)
 
 
-@shared_task(base=QueueOnce, once={"keys": ["tracker_pk", "killmail_id"]})
-def run_tracker(tracker_pk: int, killmail_id: id, killmail_json: str) -> None:
+@shared_task
+def run_tracker(tracker_pk: int, killmail_json: str) -> None:
     try:
         tracker = Tracker.objects.get(pk=tracker_pk)
     except Tracker.DoesNotExist:
-        logger.warning("Tracker with pk = %s does not exist", tracker_pk)
+        logger.error("Tracker with pk = %s does not exist", tracker_pk)
     else:
         logger.info("Started running tracker %s", tracker)
         killmail = Killmail.from_json(killmail_json)
@@ -83,12 +110,20 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
         else:
             break
 
+        killmail_json = killmail.asjson()
         for tracker in Tracker.objects.filter(is_enabled=True):
             run_tracker.delay(
-                tracker_pk=tracker.pk,
-                killmail_id=killmail.id,
-                killmail_json=killmail.asjson(),
+                tracker_pk=tracker.pk, killmail_json=killmail_json,
             )
+
+        if KILLTRACKER_STORING_KILLMAILS_ENABLED:
+            store_killmail.delay(killmail_json=killmail_json)
+
+    if (
+        KILLTRACKER_STORING_KILLMAILS_ENABLED
+        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
+    ):
+        delete_stale_killmails.delay()
 
     end = timer()
     logger.info(
@@ -104,7 +139,7 @@ def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
         logger.warning("Webhook with pk = %s does not exist", webhook_pk)
     else:
         logger.info("Sending test message to webhook %s", webhook)
-        error_text, success = webhook.send_test_notification()
+        error_text, success = webhook.send_test_message()
 
         if user_pk:
             message = (

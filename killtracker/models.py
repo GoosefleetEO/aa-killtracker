@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 from typing import Optional, List, Set, Tuple
 
 import dhooks_lite
-from redismq import RedisMQ
+from simple_mq import SimpleMQ
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -235,7 +235,7 @@ class Webhook(models.Model):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._queue = RedisMQ(
+        self._queue = SimpleMQ(
             cache.get_master_client(), f"{__title__}_webhook_{self.pk}"
         )
 
@@ -387,14 +387,14 @@ class Webhook(models.Model):
             if tracker.origin_solar_system:
                 origin_solar_system_link = self._convert_to_discord_link(
                     name=tracker.origin_solar_system.name,
-                    url=tracker.origin_solar_system.dotlan_url,
+                    url=dotlan.solar_system_url(tracker.origin_solar_system.name),
                 )
-                if killmail.tracker_info.distance:
-                    distance_str = f"{killmail.tracker_info.distance:,.2f}"
+                if killmail.tracker_info.distance is not None:
+                    distance_str = f"{killmail.tracker_info.distance:,.1f}"
                 else:
                     distance_str = "?"
 
-                if killmail.tracker_info.jumps:
+                if killmail.tracker_info.jumps is not None:
                     jumps_str = killmail.tracker_info.jumps
                 else:
                     jumps_str = "?"
@@ -490,7 +490,7 @@ class Webhook(models.Model):
     def _convert_to_discord_link(cls, name: str, url: str) -> str:
         return f"[{str(name)}]({str(url)})"
 
-    def send_test_notification(self, killmail_id: int = 85773909) -> Tuple[str, bool]:
+    def send_test_message(self, killmail_id: int = 85773909) -> Tuple[str, bool]:
         """Sends a test notification to this webhook and returns send report"""
         try:
             self.send_killmail(
@@ -804,7 +804,7 @@ class Tracker(models.Model):
         else returns None
         """
         threshold_date = now() - timedelta(
-            hours=KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
+            minutes=KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
         )
         if killmail.time < threshold_date:
             return False
