@@ -32,9 +32,17 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     ],
     python_requires="~=3.6",
-    install_requires=["dataclasses>='0.7';python_version<'3.7'", "dhooks-lite>=0.4.0",],
+    install_requires=[
+        "dataclasses>='0.7';python_version<'3.7'",
+        "dacite",
+        "django-eveuniverse",
+        "redis-simple-mq",
+        "dhooks-lite>=0.4.0",
+    ],
 )

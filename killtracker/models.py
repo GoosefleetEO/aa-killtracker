@@ -47,15 +47,6 @@ EVE_CATEGORY_ID_STRUCTURE = 65
 DISCORD_SEND_DELAY = 2
 
 
-class General(models.Model):
-    """Meta model for app permissions"""
-
-    class Meta:
-        managed = False
-        default_permissions = ()
-        permissions = (("basic_access", "Can access this app"),)
-
-
 class EveKillmail(models.Model):
 
     id = models.BigIntegerField(primary_key=True)
@@ -63,6 +54,7 @@ class EveKillmail(models.Model):
     solar_system = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
     )
+    updated_at = models.DateTimeField(auto_now=True)
 
     objects = KillmailManager()
 
@@ -167,7 +159,9 @@ class EveKillmailAttacker(EveKillmailCharacter):
         EveKillmail, on_delete=models.CASCADE, related_name="attackers"
     )
     damage_done = models.BigIntegerField(default=None, null=True, blank=True)
-    is_final_blow = models.BooleanField(default=None, null=True, blank=True)
+    is_final_blow = models.BooleanField(
+        default=None, null=True, blank=True, db_index=True
+    )
     security_status = models.FloatField(default=None, null=True, blank=True)
     weapon_type = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
@@ -188,14 +182,18 @@ class EveKillmailZkb(models.Model):
     killmail = models.OneToOneField(
         EveKillmail, primary_key=True, on_delete=models.CASCADE, related_name="zkb"
     )
-    location_id = models.PositiveIntegerField(default=None, null=True, blank=True)
+    location_id = models.PositiveIntegerField(
+        default=None, null=True, blank=True, db_index=True
+    )
     hash = models.CharField(max_length=64, default="", blank=True)
     fitted_value = models.FloatField(default=None, null=True, blank=True)
-    total_value = models.FloatField(default=None, null=True, blank=True)
-    points = models.PositiveIntegerField(default=None, null=True, blank=True)
-    is_npc = models.BooleanField(default=None, null=True, blank=True)
-    is_solo = models.BooleanField(default=None, null=True, blank=True)
-    is_awox = models.BooleanField(default=None, null=True, blank=True)
+    total_value = models.FloatField(default=None, null=True, blank=True, db_index=True)
+    points = models.PositiveIntegerField(
+        default=None, null=True, blank=True, db_index=True
+    )
+    is_npc = models.BooleanField(default=None, null=True, blank=True, db_index=True)
+    is_solo = models.BooleanField(default=None, null=True, blank=True, db_index=True)
+    is_awox = models.BooleanField(default=None, null=True, blank=True, db_index=True)
 
 
 class Webhook(models.Model):
@@ -230,6 +228,7 @@ class Webhook(models.Model):
     )
     is_enabled = models.BooleanField(
         default=True,
+        db_index=True,
         help_text="whether notifications are currently sent to this webhook",
     )
 
@@ -691,7 +690,7 @@ class Tracker(models.Model):
         default=None,
         null=True,
         blank=True,
-        help_text="Require killmails to have at least given value in ISK",
+        help_text="Require killmail's value to be greater or equal to the given value in M ISK",
     )
     require_attackers_ship_groups = models.ManyToManyField(
         EveGroup,
@@ -758,7 +757,9 @@ class Tracker(models.Model):
         default=True, help_text="whether posted messages include the tracker's name"
     )
     is_enabled = models.BooleanField(
-        default=True, help_text="toogle for activating or deactivating a tracker"
+        default=True,
+        db_index=True,
+        help_text="toogle for activating or deactivating a tracker",
     )
 
     def __str__(self) -> str:
@@ -859,7 +860,9 @@ class Tracker(models.Model):
                 is_matching = killmail.zkb.is_npc
 
             if is_matching and self.require_min_value:
-                is_matching = killmail.zkb.total_value >= self.require_min_value
+                is_matching = (
+                    killmail.zkb.total_value >= self.require_min_value * 1000000
+                )
 
             if is_matching and self.require_max_distance:
                 is_matching = distance is not None and (

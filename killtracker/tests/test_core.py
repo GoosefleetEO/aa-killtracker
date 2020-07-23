@@ -5,9 +5,7 @@ from unittest.mock import patch
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
-from eveuniverse.tests.my_test_data import BravadoOperationStub
-
-from . import ResponseStub
+from . import ResponseStub, BravadoOperationStub
 from ..core.killmails import Killmail
 from .testdata.helpers import killmails_data, load_killmail
 from ..utils import NoSocketsTestCase, set_test_logger
@@ -123,7 +121,7 @@ class TestCreateFromZkbApi(NoSocketsTestCase):
         killmail = Killmail.create_from_zkb_api(killmail_id)
         self.assertIsNotNone(killmail)
         self.assertEqual(killmail.id, killmail_id)
-        self.assertAlmostEqual(killmail.time, now(), delta=timedelta(seconds=30))
+        self.assertAlmostEqual(killmail.time, now(), delta=timedelta(seconds=120))
 
         self.assertEqual(killmail.victim.alliance_id, 3011)
         self.assertEqual(killmail.victim.character_id, 1011)

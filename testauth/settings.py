@@ -248,7 +248,7 @@ SITE_NAME = "testauth"
 DEBUG = False
 
 # Add any additional apps to this list.
-INSTALLED_APPS += ["eveuniverse"]
+INSTALLED_APPS += ["eveuniverse", "killtracker"]
 
 # Enter credentials to use MySQL/MariaDB. Comment out to use sqlite3
 """

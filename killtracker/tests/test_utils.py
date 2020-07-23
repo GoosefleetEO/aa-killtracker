@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 from unittest.mock import Mock, patch
 
 import requests
@@ -6,6 +7,7 @@ import requests
 from django.test import TestCase
 from django.utils import translation
 from django.utils.html import mark_safe
+from django.utils.timezone import now
 
 from ..utils import (
     clean_setting,
@@ -22,6 +24,8 @@ from ..utils import (
     create_link_html,
     add_bs_label_html,
     get_site_base_url,
+    JsonDateTimeDecoder,
+    JsonDateTimeEncoder,
 )
 from ..utils import set_test_logger
 
@@ -283,3 +287,11 @@ class TestGetSiteBaseUrl(NoSocketsTestCase):
         delattr(mock_settings, "ESI_SSO_CALLBACK_URL")
         expected = "http://www.example.com"
         self.assertEqual(get_site_base_url(), expected)
+
+
+class TestJsonSerializer(NoSocketsTestCase):
+    def test_encode_decode(self):
+        my_dict = {"alpha": "hello", "bravo": now()}
+        my_json = json.dumps(my_dict, cls=JsonDateTimeEncoder)
+        my_dict_new = json.loads(my_json, cls=JsonDateTimeDecoder)
+        self.assertDictEqual(my_dict, my_dict_new)

@@ -11,9 +11,8 @@ from django.utils.dateparse import parse_datetime
 from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
-from .json_serializer import JsonDateTimeDecoder, JsonDateTimeEncoder
 from ..providers import esi
-from ..utils import LoggerAddTag
+from ..utils import LoggerAddTag, JsonDateTimeDecoder, JsonDateTimeEncoder
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

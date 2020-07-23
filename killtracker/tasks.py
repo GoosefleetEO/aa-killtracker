@@ -9,8 +9,6 @@ from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
-from eveuniverse.tasks import update_or_create_eve_object
-
 from . import __title__
 from .app_settings import (
     KILLTRACKER_MAX_KILLMAILS_PER_RUN,
@@ -22,25 +20,10 @@ from .models import (
     EveKillmail,
     Tracker,
     Webhook,
-    EVE_CATEGORY_ID_SHIP,
-    EVE_CATEGORY_ID_STRUCTURE,
 )
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-
-@shared_task(base=QueueOnce)
-def load_ship_types() -> None:
-    """Loads all ship types"""
-    logger.info("Started loading all ship types into eveuniverse")
-    for category_id in [EVE_CATEGORY_ID_SHIP, EVE_CATEGORY_ID_STRUCTURE]:
-        update_or_create_eve_object.delay(
-            model_name="EveCategory",
-            id=category_id,
-            include_children=True,
-            wait_for_children=False,
-        )
 
 
 @shared_task

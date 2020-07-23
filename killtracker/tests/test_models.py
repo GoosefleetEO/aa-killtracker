@@ -8,8 +8,6 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
-from eveuniverse.tests.my_test_data import BravadoOperationStub
-
 from eveuniverse.models import (
     EveConstellation,
     EveEntity,
@@ -19,6 +17,7 @@ from eveuniverse.models import (
     EveType,
 )
 
+from . import BravadoOperationStub
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
@@ -253,7 +252,7 @@ class TestTrackerCalculate(TestCaseBase):
     def test_can_filter_min_value(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(
-            name="Test", require_min_value=1000000000, webhook=self.webhook_1
+            name="Test", require_min_value=1000, webhook=self.webhook_1
         )
         results = self._calculate_results(tracker, killmail_ids)
         expected = {10000004}
