@@ -18,7 +18,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     license="MIT",
-    description="Killtracker app for Alliance Auth",
+    description="An app for running killmail trackers with Alliance Auth and Discord",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Erik Kalkoken",

@@ -28,7 +28,7 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         self.assertIsNotNone(killmail)
         self.assertEqual(killmail.id, 10000001)
         self.assertEqual(killmail.solar_system_id, 30004984)
-        self.assertAlmostEqual(killmail.time, now(), delta=timedelta(seconds=30))
+        self.assertAlmostEqual(killmail.time, now(), delta=timedelta(seconds=120))
 
         self.assertEqual(killmail.victim.alliance_id, 3011)
         self.assertEqual(killmail.victim.character_id, 1011)

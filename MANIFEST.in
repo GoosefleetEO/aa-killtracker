@@ -3,5 +3,6 @@ include README.md
 recursive-include killtracker *.py
 recursive-include killtracker/static *
 recursive-include killtracker/templates *
-recursive-include killtracker/tools *
+recursive-include killtracker/tools *.sql
+recursive-exclude killtracker/tests *
 

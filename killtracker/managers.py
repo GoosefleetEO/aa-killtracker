@@ -56,7 +56,7 @@ class KillmailManager(models.Manager):
                 "id": killmail.id,
                 "time": killmail.time,
             }
-            if "solar_system_id":
+            if killmail.solar_system_id:
                 args["solar_system"], _ = EveEntity.objects.get_or_create(
                     id=killmail.solar_system_id
                 )
