@@ -371,13 +371,24 @@ class Webhook(models.Model):
             name=solar_system_name, url=dotlan.solar_system_url(solar_system_name)
         )
 
+        # main group
+        main_group = killmail.main_attacker_group()
+        if main_group:
+            if main_group.is_corporation:
+                main_group_link = self._corporation_zkb_link(main_group.id, resolver)
+            else:
+                main_group_link = self._alliance_zkb_link(main_group.id, resolver)
+            main_group_text = f" | {main_group_link}: {main_group.count}"
+        else:
+            main_group_text = ""
+
         description = (
             f"{victim_str} lost their **{victim_ship_type_name}** "
             f"in {solar_system_link} "
             f"worth **{value_mio} M** ISK.\n"
             f"Final blow by {final_attacker_str} "
             f"in a **{final_attacker_ship_type_name}**.\n"
-            f"Attackers: {len(killmail.attackers)}"
+            f"Attackers: {len(killmail.attackers)} {main_group_text}"
         )
 
         # tracker info
@@ -483,6 +494,12 @@ class Webhook(models.Model):
     ) -> str:
         return cls._convert_to_discord_link(
             name=resolver.to_name(entity_id), url=zkillboard.corporation_url(entity_id)
+        )
+
+    @classmethod
+    def _alliance_zkb_link(cls, entity_id: int, resolver: EveEntityNameResolver) -> str:
+        return cls._convert_to_discord_link(
+            name=resolver.to_name(entity_id), url=zkillboard.alliance_url(entity_id)
         )
 
     @classmethod

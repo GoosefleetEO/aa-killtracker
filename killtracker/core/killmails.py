@@ -78,11 +78,31 @@ class KillmailZkb(_KillmailBase):
     is_awox: Optional[bool] = None
 
 
+@dataclass(eq=True, frozen=True)
+class EntityCount:
+
+    CATEGORY_CORPORATION = "corporation"
+    CATEGORY_ALLIANCE = "alliance"
+
+    id: int
+    category: str
+    count: Optional[int] = None
+
+    @property
+    def is_alliance(self) -> bool:
+        return self.category == self.CATEGORY_ALLIANCE
+
+    @property
+    def is_corporation(self) -> bool:
+        return self.category == self.CATEGORY_CORPORATION
+
+
 @dataclass
 class TrackerInfo(_KillmailBase):
     tracker_pk: int
     jumps: Optional[int] = None
     distance: Optional[float] = None
+    main_group: Optional[EntityCount] = None
 
 
 @dataclass
@@ -115,6 +135,39 @@ class Killmail(_KillmailBase):
                 attacker.weapon_type_id,
             ]
         return {x for x in ids if x is not None}
+
+    def main_attacker_group(self) -> Optional[EntityCount]:
+        """returns the main attacker group with count"""
+        org_items = []
+        for attacker in self.attackers:
+            if attacker.alliance_id:
+                org_items.append(
+                    EntityCount(attacker.alliance_id, EntityCount.CATEGORY_ALLIANCE)
+                )
+
+            if attacker.corporation_id:
+                org_items.append(
+                    EntityCount(
+                        attacker.corporation_id, EntityCount.CATEGORY_CORPORATION
+                    )
+                )
+
+        if org_items:
+            org_items_2 = [
+                EntityCount(x.id, x.category, org_items.count(x))
+                for x in set(org_items)
+            ]
+            max_count = max([x.count for x in org_items_2])
+            if max_count > 1:
+                org_items_3 = [x for x in org_items_2 if x.count == max_count]
+                if len(org_items_3) > 1:
+                    org_items_4 = [x for x in org_items_3 if x.is_alliance]
+                    if len(org_items_4) > 0:
+                        return org_items_4[0]
+
+                return org_items_3[0]
+
+        return None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Killmail":

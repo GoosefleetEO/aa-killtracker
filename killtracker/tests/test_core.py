@@ -6,7 +6,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from . import ResponseStub, BravadoOperationStub
-from ..core.killmails import Killmail
+from ..core.killmails import Killmail, EntityCount
 from .testdata.helpers import killmails_data, load_killmail
 from ..utils import NoSocketsTestCase, set_test_logger
 
@@ -99,6 +99,38 @@ class TestKillmailBasics(NoSocketsTestCase):
             2488,
         }
         self.assertSetEqual(result, expected)
+
+
+class TestMainAttackerGroup(NoSocketsTestCase):
+    def test_prioritize_alliance(self):
+        killmail = load_killmail(10000401)
+        self.assertEqual(
+            killmail.main_attacker_group(), EntityCount(3001, "alliance", 2)
+        )
+
+    def test_return_none_if_only_one_attacker(self):
+        killmail = load_killmail(10000005)
+        self.assertIsNone(killmail.main_attacker_group())
+
+    def test_return_none_if_only_faction(self):
+        killmail = load_killmail(10000301)
+        self.assertIsNone(killmail.main_attacker_group())
+
+
+class TestEntityCount(NoSocketsTestCase):
+    def test_is_alliance(self):
+        alliance = EntityCount(1, EntityCount.CATEGORY_ALLIANCE)
+        corporation = EntityCount(2, EntityCount.CATEGORY_CORPORATION)
+
+        self.assertTrue(alliance.is_alliance)
+        self.assertFalse(corporation.is_alliance)
+
+    def test_is_corporation(self):
+        alliance = EntityCount(1, EntityCount.CATEGORY_ALLIANCE)
+        corporation = EntityCount(2, EntityCount.CATEGORY_CORPORATION)
+
+        self.assertFalse(alliance.is_corporation)
+        self.assertTrue(corporation.is_corporation)
 
 
 @patch(MODULE_PATH + ".esi")

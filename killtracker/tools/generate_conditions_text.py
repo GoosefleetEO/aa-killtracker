@@ -27,4 +27,3 @@ my_fields = [
 for field in my_fields:
     field_name = field.name.replace("_", " ")
     print(f"{field_name}|{field.help_text}")
-
