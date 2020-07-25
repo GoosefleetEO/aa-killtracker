@@ -31,7 +31,7 @@ from eveuniverse.models import (
 
 from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
-from .core.killmails import Killmail, TrackerInfo
+from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import KillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
@@ -200,6 +200,7 @@ class Webhook(models.Model):
     """A destination for forwarding killmails"""
 
     ZKB_KILLMAIL_BASEURL = "https://zkillboard.com/kill/"
+    ICON_SIZE = 128
 
     TYPE_DISCORD = 1
     TYPE_CHOICES = [
@@ -315,13 +316,10 @@ class Webhook(models.Model):
                 killmail.victim.character_id, resolver,
             )
             victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link}) "
-            victim_name = resolver.to_name(killmail.victim.character_id)
         elif killmail.victim.corporation_id:
             victim_str = victim_corporation_zkb_link
-            victim_name = resolver.to_name(killmail.victim.corporation_id)
         else:
             victim_str = ""
-            victim_name = ""
 
         # final attacker
         final_attacker = None
@@ -371,29 +369,18 @@ class Webhook(models.Model):
             name=solar_system_name, url=dotlan.solar_system_url(solar_system_name)
         )
 
-        # main group
-        main_group = killmail.main_attacker_group()
-        if main_group:
-            if main_group.is_corporation:
-                main_group_link = self._corporation_zkb_link(main_group.id, resolver)
-            else:
-                main_group_link = self._alliance_zkb_link(main_group.id, resolver)
-            main_group_text = f" | {main_group_link}: {main_group.count}"
-        else:
-            main_group_text = ""
-
-        description = (
-            f"{victim_str} lost their **{victim_ship_type_name}** "
-            f"in {solar_system_link} "
-            f"worth **{value_mio} M** ISK.\n"
-            f"Final blow by {final_attacker_str} "
-            f"in a **{final_attacker_ship_type_name}**.\n"
-            f"Attackers: {len(killmail.attackers)} {main_group_text}"
-        )
-
         # tracker info
+        tracker = None
+        show_as_fleetkill = False
+        distance_text = ""
+        main_org_text = ""
+        main_org_name = ""
+        main_org_icon_url = eveimageserver.alliance_logo_url(1, size=self.ICON_SIZE)
+        main_ship_group_text = ""
+        tracked_ship_types_text = ""
         if killmail.tracker_info:
             tracker = Tracker.objects.get(pk=killmail.tracker_info.tracker_pk)
+            show_as_fleetkill = tracker.identify_fleets
             if tracker.origin_solar_system:
                 origin_solar_system_link = self._convert_to_discord_link(
                     name=tracker.origin_solar_system.name,
@@ -409,22 +396,76 @@ class Webhook(models.Model):
                 else:
                     jumps_str = "?"
 
-                description += (
+                distance_text = (
                     f"\nDistance from {origin_solar_system_link}: "
                     f"{distance_str} LY | {jumps_str} jumps"
                 )
-        else:
-            tracker = None
+
+            # main group
+            main_org = killmail.tracker_info.main_org
+            if main_org:
+                main_org_name = resolver.to_name(main_org.id)
+                if main_org.is_corporation:
+                    main_org_link = self._corporation_zkb_link(main_org.id, resolver)
+                    main_org_icon_url = eveimageserver.corporation_logo_url(
+                        main_org.id, size=self.ICON_SIZE
+                    )
+                else:
+                    main_org_link = self._alliance_zkb_link(main_org.id, resolver)
+                    main_org_icon_url = eveimageserver.alliance_logo_url(
+                        main_org.id, size=self.ICON_SIZE
+                    )
+
+                main_org_text = f" ({main_org_link})"
+
+            else:
+                show_as_fleetkill = False
+
+            # main ship group
+            main_ship_group = killmail.tracker_info.main_ship_group
+            if main_ship_group:
+                main_ship_group_text = f"\nMain ship class: **{main_ship_group.name}**"
+
+            # tracked attacker ships
+            matching_ship_type_ids = killmail.tracker_info.matching_ship_type_ids
+            if matching_ship_type_ids:
+                ship_types_text = "**, **".join(
+                    sorted(
+                        [
+                            resolver.to_name(type_id)
+                            for type_id in matching_ship_type_ids
+                        ]
+                    )
+                )
+                tracked_ship_types_text = (
+                    f"Tracked ship types involved: **{ship_types_text}**"
+                )
+
+        description = (
+            f"{victim_str} lost their **{victim_ship_type_name}** "
+            f"in {solar_system_link} "
+            f"worth **{value_mio} M** ISK.\n"
+            f"Final blow by {final_attacker_str} "
+            f"in a **{final_attacker_ship_type_name}**.\n"
+            f"Attackers: **{len(killmail.attackers)}**{main_org_text}"
+            f"{main_ship_group_text}"
+            f"{tracked_ship_types_text}"
+            f"{distance_text}"
+        )
 
         solar_system_name = resolver.to_name(killmail.solar_system_id)
+        if show_as_fleetkill:
+            title = f"{solar_system_name} | {main_org_name} | Fleetkill"
+        else:
+            title = f"{solar_system_name} | {victim_ship_type_name} | Killmail"
 
-        title = (
-            f"{solar_system_name} | {victim_ship_type_name} | "
-            f"{victim_name} | Killmail"
-        )
-        thumbnail_url = eveimageserver.type_icon_url(
-            killmail.victim.ship_type_id, size=128
-        )
+        if show_as_fleetkill:
+            thumbnail_url = main_org_icon_url
+        else:
+            thumbnail_url = eveimageserver.type_icon_url(
+                killmail.victim.ship_type_id, size=self.ICON_SIZE
+            )
+
         zkb_killmail_url = f"{self.ZKB_KILLMAIL_BASEURL}{killmail.id}/"
         embed = dhooks_lite.Embed(
             description=description,
@@ -835,19 +876,23 @@ class Tracker(models.Model):
         is_low_sec = None
         is_null_sec = None
         is_w_space = None
+        matching_ship_type_ids = None
         if killmail.solar_system_id and self.has_localization_filter:
-            solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-                id=killmail.solar_system_id
+            solar_system = (
+                EveSolarSystem.objects.filter(id=killmail.solar_system_id)
+                .select_related("eve_constellation", "eve_constellation__eve_region")
+                .first()
             )
-            is_high_sec = solar_system.is_high_sec
-            is_low_sec = solar_system.is_low_sec
-            is_null_sec = solar_system.is_null_sec
-            is_w_space = solar_system.is_w_space
-            if self.origin_solar_system:
-                distance = meters_to_ly(
-                    self.origin_solar_system.distance_to(solar_system)
-                )
-                jumps = self.origin_solar_system.jumps_to(solar_system)
+            if solar_system:
+                is_high_sec = solar_system.is_high_sec
+                is_low_sec = solar_system.is_low_sec
+                is_null_sec = solar_system.is_null_sec
+                is_w_space = solar_system.is_w_space
+                if self.origin_solar_system:
+                    distance = meters_to_ly(
+                        self.origin_solar_system.distance_to(solar_system)
+                    )
+                    jumps = self.origin_solar_system.jumps_to(solar_system)
 
         # apply filters
         is_matching = True
@@ -890,119 +935,97 @@ class Tracker(models.Model):
                 is_matching = jumps is not None and (jumps <= self.require_max_jumps)
 
             if is_matching and self.require_regions.count() > 0:
-                is_matching = (
-                    solar_system is not None
-                    and solar_system.eve_constellation.eve_region_id
-                    in self.require_regions.values_list("id", flat=True)
+                is_matching = solar_system and bool(
+                    self.require_regions.filter(
+                        id=solar_system.eve_constellation.eve_region_id
+                    )
                 )
 
             if is_matching and self.require_constellations.count() > 0:
-                is_matching = (
-                    solar_system is not None
-                    and solar_system.eve_constellation_id
-                    in self.require_constellations.values_list("id", flat=True)
+                is_matching = solar_system and bool(
+                    self.require_constellations.filter(
+                        id=solar_system.eve_constellation_id
+                    )
                 )
 
             if is_matching and self.require_solar_systems.count() > 0:
-                is_matching = (
-                    solar_system is not None
-                    and solar_system.id
-                    in self.require_solar_systems.values_list("id", flat=True)
+                is_matching = solar_system and bool(
+                    self.require_solar_systems.filter(id=solar_system.id)
                 )
 
-            attacker_alliance_ids = {
-                attacker.alliance_id for attacker in killmail.attackers
-            }
             if is_matching and self.exclude_attacker_alliances.count() > 0:
-                excluded_alliance_ids = self._extract_alliance_ids(
-                    self.exclude_attacker_alliances
-                )
-                is_matching = (
-                    attacker_alliance_ids.intersection(excluded_alliance_ids) == set()
+                is_matching = bool(
+                    self.exclude_attacker_alliances.exclude(
+                        alliance_id__in=killmail.attackers_alliance_ids()
+                    )
                 )
 
             if is_matching and self.require_attacker_alliances.count() > 0:
-                required_alliance_ids = self._extract_alliance_ids(
-                    self.require_attacker_alliances
-                )
-                is_matching = (
-                    attacker_alliance_ids.difference(required_alliance_ids) == set()
+                is_matching = bool(
+                    self.require_attacker_alliances.filter(
+                        alliance_id__in=killmail.attackers_alliance_ids()
+                    )
                 )
 
-            attacker_corporation_ids = {
-                attacker.corporation_id for attacker in killmail.attackers
-            }
             if is_matching and self.exclude_attacker_corporations.count() > 0:
-                excluded_corporation_ids = self._extract_corporation_ids(
-                    self.exclude_attacker_corporations
-                )
-
-                is_matching = (
-                    len(attacker_corporation_ids.intersection(excluded_corporation_ids))
-                    == 0
+                is_matching = bool(
+                    self.exclude_attacker_corporations.exclude(
+                        corporation_id__in=killmail.attackers_corporation_ids()
+                    )
                 )
 
             if is_matching and self.require_attacker_corporations.count() > 0:
-                required_corporation_ids = self._extract_corporation_ids(
-                    self.require_attacker_corporations
-                )
-
-                is_matching = (
-                    len(attacker_corporation_ids.intersection(required_corporation_ids))
-                    > 0
+                is_matching = bool(
+                    self.require_attacker_corporations.filter(
+                        corporation_id__in=killmail.attackers_corporation_ids()
+                    )
                 )
 
             if is_matching and self.require_victim_alliances.count() > 0:
-                is_matching = killmail.victim.alliance_id in self._extract_alliance_ids(
-                    self.require_victim_alliances
+                is_matching = bool(
+                    self.require_victim_alliances.filter(
+                        alliance_id=killmail.victim.alliance_id
+                    )
                 )
 
             if is_matching and self.require_victim_corporations.count() > 0:
-                is_matching = (
-                    killmail.victim.corporation_id
-                    in self._extract_corporation_ids(self.require_victim_corporations)
+                is_matching = bool(
+                    self.require_victim_corporations.filter(
+                        corporation_id=killmail.victim.corporation_id
+                    )
                 )
 
             if is_matching and self.require_victim_ship_groups.count() > 0:
                 if killmail.victim.ship_type_id:
-                    victim_ship_type, _ = EveType.objects.get_or_create_esi(
-                        id=killmail.victim.ship_type_id
-                    )
-                    if victim_ship_type:
-                        required_ship_group_ids = set(
-                            self.require_victim_ship_groups.values_list("id", flat=True)
-                        )
-                        is_matching = (
-                            victim_ship_type.eve_group_id in required_ship_group_ids
-                        )
-                    else:
-                        is_matching = False
+                    ship_types_matching_qs = EveType.objects.filter(
+                        eve_group__in=self.require_victim_ship_groups.all(),
+                        id=killmail.victim.ship_type_id,
+                    ).select_related()
+                    is_matching = bool(ship_types_matching_qs)
+
                 else:
                     is_matching = False
 
             if is_matching and self.require_attackers_ship_groups.count() > 0:
-                attacker_ship_group_ids = set()
-                for attacker in killmail.attackers:
-                    obj, _ = EveType.objects.get_or_create_esi(id=attacker.ship_type_id)
-                    attacker_ship_group_ids.add(obj.eve_group_id)
-
-                required_ship_group_ids = set(
-                    self.require_attackers_ship_groups.values_list("id", flat=True)
+                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
+                ship_types_matching_qs = (
+                    EveType.objects.filter(id__in=attackers_ship_type_ids)
+                    .filter(eve_group__in=self.require_attackers_ship_groups.all())
+                    .select_related("eve_group")
                 )
-                is_matching = (
-                    len(attacker_ship_group_ids.intersection(required_ship_group_ids))
-                    > 0
+                is_matching = bool(ship_types_matching_qs)
+                matching_ship_type_ids = set(
+                    ship_types_matching_qs.values_list("id", flat=True)
                 )
 
             if is_matching and self.require_attackers_ship_types.count() > 0:
-                attacker_ship_type_ids = {
-                    attacker.ship_type_id for attacker in killmail.attackers
-                }
-                required_ship_type_ids = set(
-                    self.require_attackers_ship_types.values_list("id", flat=True)
-                )
-                is_matching = (
-                    len(attacker_ship_type_ids.intersection(required_ship_type_ids)) > 0
+                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
+                ship_types_matching_qs = EveType.objects.filter(
+                    id__in=attackers_ship_type_ids
+                ).filter(id__in=self.require_attackers_ship_types.all())
+                is_matching = bool(ship_types_matching_qs)
+                matching_ship_type_ids = set(
+                    ship_types_matching_qs.values_list("id", flat=True)
                 )
 
         except AttributeError:
@@ -1011,7 +1034,12 @@ class Tracker(models.Model):
         if is_matching:
             killmail_new = deepcopy(killmail)
             killmail_new.tracker_info = TrackerInfo(
-                tracker_pk=self.pk, jumps=jumps, distance=distance
+                tracker_pk=self.pk,
+                jumps=jumps,
+                distance=distance,
+                main_org=self._killmail_main_attacker_org(killmail),
+                main_ship_group=self._killmail_main_attacker_ship_group(killmail),
+                matching_ship_type_ids=matching_ship_type_ids,
             )
             return killmail_new
         else:
@@ -1030,3 +1058,79 @@ class Tracker(models.Model):
             int(corporation_id)
             for corporation_id in corporations.values_list("corporation_id", flat=True)
         }
+
+    @staticmethod
+    def _killmail_main_attacker_org(killmail) -> Optional[EntityCount]:
+        """returns the main attacker group with count"""
+        org_items = []
+        for attacker in killmail.attackers:
+            if attacker.alliance_id:
+                org_items.append(
+                    EntityCount(
+                        id=attacker.alliance_id, category=EntityCount.CATEGORY_ALLIANCE
+                    )
+                )
+
+            if attacker.corporation_id:
+                org_items.append(
+                    EntityCount(
+                        id=attacker.corporation_id,
+                        category=EntityCount.CATEGORY_CORPORATION,
+                    )
+                )
+
+        if org_items:
+            org_items_2 = [
+                EntityCount(id=x.id, category=x.category, count=org_items.count(x))
+                for x in set(org_items)
+            ]
+            max_count = max([x.count for x in org_items_2])
+            if max_count > 1:
+                org_items_3 = [x for x in org_items_2 if x.count == max_count]
+                if len(org_items_3) > 1:
+                    org_items_4 = [x for x in org_items_3 if x.is_alliance]
+                    if len(org_items_4) > 0:
+                        return org_items_4[0]
+
+                return org_items_3[0]
+
+        return None
+
+    @staticmethod
+    def _killmail_main_attacker_ship_group(killmail) -> Optional[EntityCount]:
+        """returns the main attacker group with count"""
+
+        ships_type_ids = killmail.attackers_ship_type_ids()
+        ship_types = EveType.objects.filter(id__in=ships_type_ids).select_related(
+            "eve_group"
+        )
+        ship_groups = list()
+        for ships_type_id in ships_type_ids:
+            try:
+                ship_type = ship_types.get(id=ships_type_id)
+            except EveType.DoesNotExist:
+                continue
+
+            ship_groups.append(
+                EntityCount(
+                    id=ship_type.eve_group_id,
+                    category=EntityCount.CATEGORY_INVENTORY_GROUP,
+                    name=ship_type.eve_group.name,
+                )
+            )
+
+        if ship_groups:
+            ship_groups_2 = [
+                EntityCount(
+                    id=x.id,
+                    category=x.category,
+                    name=x.name,
+                    count=ship_groups.count(x),
+                )
+                for x in set(ship_groups)
+            ]
+            max_count = max([x.count for x in ship_groups_2])
+            if max_count > 1:
+                return [x for x in ship_groups_2 if x.count == max_count][0]
+
+        return None

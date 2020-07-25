@@ -22,7 +22,7 @@ class WebhookAdmin(admin.ModelAdmin):
         actions_count = 0
         killmails_deleted = 0
         for webhook in queryset:
-            killmails_deleted += webhook.purge_messages()
+            killmails_deleted += webhook.clear_queue()
             actions_count += 1
 
         self.message_user(
@@ -63,12 +63,6 @@ class TrackerAdmin(admin.ModelAdmin):
     )
 
     autocomplete_fields = ["origin_solar_system"]
-
-    exclude = (
-        "identify_fleets",
-        "exclude_blue_attackers",
-        "require_blue_victim",
-    )
 
     filter_horizontal = (
         "exclude_attacker_alliances",
@@ -124,8 +118,14 @@ class TrackerAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Attacker counts",
-            {"fields": ("require_min_attackers", "require_max_attackers",),},
+            "Fleet detection",
+            {
+                "fields": (
+                    "require_min_attackers",
+                    "require_max_attackers",
+                    "identify_fleets",
+                ),
+            },
         ),
         (
             "EveKillmail properties",

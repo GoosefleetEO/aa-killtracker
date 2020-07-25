@@ -31,6 +31,7 @@ Or you maybe want to be informed about any capitals being active within your jum
 - Optional pinging for every matching killmail
 - Designed for fast response times, high throughput and low resource requirements
 - Get additional insights about killmails like distance from staging
+- See which fleets / groups are active in your area of interest
 
 ## Screenshots
 

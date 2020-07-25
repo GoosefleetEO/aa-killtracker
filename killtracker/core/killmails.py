@@ -81,11 +81,13 @@ class KillmailZkb(_KillmailBase):
 @dataclass(eq=True, frozen=True)
 class EntityCount:
 
-    CATEGORY_CORPORATION = "corporation"
     CATEGORY_ALLIANCE = "alliance"
+    CATEGORY_CORPORATION = "corporation"
+    CATEGORY_INVENTORY_GROUP = "inventory_group"
 
     id: int
     category: str
+    name: Optional[str] = None
     count: Optional[int] = None
 
     @property
@@ -102,7 +104,9 @@ class TrackerInfo(_KillmailBase):
     tracker_pk: int
     jumps: Optional[int] = None
     distance: Optional[float] = None
-    main_group: Optional[EntityCount] = None
+    main_org: Optional[EntityCount] = None
+    main_ship_group: Optional[EntityCount] = None
+    matching_ship_type_ids: Optional[List[int]] = None
 
 
 @dataclass
@@ -116,7 +120,28 @@ class Killmail(_KillmailBase):
     solar_system_id: Optional[int] = None
     tracker_info: Optional[TrackerInfo] = None
 
+    def attackers_alliance_ids(self) -> List[int]:
+        """returns alliance IDs of all attackers"""
+        return [
+            obj.alliance_id for obj in self.attackers if obj.alliance_id is not None
+        ]
+
+    def attackers_corporation_ids(self) -> List[int]:
+        """returns corporation IDs of all attackers"""
+        return [
+            obj.corporation_id
+            for obj in self.attackers
+            if obj.corporation_id is not None
+        ]
+
+    def attackers_ship_type_ids(self) -> List[int]:
+        """returns ship type IDs of all attackers"""
+        return [
+            obj.ship_type_id for obj in self.attackers if obj.ship_type_id is not None
+        ]
+
     def entity_ids(self) -> Set[int]:
+        """returns IDs of all entities that are not None"""
         ids = [
             self.victim.character_id,
             self.victim.corporation_id,
@@ -135,39 +160,6 @@ class Killmail(_KillmailBase):
                 attacker.weapon_type_id,
             ]
         return {x for x in ids if x is not None}
-
-    def main_attacker_group(self) -> Optional[EntityCount]:
-        """returns the main attacker group with count"""
-        org_items = []
-        for attacker in self.attackers:
-            if attacker.alliance_id:
-                org_items.append(
-                    EntityCount(attacker.alliance_id, EntityCount.CATEGORY_ALLIANCE)
-                )
-
-            if attacker.corporation_id:
-                org_items.append(
-                    EntityCount(
-                        attacker.corporation_id, EntityCount.CATEGORY_CORPORATION
-                    )
-                )
-
-        if org_items:
-            org_items_2 = [
-                EntityCount(x.id, x.category, org_items.count(x))
-                for x in set(org_items)
-            ]
-            max_count = max([x.count for x in org_items_2])
-            if max_count > 1:
-                org_items_3 = [x for x in org_items_2 if x.count == max_count]
-                if len(org_items_3) > 1:
-                    org_items_4 = [x for x in org_items_3 if x.is_alliance]
-                    if len(org_items_4) > 0:
-                        return org_items_4[0]
-
-                return org_items_3[0]
-
-        return None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Killmail":

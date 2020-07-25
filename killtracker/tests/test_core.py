@@ -100,7 +100,12 @@ class TestKillmailBasics(NoSocketsTestCase):
         }
         self.assertSetEqual(result, expected)
 
+    def test_attackers_ships_types(self):
+        killmail = load_killmail(10000001)
+        self.assertListEqual(killmail.attackers_ship_type_ids(), [34562, 3756, 3756])
 
+
+"""
 class TestMainAttackerGroup(NoSocketsTestCase):
     def test_prioritize_alliance(self):
         killmail = load_killmail(10000401)
@@ -115,6 +120,7 @@ class TestMainAttackerGroup(NoSocketsTestCase):
     def test_return_none_if_only_faction(self):
         killmail = load_killmail(10000301)
         self.assertIsNone(killmail.main_attacker_group())
+"""
 
 
 class TestEntityCount(NoSocketsTestCase):
