@@ -1,9 +1,13 @@
+from django import forms
 from django.contrib import admin
 from django.db.models.functions import Lower
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
 
+from .core.killmails import Killmail
 from .models import Webhook, Tracker
 from . import tasks
 
@@ -48,6 +52,10 @@ class WebhookAdmin(admin.ModelAdmin):
     send_test_message.short_description = "Send test message to selected webhooks"
 
 
+class TrackerAdminKillmailId(forms.Form):
+    killmail_id = forms.IntegerField()
+
+
 @admin.register(Tracker)
 class TrackerAdmin(admin.ModelAdmin):
     list_display = (
@@ -62,6 +70,59 @@ class TrackerAdmin(admin.ModelAdmin):
         ("origin_solar_system", admin.RelatedOnlyFieldListFilter),
         ("webhook", admin.RelatedOnlyFieldListFilter),
     )
+
+    actions = ["run_test_killmail"]
+
+    def run_test_killmail(self, request, queryset):
+        if "apply" in request.POST:
+            form = TrackerAdminKillmailId(request.POST)
+            if form.is_valid():
+                killmail_id = form.cleaned_data["killmail_id"]
+                killmail = Killmail.create_from_zkb_api(killmail_id)
+                if killmail:
+                    request.session["last_killmail_id"] = killmail_id
+                    actions_count = 0
+                    for tracker in queryset:
+                        tasks.run_tracker.delay(
+                            tracker_pk=tracker.pk,
+                            killmail_json=killmail.asjson(),
+                            ignore_max_age=True,
+                        )
+                        actions_count += 1
+
+                    self.message_user(
+                        request,
+                        (
+                            f"Started {actions_count} tracker(s) for "
+                            f"killmail with ID {killmail_id}."
+                        ),
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        "Failed to load killmail with ID {killmail_id} from ZKB",
+                    )
+
+            return HttpResponseRedirect(request.get_full_path())
+        else:
+            last_killmail_id = request.session.get("last_killmail_id")
+            if last_killmail_id:
+                initial = {"killmail_id": last_killmail_id}
+            else:
+                initial = None
+            form = TrackerAdminKillmailId(initial=initial)
+
+        return render(
+            request,
+            "admin/killtracker_killmail_id.html",
+            {
+                "form": form,
+                "title": "Load Test Killmail for Tracker",
+                "queryset": queryset.all(),
+            },
+        )
+
+    run_test_killmail.short_description = "Run test killmail with selected trackers"
 
     autocomplete_fields = ["origin_solar_system"]
 

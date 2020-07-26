@@ -22,6 +22,7 @@ from eveuniverse.models import (
 from killtracker.core.killmails import EntityCount
 
 from . import BravadoOperationStub
+from ..core.killmails import Killmail
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
@@ -485,7 +486,7 @@ class TestTrackerCalculate(TestCaseBaseNoSockets):
         self.assertSetEqual(results, expected)
 
         killmail = tracker.process_killmail(load_killmail(10000101))
-        self.assertSetEqual(killmail.tracker_info.matching_ship_type_ids, {34562})
+        self.assertSetEqual(set(killmail.tracker_info.matching_ship_type_ids), {34562})
 
     def test_can_require_victim_ship_group(self):
         killmail_ids = {10000101, 10000201}
@@ -511,7 +512,7 @@ class TestTrackerCalculate(TestCaseBaseNoSockets):
         self.assertSetEqual(results, expected)
 
         killmail = tracker.process_killmail(load_killmail(10000101))
-        self.assertSetEqual(killmail.tracker_info.matching_ship_type_ids, {34562})
+        self.assertSetEqual(set(killmail.tracker_info.matching_ship_type_ids), {34562})
 
     def test_can_exclude_npc_kills(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005, 10000301}
@@ -606,7 +607,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         gnosis = EveType.objects.get(id=3756)
         self.tracker.require_attackers_ship_types.add(gnosis)
         killmail = self.tracker.process_killmail(load_killmail(10000101))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
         _, kwargs = mock_execute.call_args
@@ -622,7 +623,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000101))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
         args, kwargs = mock_execute.call_args
@@ -641,7 +642,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = load_killmail(10000001)
 
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
 
@@ -650,11 +651,9 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_EVERYBODY,
         )
+        killmail = tracker.process_killmail(load_killmail(10000001))
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        self.webhook_1.send_killmail(killmail_plus)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         _, kwargs = mock_execute.call_args
         self.assertIn("@everybody", kwargs["content"])
@@ -665,7 +664,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         _, kwargs = mock_execute.call_args
         self.assertIn("@here", kwargs["content"])
@@ -676,7 +675,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("@everybody", kwargs["content"])
@@ -688,7 +687,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("Ping Nobody", kwargs["content"])
@@ -697,7 +696,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000301))
 
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
 
@@ -705,7 +704,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        result = self.webhook_1.send_killmail(killmail)
+        result = self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(result)
         self.assertTrue(mock_execute.called, True)
@@ -714,7 +713,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        result = self.webhook_1.send_killmail(killmail)
+        result = self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertFalse(result)
         self.assertTrue(mock_execute.called, True)
@@ -732,19 +731,27 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
 
     def test_can_handle_victim_without_character(self, mock_execute):
         killmail = self.tracker.process_killmail(load_killmail(10000501))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
 
     def test_can_handle_victim_without_corporation(self, mock_execute):
         killmail = self.tracker.process_killmail(load_killmail(10000502))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
 
     def test_can_handle_final_attacker_with_no_character(self, mock_execute):
         killmail = self.tracker.process_killmail(load_killmail(10000503))
-        self.webhook_1.send_killmail(killmail)
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+        self.assertTrue(mock_execute.called, True)
+
+    def test_can_handle_matching_type_ids(self, mock_execute):
+        svipul = EveType.objects.get(id=34562)
+        self.tracker.require_attackers_ship_types.add(svipul)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
 

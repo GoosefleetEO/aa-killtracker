@@ -27,19 +27,6 @@ MODULE_PATH = "killtracker.tasks"
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
-class CacheStub:
-    """Stub for replacing Django cache"""
-
-    def get(self, key, default=None, version=None):
-        return None
-
-    def get_or_set(self, key, default, timeout=None):
-        return default()
-
-    def set(self, key, value, timeout=None):
-        return None
-
-
 def generate_invalid_pk(MyModel):
     return MyModel.objects.aggregate(Max("pk"))["pk__max"] + 1
 

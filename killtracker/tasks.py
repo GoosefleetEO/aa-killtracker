@@ -67,7 +67,9 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
 
 
 @shared_task
-def run_tracker(tracker_pk: int, killmail_json: str) -> None:
+def run_tracker(
+    tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
+) -> None:
     """run tracker for given killmail and trigger sending killmails if it matches"""
     try:
         tracker = Tracker.objects.get(pk=tracker_pk)
@@ -76,7 +78,9 @@ def run_tracker(tracker_pk: int, killmail_json: str) -> None:
     else:
         logger.info("Started running tracker %s", tracker)
         killmail = Killmail.from_json(killmail_json)
-        killmail_new = tracker.process_killmail(killmail)
+        killmail_new = tracker.process_killmail(
+            killmail=killmail, ignore_max_age=ignore_max_age
+        )
         if killmail_new:
             tracker.webhook.add_killmail_to_queue(killmail_new)
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)

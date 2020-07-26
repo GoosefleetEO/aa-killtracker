@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
-from . import ResponseStub, BravadoOperationStub
+from . import CacheStub, ResponseStub, BravadoOperationStub
 from ..core.killmails import Killmail, EntityCount
 from .testdata.helpers import killmails_data, load_killmail
 from ..utils import NoSocketsTestCase, set_test_logger
@@ -129,6 +129,7 @@ class TestEntityCount(NoSocketsTestCase):
         self.assertTrue(corporation.is_corporation)
 
 
+@patch(MODULE_PATH + ".cache", CacheStub())
 @patch(MODULE_PATH + ".esi")
 @patch(MODULE_PATH + ".requests", spec=True)
 class TestCreateFromZkbApi(NoSocketsTestCase):

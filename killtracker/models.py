@@ -441,7 +441,7 @@ class Webhook(models.Model):
                     )
                 )
                 tracked_ship_types_text = (
-                    f"Tracked ship types involved: **{ship_types_text}**"
+                    f"\nTracked ship types involved: **{ship_types_text}**"
                 )
 
         description = (
@@ -859,7 +859,9 @@ class Tracker(models.Model):
                 }
             )
 
-    def process_killmail(self, killmail: Killmail) -> Optional[Killmail]:
+    def process_killmail(
+        self, killmail: Killmail, ignore_max_age: bool = False
+    ) -> Optional[Killmail]:
         """runs tracker on given killmail
         
         returns new killmail amended with tracker info if killmail matches
@@ -868,7 +870,7 @@ class Tracker(models.Model):
         threshold_date = now() - timedelta(
             minutes=KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
         )
-        if killmail.time < threshold_date:
+        if not ignore_max_age and killmail.time < threshold_date:
             return False
 
         # pre-calculate shared information
@@ -1016,7 +1018,7 @@ class Tracker(models.Model):
                     .select_related("eve_group")
                 )
                 is_matching = bool(ship_types_matching_qs)
-                matching_ship_type_ids = set(
+                matching_ship_type_ids = list(
                     ship_types_matching_qs.values_list("id", flat=True)
                 )
 
@@ -1026,7 +1028,7 @@ class Tracker(models.Model):
                     id__in=attackers_ship_type_ids
                 ).filter(id__in=self.require_attackers_ship_types.all())
                 is_matching = bool(ship_types_matching_qs)
-                matching_ship_type_ids = set(
+                matching_ship_type_ids = list(
                     ship_types_matching_qs.values_list("id", flat=True)
                 )
 
