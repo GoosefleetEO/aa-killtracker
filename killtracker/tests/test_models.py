@@ -587,6 +587,30 @@ class TestTrackerCalculateTrackerInfo(TestCaseBaseNoSockets):
         killmail = self.tracker.process_killmail(load_killmail(10000302))
         self.assertIsNone(killmail.tracker_info.main_org)
 
+    def test_main_ship_group_above_threshold(self):
+        killmail = self.tracker.process_killmail(load_killmail(10006001))
+        self.assertEqual(
+            killmail.tracker_info.main_ship_group,
+            EntityCount(
+                id=419, category="inventory_group", name="Combat Battlecruiser", count=2
+            ),
+        )
+
+    def test_main_ship_group_return_none_if_below_threshold(self):
+        killmail = self.tracker.process_killmail(load_killmail(10006002))
+        self.assertIsNone(killmail.tracker_info.main_ship_group)
+
+    def test_main_org_above_threshold(self):
+        killmail = self.tracker.process_killmail(load_killmail(10006003))
+        self.assertEqual(
+            killmail.tracker_info.main_org,
+            EntityCount(id=2001, category="corporation", count=2),
+        )
+
+    def test_main_org_return_none_if_below_threshold(self):
+        killmail = self.tracker.process_killmail(load_killmail(10006004))
+        self.assertIsNone(killmail.tracker_info.main_org)
+
 
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
 class TestWebhookSendKillmail(TestCaseBaseNoSockets):

@@ -128,6 +128,18 @@
             "published": true
         },
         {
+            "eve_category_id": 6,
+            "id": 26,
+            "name": "Cruiser",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
+            "id": 27,
+            "name": "Battleship",
+            "published": true
+        },
+        {
             "eve_category_id": 7,
             "id": 55,
             "name": "Projectile Weapon",
@@ -141,14 +153,32 @@
         },
         {
             "eve_category_id": 6,
+            "id": 324,
+            "name": "Assault Frigate",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
             "id": 419,
             "name": "Combat Battlecruiser",
             "published": true
         },
         {
             "eve_category_id": 6,
+            "id": 420,
+            "name": "Destroyer",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
             "id": 1305,
             "name": "Tactical Destroyer",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
+            "id": 1534,
+            "name": "Command Destroyer",
             "published": true
         }
     ],
@@ -613,6 +643,36 @@
             "volume": 16500.0
         },
         {
+            "capacity": 450.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 26,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 621,
+            "mass": 11910000.0,
+            "name": "Caracal",
+            "packaged_volume": 10000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 202.0,
+            "volume": 92000.0
+        },
+        {
+            "capacity": 830.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 27,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 638,
+            "mass": 99300000.0,
+            "name": "Raven",
+            "packaged_volume": 50000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 250.0,
+            "volume": 486000.0
+        },
+        {
             "capacity": 0.0,
             "eve_graphic_id": null,
             "eve_group_id": 100,
@@ -658,6 +718,36 @@
             "volume": 101000.0
         },
         {
+            "capacity": 300.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 324,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 11379,
+            "mass": 1095300.0,
+            "name": "Hawk",
+            "packaged_volume": 2500.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 39.0,
+            "volume": 16500.0
+        },
+        {
+            "capacity": 425.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 420,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 16238,
+            "mass": 1700000.0,
+            "name": "Cormorant",
+            "packaged_volume": 5000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 112.0,
+            "volume": 52000.0
+        },
+        {
             "capacity": 430.0,
             "eve_graphic_id": null,
             "eve_group_id": 1305,
@@ -671,6 +761,21 @@
             "published": true,
             "radius": 144.0,
             "volume": 47000.0
+        },
+        {
+            "capacity": 400.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 1534,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 37483,
+            "mass": 1150000.0,
+            "name": "Magus",
+            "packaged_volume": 5000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 136.0,
+            "volume": 55000.0
         }
     ]
 }

@@ -450,7 +450,7 @@ class Webhook(models.Model):
             f"worth **{value_mio} M** ISK.\n"
             f"Final blow by {final_attacker_str} "
             f"in a **{final_attacker_ship_type_name}**.\n"
-            f"Attackers: **{len(killmail.attackers)}**{main_org_text}"
+            f"Attackers: **{len(killmail.attackers):,}**{main_org_text}"
             f"{main_ship_group_text}"
             f"{tracked_ship_types_text}"
             f"{distance_text}"
@@ -590,6 +590,9 @@ class Webhook(models.Model):
 
 
 class Tracker(models.Model):
+
+    MAIN_MINIMUM_COUNT = 2
+    MAIN_MINIMUM_SHARE = 0.25
 
     PING_TYPE_NONE = "PN"
     PING_TYPE_HERE = "PH"
@@ -1049,8 +1052,8 @@ class Tracker(models.Model):
         else:
             return None
 
-    @staticmethod
-    def _killmail_main_attacker_org(killmail) -> Optional[EntityCount]:
+    @classmethod
+    def _killmail_main_attacker_org(cls, killmail) -> Optional[EntityCount]:
         """returns the main attacker group with count"""
         org_items = []
         for attacker in killmail.attackers:
@@ -1075,8 +1078,12 @@ class Tracker(models.Model):
                 for x in set(org_items)
             ]
             max_count = max([x.count for x in org_items_2])
-            if max_count > 1:
-                org_items_3 = [x for x in org_items_2 if x.count == max_count]
+            treshold = max(
+                len(killmail.attackers) * cls.MAIN_MINIMUM_SHARE,
+                cls.MAIN_MINIMUM_COUNT,
+            )
+            if max_count >= treshold:
+                org_items_3 = [x for x in org_items_2 if x.count >= treshold]
                 if len(org_items_3) > 1:
                     org_items_4 = [x for x in org_items_3 if x.is_alliance]
                     if len(org_items_4) > 0:
@@ -1086,8 +1093,10 @@ class Tracker(models.Model):
 
         return None
 
-    @staticmethod
-    def _killmail_main_attacker_ship_group(killmail) -> Optional[EntityCount]:
+    @classmethod
+    def _killmail_main_attacker_ship_group(
+        cls, killmail: Killmail
+    ) -> Optional[EntityCount]:
         """returns the main attacker group with count"""
 
         ships_type_ids = killmail.attackers_ship_type_ids()
@@ -1120,7 +1129,11 @@ class Tracker(models.Model):
                 for x in set(ship_groups)
             ]
             max_count = max([x.count for x in ship_groups_2])
-            if max_count > 1:
-                return [x for x in ship_groups_2 if x.count == max_count][0]
+            treshold = max(
+                len(killmail.attackers) * cls.MAIN_MINIMUM_SHARE,
+                cls.MAIN_MINIMUM_COUNT,
+            )
+            if max_count >= treshold:
+                return [x for x in ship_groups_2 if x.count >= treshold][0]
 
         return None

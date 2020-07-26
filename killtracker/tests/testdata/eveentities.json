@@ -15,6 +15,36 @@
         "category": "character"
     },
     {
+        "id": 1004,
+        "name": "Kara Danvers",
+        "category": "character"
+    },
+    {
+        "id": 1005,
+        "name": "James Gordan",
+        "category": "character"
+    },
+    {
+        "id": 1006,
+        "name": "Alfred Pennyworth",
+        "category": "character"
+    },
+    {
+        "id": 1007,
+        "name": "Harvey Dent",
+        "category": "character"
+    },
+    {
+        "id": 1008,
+        "name": "Cassandra Cain",
+        "category": "character"
+    },
+    {
+        "id": 1009,
+        "name": "Lois Lane",
+        "category": "character"
+    },
+    {
         "id": 1011,
         "name": "Lex Luthor",
         "category": "character"

@@ -10,7 +10,8 @@ class CreateEveUniverseTestData(TestCase):
         testdata_spec = {
             "EveFaction": ModelSpec(ids=[500001], include_children=False),
             "EveType": ModelSpec(
-                ids=[603, 2488, 2977, 3756, 34562], include_children=False
+                ids=[603, 621, 638, 2488, 2977, 3756, 11379, 16238, 34562, 37483],
+                include_children=False,
             ),
             "EveSolarSystem": ModelSpec(
                 ids=[30001161, 30004976, 30004984, 30045349, 31000005],
