@@ -28,6 +28,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 @shared_task
 def store_killmail(killmail_json: str) -> None:
+    """stores killmail as EveKillmail object"""
     killmail = Killmail.from_json(killmail_json)
     try:
         EveKillmail.objects.create_from_killmail(killmail)
@@ -42,6 +43,7 @@ def store_killmail(killmail_json: str) -> None:
 
 @shared_task
 def delete_stale_killmails() -> None:
+    """deleted all EveKillmail objects that are considered stale"""
     _, details = EveKillmail.objects.delete_stale()
     if details:
         logger.info("Deleted %d stale killmails", details["killtracker.EveKillmail"])
@@ -49,6 +51,7 @@ def delete_stale_killmails() -> None:
 
 @shared_task(base=QueueOnce)
 def send_killmails_to_webhook(webhook_pk: int) -> None:
+    """send all currently queued killmails in given webhook object to Discord"""
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
@@ -65,6 +68,7 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
 
 @shared_task
 def run_tracker(tracker_pk: int, killmail_json: str) -> None:
+    """run tracker for given killmail and trigger sending killmails if it matches"""
     try:
         tracker = Tracker.objects.get(pk=tracker_pk)
     except Tracker.DoesNotExist:
@@ -82,6 +86,13 @@ def run_tracker(tracker_pk: int, killmail_json: str) -> None:
 
 @shared_task(base=QueueOnce)
 def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -> None:
+    """Main task for running the Killtracker. 
+    Will fetch new killmails from ZKB and start running trackers for them
+
+    Params:
+    - max_killmails_in_total: override the default number of max killmails 
+    received per run 
+    """
     start = timer()
     logger.info("Killtracker run started...")
     total_killmails = 0
@@ -116,10 +127,13 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
 
 @shared_task
 def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
+    """send a test message to given webhook. 
+    Optional inform user about result if user ok is given
+    """
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
-        logger.warning("Webhook with pk = %s does not exist", webhook_pk)
+        logger.error("Webhook with pk = %s does not exist", webhook_pk)
     else:
         logger.info("Sending test message to webhook %s", webhook)
         error_text, success = webhook.send_test_message()

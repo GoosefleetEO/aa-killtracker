@@ -54,6 +54,7 @@ class TrackerAdmin(admin.ModelAdmin):
         "name",
         "is_enabled",
         "origin_solar_system",
+        "identify_fleets",
         "webhook",
     )
     list_filter = (

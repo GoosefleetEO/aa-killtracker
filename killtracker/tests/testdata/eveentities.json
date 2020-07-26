@@ -20,6 +20,11 @@
         "category": "character"
     },
     {
+        "id": 1012,
+        "name": "Lara Luthor",
+        "category": "character"
+    },
+    {
         "id": 2001,
         "name": "Wayne Technologies",
         "category": "corporation"

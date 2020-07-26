@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import timedelta
 from time import sleep
 from urllib.parse import urljoin
-from typing import Optional, List, Set, Tuple
+from typing import Optional, List, Tuple
 
 import dhooks_lite
 from simple_mq import SimpleMQ
@@ -32,7 +32,7 @@ from eveuniverse.models import (
 from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
 from .core.killmails import EntityCount, Killmail, TrackerInfo
-from .managers import KillmailManager
+from .managers import EveKillmailManager
 from .utils import LoggerAddTag, get_site_base_url
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -56,7 +56,7 @@ class EveKillmail(models.Model):
     )
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = KillmailManager()
+    objects = EveKillmailManager()
 
     def __str__(self):
         return f"ID:{self.id}"
@@ -139,6 +139,8 @@ class EveKillmailCharacter(models.Model):
             return str(self.character)
         elif self.corporation:
             return str(self.corporation)
+        elif self.alliance:
+            return str(self.alliance)
         elif self.faction:
             return str(self.faction)
         else:
@@ -322,11 +324,12 @@ class Webhook(models.Model):
             victim_str = ""
 
         # final attacker
-        final_attacker = None
         for attacker in killmail.attackers:
             if attacker.is_final_blow:
                 final_attacker = attacker
                 break
+        else:
+            final_attacker = None
 
         if final_attacker:
             if final_attacker.corporation_id:
@@ -547,10 +550,10 @@ class Webhook(models.Model):
     def _convert_to_discord_link(cls, name: str, url: str) -> str:
         return f"[{str(name)}]({str(url)})"
 
-    def send_test_message(self, killmail_id: int = 85773909) -> Tuple[str, bool]:
+    def send_test_message(self, killmail_id: int = 85915522) -> Tuple[str, bool]:
         """Sends a test notification to this webhook and returns send report"""
         try:
-            self.send_killmail(
+            success = self.send_killmail(
                 Killmail.create_from_zkb_api(killmail_id=killmail_id),
                 f"Test notification for webhook {self.name}:",
             )
@@ -563,7 +566,7 @@ class Webhook(models.Model):
             )
             return str(ex), False
         else:
-            return "", True
+            return "(no info)", success
 
     @staticmethod
     def default_avatar_url() -> str:
@@ -832,9 +835,9 @@ class Tracker(models.Model):
             or self.exclude_w_space
             or self.require_max_distance is not None
             or self.require_max_jumps is not None
-            or self.require_regions
-            or self.require_constellations
-            or self.require_solar_systems
+            or self.require_regions.all()
+            or self.require_constellations.all()
+            or self.require_solar_systems.all()
         )
 
     def clean(self) -> None:
@@ -877,7 +880,9 @@ class Tracker(models.Model):
         is_null_sec = None
         is_w_space = None
         matching_ship_type_ids = None
-        if killmail.solar_system_id and self.has_localization_filter:
+        if killmail.solar_system_id and (
+            self.origin_solar_system or self.has_localization_filter
+        ):
             solar_system = (
                 EveSolarSystem.objects.filter(id=killmail.solar_system_id)
                 .select_related("eve_constellation", "eve_constellation__eve_region")
@@ -996,15 +1001,12 @@ class Tracker(models.Model):
                 )
 
             if is_matching and self.require_victim_ship_groups.count() > 0:
-                if killmail.victim.ship_type_id:
-                    ship_types_matching_qs = EveType.objects.filter(
+                is_matching = bool(
+                    EveType.objects.filter(
                         eve_group__in=self.require_victim_ship_groups.all(),
                         id=killmail.victim.ship_type_id,
                     ).select_related()
-                    is_matching = bool(ship_types_matching_qs)
-
-                else:
-                    is_matching = False
+                )
 
             if is_matching and self.require_attackers_ship_groups.count() > 0:
                 attackers_ship_type_ids = killmail.attackers_ship_type_ids()
@@ -1044,20 +1046,6 @@ class Tracker(models.Model):
             return killmail_new
         else:
             return None
-
-    @staticmethod
-    def _extract_alliance_ids(alliances: models.QuerySet) -> Set[int]:
-        return {
-            int(alliance_id)
-            for alliance_id in alliances.values_list("alliance_id", flat=True)
-        }
-
-    @staticmethod
-    def _extract_corporation_ids(corporations: models.QuerySet) -> Set[int]:
-        return {
-            int(corporation_id)
-            for corporation_id in corporations.values_list("corporation_id", flat=True)
-        }
 
     @staticmethod
     def _killmail_main_attacker_org(killmail) -> Optional[EntityCount]:

@@ -2,6 +2,8 @@ from unittest.mock import patch
 
 from django.db.models import Max
 
+from allianceauth.tests.auth_utils import AuthUtils
+
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
@@ -11,10 +13,12 @@ from .testdata.helpers import (
     load_eve_killmails,
 )
 from ..tasks import (
+    delete_stale_killmails,
     run_tracker,
     send_killmails_to_webhook,
     run_killtracker,
     store_killmail,
+    send_test_message_to_webhook,
 )
 from ..utils import NoSocketsTestCase, set_test_logger
 
@@ -138,7 +142,7 @@ class TestRunTracker(TestTrackerBase):
 
 @patch(MODULE_PATH + ".Webhook.send_queued_killmails")
 @patch(MODULE_PATH + ".logger")
-class TestSendAlertsToWebhook(TestTrackerBase):
+class TestSendKillmailsToWebhook(TestTrackerBase):
     def test_log_warning_when_pk_is_invalid(
         self, mock_logger, mock_send_queued_killmails
     ):
@@ -151,6 +155,15 @@ class TestSendAlertsToWebhook(TestTrackerBase):
         send_killmails_to_webhook(self.webhook.pk)
         self.assertEqual(mock_send_queued_killmails.call_count, 1)
         self.assertFalse(mock_logger.error.called)
+
+    def test_log_info_if_not_enabled(self, mock_logger, mock_send_queued_killmails):
+        my_webhook = Webhook.objects.create(
+            name="disabled", url="dummy-url-2", is_enabled=False
+        )
+        send_killmails_to_webhook(my_webhook.pk)
+
+        self.assertFalse(mock_send_queued_killmails.called)
+        self.assertTrue(mock_logger.info.called)
 
 
 @patch(MODULE_PATH + ".logger")
@@ -170,3 +183,62 @@ class TestStoreKillmail(TestTrackerBase):
         store_killmail(killmail_json)
 
         self.assertTrue(mock_logger.warning.called)
+
+
+@patch(MODULE_PATH + ".notify")
+@patch(MODULE_PATH + ".Webhook.send_test_message")
+@patch(MODULE_PATH + ".logger")
+class TestSendTestKillmailsToWebhook(TestTrackerBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = AuthUtils.create_user("John X. Doe")
+
+    def test_log_warning_when_pk_is_invalid(
+        self, mock_logger, mock_send_test_message, mock_notify
+    ):
+        send_test_message_to_webhook(generate_invalid_pk(Webhook))
+
+        self.assertFalse(mock_send_test_message.called)
+        self.assertTrue(mock_logger.error.called)
+        self.assertFalse(mock_notify.called)
+
+    def test_run_normal(self, mock_logger, mock_send_test_message, mock_notify):
+        mock_send_test_message.return_value = ("", True)
+
+        send_test_message_to_webhook(self.webhook.pk)
+        self.assertEqual(mock_send_test_message.call_count, 1)
+        self.assertFalse(mock_logger.error.called)
+        self.assertFalse(mock_notify.called)
+
+    def test_run_normal_with_user(
+        self, mock_logger, mock_send_test_message, mock_notify
+    ):
+        mock_send_test_message.return_value = ("", True)
+
+        send_test_message_to_webhook(self.webhook.pk, self.user.pk)
+        self.assertEqual(mock_send_test_message.call_count, 1)
+        self.assertFalse(mock_logger.error.called)
+        self.assertTrue(mock_notify.called)
+        _, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs["level"], "success")
+
+    def test_report_errors_to_user(
+        self, mock_logger, mock_send_test_message, mock_notify
+    ):
+        mock_send_test_message.return_value = ("error", False)
+
+        send_test_message_to_webhook(self.webhook.pk, self.user.pk)
+        self.assertEqual(mock_send_test_message.call_count, 1)
+        self.assertFalse(mock_logger.error.called)
+        self.assertTrue(mock_notify.called)
+        _, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs["level"], "error")
+
+
+@patch(MODULE_PATH + ".EveKillmail.objects.delete_stale")
+class TestDeleteStaleKillmails(TestTrackerBase):
+    def test_normal(self, mock_delete_stale):
+        mock_delete_stale.return_value = (1, {"killtracker.EveKillmail": 1})
+        delete_stale_killmails()
+        self.assertTrue(mock_delete_stale.called)

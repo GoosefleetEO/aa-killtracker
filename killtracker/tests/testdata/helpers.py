@@ -7,7 +7,7 @@ from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveUniverseEntityModel
 
 from . import _currentdir
-from .load_eveuniverse import load_eveuniverse  # noqa
+from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
 from ...core.killmails import Killmail
 from ...models import EveKillmail
 

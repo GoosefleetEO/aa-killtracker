@@ -16,7 +16,7 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-class KillmailQuerySet(models.QuerySet):
+class EveKillmailQuerySet(models.QuerySet):
     """Custom queryset for EveKillmail"""
 
     def load_entities(self) -> int:
@@ -32,9 +32,9 @@ class KillmailQuerySet(models.QuerySet):
         ).update_from_esi()
 
 
-class KillmailManager(models.Manager):
+class EveKillmailManager(models.Manager):
     def get_queryset(self) -> models.QuerySet:
-        return KillmailQuerySet(self.model, using=self._db)
+        return EveKillmailQuerySet(self.model, using=self._db)
 
     def delete_stale(self) -> Tuple[int, Dict[str, int]]:
         """deletes all stale killmail"""

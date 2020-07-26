@@ -373,7 +373,7 @@ class JsonDateTimeDecoder(json.JSONDecoder):
         try:
             dateobj = datetime(**dct)
             return dateobj
-        except Exception:
+        except (ValueError, TypeError):
             dct["__type__"] = type_str
             return dct
 

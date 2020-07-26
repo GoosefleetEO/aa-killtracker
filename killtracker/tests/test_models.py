@@ -4,6 +4,9 @@ from bravado.exception import HTTPNotFound
 
 import dhooks_lite
 
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.test import TestCase
 from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
@@ -19,7 +22,7 @@ from eveuniverse.models import (
 from killtracker.core.killmails import EntityCount
 
 from . import BravadoOperationStub
-from ..models import EveKillmail, Tracker, Webhook
+from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
 from .testdata.helpers import (
     load_eveuniverse,
     load_eveentities,
@@ -58,7 +61,31 @@ def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
         raise HTTPNotFound(Mock(**{"response.status_code": 404}))
 
 
-class TestCaseBase(NoSocketsTestCase):
+class TestCaseBase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eveuniverse()
+        load_evealliances()
+        load_evecorporations()
+        load_eveentities()
+        cls.webhook_1 = Webhook.objects.create(
+            name="Webhook 1", url="http://www.example.com/webhook_1", is_enabled=True
+        )
+
+
+class TestWebhookQueue(TestCaseBase):
+    def setUp(self) -> None:
+        cache.clear()
+
+    def test_queue_features(self):
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+        self.assertEqual(self.webhook_1.queue_size(), 1)
+        self.webhook_1.clear_queue()
+        self.assertEqual(self.webhook_1.queue_size(), 0)
+
+
+class TestCaseBaseNoSockets(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -74,7 +101,7 @@ class TestCaseBase(NoSocketsTestCase):
         )
 
 
-class TestEveKillmailManager(TestCaseBase):
+class TestEveKillmailManager(TestCaseBaseNoSockets):
     def test_create_from_killmail(self):
         killmail = load_killmail(10000001)
         eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
@@ -140,15 +167,83 @@ class TestEveKillmailManager(TestCaseBase):
         km.time = now() - timedelta(days=1, seconds=1)
         km.save()
 
-        total_count, details = EveKillmail.objects.delete_stale()
+        _, details = EveKillmail.objects.delete_stale()
 
         self.assertEqual(details["killtracker.EveKillmail"], 1)
         self.assertEqual(EveKillmail.objects.count(), 2)
         self.assertTrue(EveKillmail.objects.filter(id=10000002).exists())
         self.assertTrue(EveKillmail.objects.filter(id=10000003).exists())
 
+    @patch("killtracker.managers.KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 0)
+    def test_dont_delete_stale_when_turned_off(self):
+        load_eve_killmails([10000001, 10000002, 10000003])
+        km = EveKillmail.objects.get(id=10000001)
+        km.time = now() - timedelta(days=1, seconds=1)
+        km.save()
 
-class TestTrackerCalculate(TestCaseBase):
+        self.assertIsNone(EveKillmail.objects.delete_stale())
+        self.assertEqual(EveKillmail.objects.count(), 3)
+
+    def test_load_entities(self):
+        load_eve_killmails([10000001, 10000002])
+        self.assertEqual(EveKillmail.objects.all().load_entities(), 0)
+
+
+class TestTrackerBasics(TestCaseBaseNoSockets):
+    def test_clean_no_issue(self):
+        tracker = Tracker(name="Test", webhook=self.webhook_1)
+        self.assertIsNone(tracker.clean())
+
+    def test_clean_need_origin_for_max_jumps(self):
+        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_jumps=10)
+        with self.assertRaises(ValidationError):
+            tracker.clean()
+
+    def test_clean_need_origin_for_max_distance(self):
+        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_distance=10)
+        with self.assertRaises(ValidationError):
+            tracker.clean()
+
+    def test_has_localization_filter_1(self):
+        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_high_sec=True)
+        self.assertTrue(tracker.has_localization_filter)
+
+        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_low_sec=True)
+        self.assertTrue(tracker.has_localization_filter)
+
+        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_null_sec=True)
+        self.assertTrue(tracker.has_localization_filter)
+
+        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_w_space=True)
+        self.assertTrue(tracker.has_localization_filter)
+
+        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_distance=10)
+        self.assertTrue(tracker.has_localization_filter)
+
+        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_jumps=10)
+        self.assertTrue(tracker.has_localization_filter)
+
+    def test_has_localization_filter_2(self):
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        self.assertFalse(tracker.has_localization_filter)
+
+    def test_has_localization_filter_3(self):
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_regions.add(EveRegion.objects.get(id=10000014))
+        self.assertTrue(tracker.has_localization_filter)
+
+    def test_has_localization_filter_4(self):
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_constellations.add(EveConstellation.objects.get(id=20000169))
+        self.assertTrue(tracker.has_localization_filter)
+
+    def test_has_localization_filter_5(self):
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_solar_systems.add(EveSolarSystem.objects.get(id=30001161))
+        self.assertTrue(tracker.has_localization_filter)
+
+
+class TestTrackerCalculate(TestCaseBaseNoSockets):
     @staticmethod
     def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
         results = set()
@@ -166,35 +261,6 @@ class TestTrackerCalculate(TestCaseBase):
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
         self.assertSetEqual(results, expected)
 
-    @patch("eveuniverse.models.esi")
-    def test_returns_augmented_killmail(self, mock_esi):
-        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
-            esi_get_route_origin_destination
-        )
-
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, origin_solar_system_id=30003067
-        )
-        killmail = load_killmail(10000101)
-        killmail_plus = tracker.process_killmail(killmail)
-        self.assertTrue(killmail_plus.tracker_info)
-        self.assertEqual(killmail_plus.tracker_info.tracker_pk, tracker.pk)
-        self.assertEqual(killmail_plus.tracker_info.jumps, 7)
-        self.assertAlmostEqual(killmail_plus.tracker_info.distance, 5.85, delta=0.01)
-        self.assertEqual(
-            killmail_plus.tracker_info.main_org,
-            EntityCount(id=3001, category=EntityCount.CATEGORY_ALLIANCE, count=3),
-        )
-        self.assertEqual(
-            killmail_plus.tracker_info.main_ship_group,
-            EntityCount(
-                id=419,
-                category=EntityCount.CATEGORY_INVENTORY_GROUP,
-                name="Combat Battlecruiser",
-                count=2,
-            ),
-        )
-
     @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 60)
     def test_excludes_older_killmails(self):
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
@@ -208,6 +274,12 @@ class TestTrackerCalculate(TestCaseBase):
 
         expected = {10000001}
         self.assertSetEqual(results, expected)
+
+    def test_can_process_killmail_without_solar_system(self):
+        tracker = Tracker.objects.create(
+            name="Test", exclude_high_sec=True, webhook=self.webhook_1
+        )
+        self.assertIsNotNone(tracker.process_killmail(load_killmail(10000402)))
 
     def test_can_filter_high_sec_kills(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004}
@@ -460,8 +532,66 @@ class TestTrackerCalculate(TestCaseBase):
         self.assertSetEqual(results, expected)
 
 
+class TestTrackerCalculateTrackerInfo(TestCaseBaseNoSockets):
+    def setUp(self) -> None:
+        self.tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+
+    @patch("eveuniverse.models.esi")
+    def test_basics(self, mock_esi):
+        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
+            esi_get_route_origin_destination
+        )
+        self.tracker.origin_solar_system_id = 30003067
+        self.tracker.save()
+
+        killmail = self.tracker.process_killmail(load_killmail(10000101))
+
+        self.assertTrue(killmail.tracker_info)
+        self.assertEqual(killmail.tracker_info.tracker_pk, self.tracker.pk)
+        self.assertEqual(killmail.tracker_info.jumps, 7)
+        self.assertAlmostEqual(killmail.tracker_info.distance, 5.85, delta=0.01)
+        self.assertEqual(
+            killmail.tracker_info.main_org,
+            EntityCount(id=3001, category=EntityCount.CATEGORY_ALLIANCE, count=3),
+        )
+        self.assertEqual(
+            killmail.tracker_info.main_ship_group,
+            EntityCount(
+                id=419,
+                category=EntityCount.CATEGORY_INVENTORY_GROUP,
+                name="Combat Battlecruiser",
+                count=2,
+            ),
+        )
+
+    def test_main_org_corporation_is_main(self):
+        killmail = self.tracker.process_killmail(load_killmail(10000403))
+        self.assertEqual(
+            killmail.tracker_info.main_org,
+            EntityCount(id=2001, category=EntityCount.CATEGORY_CORPORATION, count=2),
+        )
+
+    def test_main_org_prioritize_alliance_over_corporation(self):
+        killmail = self.tracker.process_killmail(load_killmail(10000401))
+        self.assertEqual(
+            killmail.tracker_info.main_org,
+            EntityCount(id=3001, category=EntityCount.CATEGORY_ALLIANCE, count=2),
+        )
+
+    def test_main_org_is_none_if_only_one_attacker(self):
+        killmail = self.tracker.process_killmail(load_killmail(10000005))
+        self.assertIsNone(killmail.tracker_info.main_org)
+
+    def test_main_org_is_none_if_faction(self):
+        killmail = self.tracker.process_killmail(load_killmail(10000302))
+        self.assertIsNone(killmail.tracker_info.main_org)
+
+
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-class TestWebhookSendKillmail(TestCaseBase):
+class TestWebhookSendKillmail(TestCaseBaseNoSockets):
+    def setUp(self) -> None:
+        self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
+
     @patch("eveuniverse.models.esi")
     def test_normal(self, mock_esi, mock_execute):
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
@@ -469,25 +599,43 @@ class TestWebhookSendKillmail(TestCaseBase):
         )
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
 
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, origin_solar_system_id=30003067,
-        )
+        self.tracker.origin_solar_system_id = 30003067
+        self.tracker.save()
         svipul = EveType.objects.get(id=34562)
-        tracker.require_attackers_ship_types.add(svipul)
+        self.tracker.require_attackers_ship_types.add(svipul)
         gnosis = EveType.objects.get(id=3756)
-        tracker.require_attackers_ship_types.add(gnosis)
-        killmail = load_killmail(10000101)
-        killmail_plus = tracker.process_killmail(killmail)
+        self.tracker.require_attackers_ship_types.add(gnosis)
+        killmail = self.tracker.process_killmail(load_killmail(10000101))
+        self.webhook_1.send_killmail(killmail)
 
-        self.webhook_1.send_killmail(killmail_plus)
+        self.assertTrue(mock_execute.called, True)
+        _, kwargs = mock_execute.call_args
+        self.assertEqual(kwargs["username"], "Killtracker")
+        self.assertIn("My Tracker", kwargs["content"])
+        embed = kwargs["embeds"][0]
+        self.assertIn("| Killmail", embed.title)
+        self.assertIn("Combat Battlecruiser", embed.description)
+        self.assertIn("Tracked ship types", embed.description)
+
+    def test_send_as_fleetkill(self, mock_execute):
+        self.tracker.identify_fleets = True
+        self.tracker.save()
+
+        killmail = self.tracker.process_killmail(load_killmail(10000101))
+        self.webhook_1.send_killmail(killmail)
 
         self.assertTrue(mock_execute.called, True)
         args, kwargs = mock_execute.call_args
-        self.assertEqual(kwargs["username"], "Killtracker")
-        self.assertIn("Test", kwargs["content"])
         embed = kwargs["embeds"][0]
-        self.assertIn("Combat Battlecruiser", embed.description)
-        self.assertIn("Tracked ship types", embed.description)
+        self.assertIn("| Fleetkill", embed.title)
+
+    def test_can_add_intro_text(self, mock_execute):
+        killmail = self.tracker.process_killmail(load_killmail(10000101))
+        self.webhook_1.send_killmail(killmail, intro_text="Intro Text")
+
+        self.assertTrue(mock_execute.called, True)
+        args, kwargs = mock_execute.call_args
+        self.assertIn("Intro Text", kwargs["content"])
 
     def test_without_tracker_info(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
@@ -513,28 +661,22 @@ class TestWebhookSendKillmail(TestCaseBase):
 
     def test_can_ping_here(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_HERE,
-        )
+        self.tracker.ping_type = Tracker.PING_TYPE_HERE
+        self.tracker.save()
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        self.webhook_1.send_killmail(killmail_plus)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
+        self.webhook_1.send_killmail(killmail)
 
         _, kwargs = mock_execute.call_args
         self.assertIn("@here", kwargs["content"])
 
     def test_can_ping_nobody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_NONE,
-        )
+        self.tracker.ping_type = Tracker.PING_TYPE_NONE
+        self.tracker.save()
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        self.webhook_1.send_killmail(killmail_plus)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
+        self.webhook_1.send_killmail(killmail)
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("@everybody", kwargs["content"])
@@ -542,49 +684,84 @@ class TestWebhookSendKillmail(TestCaseBase):
 
     def test_can_disable_posting_name(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        tracker = Tracker.objects.create(
-            name="Ping Nobody", webhook=self.webhook_1, is_posting_name=False,
-        )
+        self.tracker.s_posting_name = False
+        self.tracker.save()
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        self.webhook_1.send_killmail(killmail_plus)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
+        self.webhook_1.send_killmail(killmail)
 
         _, kwargs = mock_execute.call_args
         self.assertNotIn("Ping Nobody", kwargs["content"])
 
     def test_can_send_npc_killmail(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        killmail = self.tracker.process_killmail(load_killmail(10000301))
 
-        killmail = load_killmail(10000301)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        self.webhook_1.send_killmail(killmail_plus)
+        self.webhook_1.send_killmail(killmail)
 
         self.assertTrue(mock_execute.called, True)
 
     def test_when_send_ok_returns_true(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        result = self.webhook_1.send_killmail(killmail_plus)
+        result = self.webhook_1.send_killmail(killmail)
 
         self.assertTrue(result)
         self.assertTrue(mock_execute.called, True)
 
     def test_when_send_not_ok_returns_false(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        killmail = load_killmail(10000001)
-        killmail_plus = tracker.process_killmail(killmail)
-
-        result = self.webhook_1.send_killmail(killmail_plus)
+        result = self.webhook_1.send_killmail(killmail)
 
         self.assertFalse(result)
         self.assertTrue(mock_execute.called, True)
+
+    @patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
+    def test_can_send_test_message(self, mock_execute, mock_create_from_zkb_api):
+        def my_create_from_zkb_api(killmail_id):
+            return load_killmail(killmail_id)
+
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
+        mock_create_from_zkb_api.side_effect = my_create_from_zkb_api
+
+        self.webhook_1.send_test_message(killmail_id=10000001)
+        self.assertTrue(mock_execute.called, True)
+
+    def test_can_handle_victim_without_character(self, mock_execute):
+        killmail = self.tracker.process_killmail(load_killmail(10000501))
+        self.webhook_1.send_killmail(killmail)
+
+        self.assertTrue(mock_execute.called, True)
+
+    def test_can_handle_victim_without_corporation(self, mock_execute):
+        killmail = self.tracker.process_killmail(load_killmail(10000502))
+        self.webhook_1.send_killmail(killmail)
+
+        self.assertTrue(mock_execute.called, True)
+
+    def test_can_handle_final_attacker_with_no_character(self, mock_execute):
+        killmail = self.tracker.process_killmail(load_killmail(10000503))
+        self.webhook_1.send_killmail(killmail)
+
+        self.assertTrue(mock_execute.called, True)
+
+
+class TestEveKillmailCharacter(TestCaseBaseNoSockets):
+    def test_str_character(self):
+        obj = EveKillmailCharacter(character=EveEntity.objects.get(id=1001))
+        self.assertEqual(str(obj), "Bruce Wayne")
+
+    def test_str_corporation(self):
+        obj = EveKillmailCharacter(corporation=EveEntity.objects.get(id=2001))
+        self.assertEqual(str(obj), "Wayne Technologies")
+
+    def test_str_alliance(self):
+        obj = EveKillmailCharacter(alliance=EveEntity.objects.get(id=3001))
+        self.assertEqual(str(obj), "Wayne Enterprise")
+
+    def test_str_faction(self):
+        obj = EveKillmailCharacter(faction=EveEntity.objects.get(id=500001))
+        self.assertEqual(str(obj), "Caldari State")

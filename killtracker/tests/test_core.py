@@ -61,6 +61,14 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         killmail = Killmail.create_from_zkb_redisq()
         self.assertIsNone(killmail)
 
+    def test_zkb_can_handle_no_solar_system(self, mock_requests):
+        mock_requests.get.return_value = ResponseStub(
+            {"package": killmails_data()[10000402]}
+        )
+
+        killmail = Killmail.create_from_zkb_redisq()
+        self.assertIsNotNone(killmail)
+
 
 class TestKillmailSerialization(NoSocketsTestCase):
     def test_dict_serialization(self):
@@ -103,24 +111,6 @@ class TestKillmailBasics(NoSocketsTestCase):
     def test_attackers_ships_types(self):
         killmail = load_killmail(10000001)
         self.assertListEqual(killmail.attackers_ship_type_ids(), [34562, 3756, 3756])
-
-
-"""
-class TestMainAttackerGroup(NoSocketsTestCase):
-    def test_prioritize_alliance(self):
-        killmail = load_killmail(10000401)
-        self.assertEqual(
-            killmail.main_attacker_group(), EntityCount(3001, "alliance", 2)
-        )
-
-    def test_return_none_if_only_one_attacker(self):
-        killmail = load_killmail(10000005)
-        self.assertIsNone(killmail.main_attacker_group())
-
-    def test_return_none_if_only_faction(self):
-        killmail = load_killmail(10000301)
-        self.assertIsNone(killmail.main_attacker_group())
-"""
 
 
 class TestEntityCount(NoSocketsTestCase):

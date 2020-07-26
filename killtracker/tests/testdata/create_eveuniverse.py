@@ -8,6 +8,7 @@ from . import test_data_filename
 class CreateEveUniverseTestData(TestCase):
     def test_create_testdata(self):
         testdata_spec = {
+            "EveFaction": ModelSpec(ids=[500001], include_children=False),
             "EveType": ModelSpec(
                 ids=[603, 2488, 2977, 3756, 34562], include_children=False
             ),
