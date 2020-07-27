@@ -1,8 +1,10 @@
 include LICENSE
 include README.md
+include killtracker/swagger.json
 recursive-include killtracker *.py
 recursive-include killtracker/static *
 recursive-include killtracker/templates *
 recursive-include killtracker/tools *.sql
 recursive-exclude killtracker/tests *
+recursive-exclude testauth *
 

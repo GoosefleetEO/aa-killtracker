@@ -550,7 +550,7 @@ class Webhook(models.Model):
     def _convert_to_discord_link(cls, name: str, url: str) -> str:
         return f"[{str(name)}]({str(url)})"
 
-    def send_test_message(self, killmail_id: int = 85915522) -> Tuple[str, bool]:
+    def send_test_message(self, killmail_id: int = 82700336) -> Tuple[str, bool]:
         """Sends a test notification to this webhook and returns send report"""
         try:
             success = self.send_killmail(
@@ -1083,7 +1083,7 @@ class Tracker(models.Model):
                 cls.MAIN_MINIMUM_COUNT,
             )
             if max_count >= treshold:
-                org_items_3 = [x for x in org_items_2 if x.count >= treshold]
+                org_items_3 = [x for x in org_items_2 if x.count == max_count]
                 if len(org_items_3) > 1:
                     org_items_4 = [x for x in org_items_3 if x.is_alliance]
                     if len(org_items_4) > 0:
@@ -1134,6 +1134,6 @@ class Tracker(models.Model):
                 cls.MAIN_MINIMUM_COUNT,
             )
             if max_count >= treshold:
-                return [x for x in ship_groups_2 if x.count >= treshold][0]
+                return sorted(ship_groups_2, key=lambda x: x.count).pop()
 
         return None
