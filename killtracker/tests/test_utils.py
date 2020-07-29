@@ -26,6 +26,7 @@ from ..utils import (
     get_site_base_url,
     JsonDateTimeDecoder,
     JsonDateTimeEncoder,
+    humanize_value,
 )
 from ..utils import set_test_logger
 
@@ -295,3 +296,19 @@ class TestJsonSerializer(NoSocketsTestCase):
         my_json = json.dumps(my_dict, cls=JsonDateTimeEncoder)
         my_dict_new = json.loads(my_json, cls=JsonDateTimeDecoder)
         self.assertDictEqual(my_dict, my_dict_new)
+
+
+class TestFormatIskValue(NoSocketsTestCase):
+    def test_defaults(self):
+        self.assertEqual(humanize_value(0.9), "0.90")
+        self.assertEqual(humanize_value(1), "1.00")
+        self.assertEqual(humanize_value(1.1), "1.10")
+        self.assertEqual(humanize_value(1000), "1.00k")
+        self.assertEqual(humanize_value(1100), "1.10k")
+        self.assertEqual(humanize_value(551100), "551.10k")
+        self.assertEqual(humanize_value(1000000), "1.00m")
+        self.assertEqual(humanize_value(1000000000), "1.00b")
+        self.assertEqual(humanize_value(1000000000000), "1.00t")
+
+    def test_precision(self):
+        self.assertEqual(humanize_value(12340000000, 1), "12.3b")

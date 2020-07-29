@@ -33,7 +33,7 @@ from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import EveKillmailManager
-from .utils import LoggerAddTag, get_site_base_url
+from .utils import LoggerAddTag, get_site_base_url, humanize_value
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -364,13 +364,17 @@ class Webhook(models.Model):
             final_attacker_str = ""
             final_attacker_ship_type_name = ""
 
-        value_mio = int(killmail.zkb.total_value / 1000000)
-        victim_ship_type_name = resolver.to_name(killmail.victim.ship_type_id)
-
-        solar_system_name = resolver.to_name(killmail.solar_system_id)
-        solar_system_link = self._convert_to_discord_link(
-            name=solar_system_name, url=dotlan.solar_system_url(solar_system_name)
-        )
+        if killmail.solar_system_id:
+            solar_system = EveSolarSystem.objects.select_related(
+                "eve_constellation__eve_region"
+            ).get(id=killmail.solar_system_id)
+            solar_system_link = self._convert_to_discord_link(
+                name=solar_system.name, url=dotlan.solar_system_url(solar_system.name)
+            )
+            region_name = solar_system.eve_constellation.eve_region.name
+            solar_system_text = f"{solar_system_link} ({region_name})"
+        else:
+            solar_system_text = ""
 
         # tracker info
         tracker = None
@@ -444,10 +448,12 @@ class Webhook(models.Model):
                     f"\nTracked ship types involved: **{ship_types_text}**"
                 )
 
+        victim_ship_type_name = resolver.to_name(killmail.victim.ship_type_id)
+
         description = (
             f"{victim_str} lost their **{victim_ship_type_name}** "
-            f"in {solar_system_link} "
-            f"worth **{value_mio} M** ISK.\n"
+            f"in {solar_system_text} "
+            f"worth **{humanize_value(killmail.zkb.total_value)}** ISK.\n"
             f"Final blow by {final_attacker_str} "
             f"in a **{final_attacker_ship_type_name}**.\n"
             f"Attackers: **{len(killmail.attackers):,}**{main_org_text}"
