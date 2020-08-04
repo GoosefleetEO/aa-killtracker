@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.2.2] - 2020-08-04
+
+### Changed
+
+- Improved how "main group" is shown on killmails
+
+### Fixed
+
+- Retry of failed sending for killmails not working correctly
+- Corp link of final attacker did not work ([#4](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/4))
+
 ## [0.2.1] - 2020-07-29
 
 ### Added

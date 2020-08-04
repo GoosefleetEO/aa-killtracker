@@ -612,6 +612,73 @@ class TestTrackerCalculateTrackerInfo(TestCaseBaseNoSockets):
         self.assertIsNone(killmail.tracker_info.main_org)
 
 
+@patch(MODULE_PATH + ".sleep", new=lambda x: x)
+@patch(MODULE_PATH + ".Webhook.send_killmail")
+class TestWebhookSendQueuedMessages(TestCaseBase):
+    def setUp(self) -> None:
+        self.webhook = Webhook.objects.create(
+            name="Dummy", url="http://www.example.com"
+        )
+        self.webhook.clear_queue()
+
+    def test_one_message(self, mock_send_killmail):
+        """
+        when one mesage in queue 
+        then send it and returns 1
+        """
+        mock_send_killmail.return_value = True
+        self.webhook.add_killmail_to_queue(load_killmail(10000001))
+
+        result = self.webhook.send_queued_killmails()
+
+        self.assertEqual(result, 1)
+        self.assertTrue(mock_send_killmail.called)
+        self.assertEqual(self.webhook.queue_size(), 0)
+
+    def test_three_message(self, mock_send_killmail):
+        """
+        when three mesages in queue 
+        then sends them and returns 3
+        """
+        mock_send_killmail.return_value = True
+        self.webhook.add_killmail_to_queue(load_killmail(10000001))
+        self.webhook.add_killmail_to_queue(load_killmail(10000002))
+        self.webhook.add_killmail_to_queue(load_killmail(10000003))
+
+        result = self.webhook.send_queued_killmails()
+
+        self.assertEqual(result, 3)
+        self.assertEqual(mock_send_killmail.call_count, 3)
+        self.assertEqual(self.webhook.queue_size(), 0)
+
+    def test_no_messages(self, mock_send_killmail):
+        """
+        when no message in queue 
+        then do nothing and return 0
+        """
+        mock_send_killmail.return_value = True
+        result = self.webhook.send_queued_killmails()
+
+        self.assertEqual(result, 0)
+        self.assertFalse(mock_send_killmail.called)
+        self.assertEqual(self.webhook.queue_size(), 0)
+
+    def test_failed_message(self, mock_send_killmail):
+        """
+        given one message in queue 
+        when sending fails 
+        then re-queues message and return 0
+        """
+        mock_send_killmail.return_value = False
+        self.webhook.add_killmail_to_queue(load_killmail(10000001))
+
+        result = self.webhook.send_queued_killmails()
+
+        self.assertEqual(result, 0)
+        self.assertTrue(mock_send_killmail.called)
+        self.assertEqual(self.webhook.queue_size(), 1)
+
+
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
 class TestWebhookSendKillmail(TestCaseBaseNoSockets):
     def setUp(self) -> None:

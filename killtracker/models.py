@@ -263,6 +263,7 @@ class Webhook(models.Model):
 
         Killmails that could not be sent are put back into the queue for later retry
         """
+        failed_killmails = list()
         killmail_counter = 0
         while True:
             message = self._queue.dequeue()
@@ -275,10 +276,13 @@ class Webhook(models.Model):
                 if self.send_killmail(killmail):
                     killmail_counter += 1
                 else:
-                    self.add_killmail_to_queue(killmail)
-
+                    failed_killmails.append(killmail)
             else:
                 break
+
+        if failed_killmails:
+            for killmail in failed_killmails:
+                self.add_killmail_to_queue(killmail)
 
         return killmail_counter
 
@@ -333,7 +337,7 @@ class Webhook(models.Model):
 
         if final_attacker:
             if final_attacker.corporation_id:
-                final_attacker_corporation_zkb_link = self._character_zkb_link(
+                final_attacker_corporation_zkb_link = self._corporation_zkb_link(
                     final_attacker.corporation_id, resolver
                 )
             else:
@@ -423,7 +427,7 @@ class Webhook(models.Model):
                         main_org.id, size=self.ICON_SIZE
                     )
 
-                main_org_text = f" ({main_org_link})"
+                main_org_text = f" | Main group: {main_org_link} ({main_org.count})"
 
             else:
                 show_as_fleetkill = False

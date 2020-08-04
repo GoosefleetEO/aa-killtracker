@@ -58,7 +58,7 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         logger.error("Webhook with pk = %s does not exist", webhook_pk)
     else:
         if not webhook.is_enabled:
-            logger.info("Tracker %s: Webhook disabled - skipping sending", webhook)
+            logger.info("Webhook %s disabled - skipping sending", webhook)
             return
 
         logger.info("Started sending killmails to webhook %s", webhook)
