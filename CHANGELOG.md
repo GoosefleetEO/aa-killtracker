@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.2.3] - 2020-08-08
+
+### Added
+
+- Shows list of activated clauses for each tracker in tracker list
+- Improved validations prevent the creation of invalid trackers
+
 ## [0.2.2] - 2020-08-04
 
 ### Changed

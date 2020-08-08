@@ -7,15 +7,9 @@ from django.test import TestCase
 from django.test.utils import override_settings
 
 from . import ResponseStub
-from ..models import Tracker, Webhook
+from ..models import Tracker
 from ..tasks import run_killtracker
-from .testdata.helpers import (
-    killmails_data,
-    load_eveuniverse,
-    load_eveentities,
-    load_evealliances,
-    load_evecorporations,
-)
+from .testdata.helpers import killmails_data, LoadTestDataMixin
 
 PACKAGE_PATH = "killtracker"
 
@@ -24,19 +18,11 @@ PACKAGE_PATH = "killtracker"
 @patch(PACKAGE_PATH + ".models.sleep", new=lambda x: None)
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @patch(PACKAGE_PATH + ".core.killmails.requests", spec=True)
-class TestIntegration(TestCase):
+class TestIntegration(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cache.clear()
-
-        load_eveuniverse()
-        load_evealliances()
-        load_evecorporations()
-        load_eveentities()
-        cls.webhook_1 = Webhook.objects.create(
-            name="Webhook 1", url="http://www.example.com/webhook_1", is_enabled=True
-        )
         cls.tracker_1 = Tracker.objects.create(
             name="Low Sec Only",
             exclude_high_sec=True,

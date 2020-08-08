@@ -5,13 +5,7 @@ from django.db.models import Max
 from allianceauth.tests.auth_utils import AuthUtils
 
 from ..models import EveKillmail, Tracker, Webhook
-from .testdata.helpers import (
-    load_eveuniverse,
-    load_eveentities,
-    load_evealliances,
-    load_killmail,
-    load_eve_killmails,
-)
+from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..tasks import (
     delete_stale_killmails,
     run_tracker,
@@ -31,28 +25,23 @@ def generate_invalid_pk(MyModel):
     return MyModel.objects.aggregate(Max("pk"))["pk__max"] + 1
 
 
-class TestTrackerBase(NoSocketsTestCase):
+class TestTrackerBase(LoadTestDataMixin, NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        load_eveuniverse()
-        load_evealliances()
-        load_eveentities()
-        cls.webhook = Webhook.objects.create(name="dummy", url="dummy")
-
         cls.tracker_1 = Tracker.objects.create(
             name="Low Sec Only",
             exclude_high_sec=True,
             exclude_null_sec=True,
             exclude_w_space=True,
-            webhook=cls.webhook,
+            webhook=cls.webhook_1,
         )
         cls.tracker_2 = Tracker.objects.create(
             name="High Sec Only",
             exclude_low_sec=True,
             exclude_null_sec=True,
             exclude_w_space=True,
-            webhook=cls.webhook,
+            webhook=cls.webhook_1,
         )
 
 
@@ -139,7 +128,7 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         self.assertTrue(mock_logger.error.called)
 
     def test_run_normal(self, mock_logger, mock_send_queued_killmails):
-        send_killmails_to_webhook(self.webhook.pk)
+        send_killmails_to_webhook(self.webhook_1.pk)
         self.assertEqual(mock_send_queued_killmails.call_count, 1)
         self.assertFalse(mock_logger.error.called)
 
@@ -193,7 +182,7 @@ class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def test_run_normal(self, mock_logger, mock_send_test_message, mock_notify):
         mock_send_test_message.return_value = ("", True)
 
-        send_test_message_to_webhook(self.webhook.pk)
+        send_test_message_to_webhook(self.webhook_1.pk)
         self.assertEqual(mock_send_test_message.call_count, 1)
         self.assertFalse(mock_logger.error.called)
         self.assertFalse(mock_notify.called)
@@ -203,7 +192,7 @@ class TestSendTestKillmailsToWebhook(TestTrackerBase):
     ):
         mock_send_test_message.return_value = ("", True)
 
-        send_test_message_to_webhook(self.webhook.pk, self.user.pk)
+        send_test_message_to_webhook(self.webhook_1.pk, self.user.pk)
         self.assertEqual(mock_send_test_message.call_count, 1)
         self.assertFalse(mock_logger.error.called)
         self.assertTrue(mock_notify.called)
@@ -215,7 +204,7 @@ class TestSendTestKillmailsToWebhook(TestTrackerBase):
     ):
         mock_send_test_message.return_value = ("error", False)
 
-        send_test_message_to_webhook(self.webhook.pk, self.user.pk)
+        send_test_message_to_webhook(self.webhook_1.pk, self.user.pk)
         self.assertEqual(mock_send_test_message.call_count, 1)
         self.assertFalse(mock_logger.error.called)
         self.assertTrue(mock_notify.called)

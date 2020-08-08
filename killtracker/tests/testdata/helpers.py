@@ -9,7 +9,7 @@ from eveuniverse.models import EveEntity, EveUniverseEntityModel
 from . import _currentdir
 from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
 from ...core.killmails import Killmail
-from ...models import EveKillmail
+from ...models import EveKillmail, Webhook
 
 
 def _load_json_from_file(filename: str) -> dict:
@@ -103,3 +103,24 @@ def load_killmail(killmail_id: int) -> Killmail:
             return Killmail._create_from_dict(item)
 
     raise ValueError(f"Killmail with id {killmail_id} not found.")
+
+
+class LoadTestDataMixin:
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eveuniverse()
+        load_evealliances()
+        load_evecorporations()
+        load_eveentities()
+        cls.webhook_1 = Webhook.objects.create(
+            name="Webhook 1", url="http://www.example.com/webhook_1", is_enabled=True
+        )
+        cls.webhook_2 = Webhook.objects.create(
+            name="Webhook 2", url="http://www.example.com/webhook_2", is_enabled=False
+        )
+        cls.corporation_2001 = EveCorporationInfo.objects.get(corporation_id=2001)
+        cls.corporation_2011 = EveCorporationInfo.objects.get(corporation_id=2011)
+        cls.corporation_2021 = EveCorporationInfo.objects.get(corporation_id=2011)
+        cls.alliance_3001 = EveAllianceInfo.objects.get(alliance_id=3001)
+        cls.alliance_3011 = EveAllianceInfo.objects.get(alliance_id=3011)

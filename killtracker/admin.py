@@ -1,8 +1,11 @@
 from django import forms
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
@@ -56,20 +59,174 @@ class TrackerAdminKillmailId(forms.Form):
     killmail_id = forms.IntegerField()
 
 
+def field_nice_display(name: str) -> str:
+    return name.replace("_", " ").capitalize()
+
+
+class TrackerAdminForm(forms.ModelForm):
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if (
+            cleaned_data["require_max_jumps"]
+            and not cleaned_data["origin_solar_system"]
+        ):
+            raise ValidationError(
+                {
+                    "origin_solar_system": _(
+                        "'Require max jumps' needs an "
+                        f"{field_nice_display('origin_solar_system')} to work"
+                    )
+                }
+            )
+
+        if (
+            cleaned_data["require_max_distance"]
+            and not cleaned_data["origin_solar_system"]
+        ):
+            raise ValidationError(
+                {
+                    "origin_solar_system": _(
+                        "'Require max distance' needs an "
+                        f"{field_nice_display('origin_solar_system')} to work"
+                    )
+                }
+            )
+
+        self._validate_not_same_options_chosen(
+            cleaned_data, "exclude_attacker_alliances", "require_attacker_alliances",
+        )
+        self._validate_not_same_options_chosen(
+            cleaned_data,
+            "exclude_attacker_corporations",
+            "require_attacker_corporations",
+        )
+
+        if (
+            cleaned_data["require_min_attackers"]
+            and cleaned_data["require_max_attackers"]
+            and cleaned_data["require_min_attackers"]
+            > cleaned_data["require_max_attackers"]
+        ):
+            raise ValidationError(
+                {
+                    "require_min_attackers": _(
+                        "Can not be larger than "
+                        f"{field_nice_display('require_max_attackers')}"
+                    )
+                }
+            )
+
+        if (
+            cleaned_data["exclude_high_sec"]
+            and cleaned_data["exclude_low_sec"]
+            and cleaned_data["exclude_null_sec"]
+            and cleaned_data["exclude_w_space"]
+        ):
+            text = ", ".join(
+                [
+                    field_nice_display(x)
+                    for x in [
+                        "exclude_low_sec",
+                        "exclude_null_sec",
+                        "exclude_w_space",
+                        "exclude_high_sec",
+                    ]
+                ]
+            )
+            raise ValidationError(
+                f"Setting all four clauses together does not make sense: {text}"
+            )
+
+        if cleaned_data["exclude_npc_kills"] and cleaned_data["require_npc_kills"]:
+            text = ", ".join(
+                [
+                    field_nice_display(x)
+                    for x in ["exclude_npc_kills", "require_npc_kills",]
+                ]
+            )
+            raise ValidationError(
+                f"Setting both clauses together does not make sense: {text}"
+            )
+
+    @staticmethod
+    def _validate_not_same_options_chosen(
+        cleaned_data, field_name_1, field_name_2, display_func=lambda x: x
+    ) -> None:
+        same_options = set(cleaned_data[field_name_1]).intersection(
+            set(cleaned_data[field_name_2])
+        )
+        if same_options:
+            same_options_text = ", ".join(
+                map(str, [display_func(x) for x in same_options],)
+            )
+            raise ValidationError(
+                f"Can not choose same options for {field_nice_display(field_name_1)} "
+                f"& {field_nice_display(field_name_2)}: {same_options_text}"
+            )
+
+
 @admin.register(Tracker)
 class TrackerAdmin(admin.ModelAdmin):
+    form = TrackerAdminForm
     list_display = (
         "name",
         "is_enabled",
-        "origin_solar_system",
-        "identify_fleets",
         "webhook",
+        "identify_fleets",
+        "_clauses",
     )
     list_filter = (
         "is_enabled",
         ("origin_solar_system", admin.RelatedOnlyFieldListFilter),
         ("webhook", admin.RelatedOnlyFieldListFilter),
     )
+
+    def _clauses(self, obj):
+        clauses = list()
+        for field, func in [
+            ("origin_solar_system", self._add_to_clauses_1),
+            ("require_max_jumps", self._add_to_clauses_1),
+            ("require_max_distance", self._add_to_clauses_1),
+            ("exclude_attacker_alliances", self._add_to_clauses_2),
+            ("exclude_attacker_corporations", self._add_to_clauses_2),
+            ("require_attacker_alliances", self._add_to_clauses_2),
+            ("require_attacker_corporations", self._add_to_clauses_2),
+            ("require_victim_alliances", self._add_to_clauses_2),
+            ("require_victim_corporations", self._add_to_clauses_2),
+            ("exclude_blue_attackers", self._add_to_clauses_1),
+            ("require_blue_victim", self._add_to_clauses_1),
+            ("require_min_attackers", self._add_to_clauses_1),
+            ("require_max_attackers", self._add_to_clauses_1),
+            ("exclude_high_sec", self._add_to_clauses_1),
+            ("exclude_low_sec", self._add_to_clauses_1),
+            ("exclude_null_sec", self._add_to_clauses_1),
+            ("exclude_w_space", self._add_to_clauses_1),
+            ("require_regions", self._add_to_clauses_2),
+            ("require_constellations", self._add_to_clauses_2),
+            ("require_solar_systems", self._add_to_clauses_2),
+            ("require_min_value", self._add_to_clauses_1),
+            ("require_attackers_ship_groups", self._add_to_clauses_2),
+            ("require_attackers_ship_types", self._add_to_clauses_2),
+            ("require_victim_ship_groups", self._add_to_clauses_2),
+            ("exclude_npc_kills", self._add_to_clauses_1),
+            ("require_npc_kills", self._add_to_clauses_1),
+        ]:
+            func(clauses, obj, field)
+        return mark_safe("<br>".join(clauses)) if clauses else None
+
+    def _add_to_clauses_1(self, clauses, obj, field_name):
+        field = getattr(obj, field_name)
+        if field:
+            self._append_field_to_clauses(clauses, field_name, getattr(obj, field_name))
+
+    def _add_to_clauses_2(self, clauses, obj, field):
+        if getattr(obj, field).count() > 0:
+            text = ", ".join(map(str, getattr(obj, field).all()))
+            self._append_field_to_clauses(clauses, field, text)
+
+    def _append_field_to_clauses(self, clauses, field, text):
+        clauses.append(f"{field_nice_display(field)} = {text}")
 
     actions = ["run_test_killmail"]
 

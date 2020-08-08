@@ -8,7 +8,6 @@ import dhooks_lite
 from simple_mq import SimpleMQ
 
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
 from django.db.models import Q
@@ -660,19 +659,19 @@ class Tracker(models.Model):
         blank=True,
         help_text="exclude killmails with attackers from one of these alliances",
     )
-    exclude_attacker_corporations = models.ManyToManyField(
-        EveCorporationInfo,
-        related_name="tracker_exclude_attacker_corporations_set",
-        default=None,
-        blank=True,
-        help_text="exclude killmails with attackers from one of these corporations",
-    )
     require_attacker_alliances = models.ManyToManyField(
         EveAllianceInfo,
         related_name="tracker_required_attacker_alliances_set",
         default=None,
         blank=True,
         help_text="only include killmails with attackers from one of these alliances",
+    )
+    exclude_attacker_corporations = models.ManyToManyField(
+        EveCorporationInfo,
+        related_name="tracker_exclude_attacker_corporations_set",
+        default=None,
+        blank=True,
+        help_text="exclude killmails with attackers from one of these corporations",
     )
     require_attacker_corporations = models.ManyToManyField(
         EveCorporationInfo,
@@ -852,25 +851,6 @@ class Tracker(models.Model):
             or self.require_constellations.all()
             or self.require_solar_systems.all()
         )
-
-    def clean(self) -> None:
-        if self.require_max_jumps and self.origin_solar_system is None:
-            raise ValidationError(
-                {
-                    "origin_solar_system": _(
-                        "'require max jumps' needs an origin solar system to work"
-                    )
-                }
-            )
-
-        if self.require_max_distance and self.origin_solar_system is None:
-            raise ValidationError(
-                {
-                    "origin_solar_system": _(
-                        "'require max distance' needs an origin solar system to work"
-                    )
-                }
-            )
 
     def process_killmail(
         self, killmail: Killmail, ignore_max_age: bool = False

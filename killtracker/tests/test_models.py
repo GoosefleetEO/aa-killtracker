@@ -5,7 +5,6 @@ from bravado.exception import HTTPNotFound
 import dhooks_lite
 
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -24,14 +23,7 @@ from killtracker.core.killmails import EntityCount
 from . import BravadoOperationStub
 from ..core.killmails import Killmail
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
-from .testdata.helpers import (
-    load_eveuniverse,
-    load_eveentities,
-    load_evealliances,
-    load_evecorporations,
-    load_killmail,
-    load_eve_killmails,
-)
+from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..utils import NoSocketsTestCase, set_test_logger
 
 
@@ -62,20 +54,7 @@ def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
         raise HTTPNotFound(Mock(**{"response.status_code": 404}))
 
 
-class TestCaseBase(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_evealliances()
-        load_evecorporations()
-        load_eveentities()
-        cls.webhook_1 = Webhook.objects.create(
-            name="Webhook 1", url="http://www.example.com/webhook_1", is_enabled=True
-        )
-
-
-class TestWebhookQueue(TestCaseBase):
+class TestWebhookQueue(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         cache.clear()
 
@@ -86,23 +65,7 @@ class TestWebhookQueue(TestCaseBase):
         self.assertEqual(self.webhook_1.queue_size(), 0)
 
 
-class TestCaseBaseNoSockets(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_evealliances()
-        load_evecorporations()
-        load_eveentities()
-        cls.webhook_1 = Webhook.objects.create(
-            name="Webhook 1", url="http://www.example.com/webhook_1", is_enabled=True
-        )
-        cls.webhook_2 = Webhook.objects.create(
-            name="Webhook 2", url="http://www.example.com/webhook_2", is_enabled=False
-        )
-
-
-class TestEveKillmailManager(TestCaseBaseNoSockets):
+class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
     def test_create_from_killmail(self):
         killmail = load_killmail(10000001)
         eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
@@ -190,21 +153,7 @@ class TestEveKillmailManager(TestCaseBaseNoSockets):
         self.assertEqual(EveKillmail.objects.all().load_entities(), 0)
 
 
-class TestTrackerBasics(TestCaseBaseNoSockets):
-    def test_clean_no_issue(self):
-        tracker = Tracker(name="Test", webhook=self.webhook_1)
-        self.assertIsNone(tracker.clean())
-
-    def test_clean_need_origin_for_max_jumps(self):
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_jumps=10)
-        with self.assertRaises(ValidationError):
-            tracker.clean()
-
-    def test_clean_need_origin_for_max_distance(self):
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_distance=10)
-        with self.assertRaises(ValidationError):
-            tracker.clean()
-
+class TestTrackerBasics(LoadTestDataMixin, NoSocketsTestCase):
     def test_has_localization_filter_1(self):
         tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_high_sec=True)
         self.assertTrue(tracker.has_localization_filter)
@@ -244,7 +193,7 @@ class TestTrackerBasics(TestCaseBaseNoSockets):
         self.assertTrue(tracker.has_localization_filter)
 
 
-class TestTrackerCalculate(TestCaseBaseNoSockets):
+class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
     @staticmethod
     def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
         results = set()
@@ -533,7 +482,7 @@ class TestTrackerCalculate(TestCaseBaseNoSockets):
         self.assertSetEqual(results, expected)
 
 
-class TestTrackerCalculateTrackerInfo(TestCaseBaseNoSockets):
+class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
 
@@ -614,7 +563,7 @@ class TestTrackerCalculateTrackerInfo(TestCaseBaseNoSockets):
 
 @patch(MODULE_PATH + ".sleep", new=lambda x: x)
 @patch(MODULE_PATH + ".Webhook.send_killmail")
-class TestWebhookSendQueuedMessages(TestCaseBase):
+class TestWebhookSendQueuedMessages(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.webhook = Webhook.objects.create(
             name="Dummy", url="http://www.example.com"
@@ -680,7 +629,7 @@ class TestWebhookSendQueuedMessages(TestCaseBase):
 
 
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-class TestWebhookSendKillmail(TestCaseBaseNoSockets):
+class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
 
@@ -847,7 +796,7 @@ class TestWebhookSendKillmail(TestCaseBaseNoSockets):
         self.assertTrue(mock_execute.called, True)
 
 
-class TestEveKillmailCharacter(TestCaseBaseNoSockets):
+class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
     def test_str_character(self):
         obj = EveKillmailCharacter(character=EveEntity.objects.get(id=1001))
         self.assertEqual(str(obj), "Bruce Wayne")
