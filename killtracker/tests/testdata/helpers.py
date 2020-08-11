@@ -4,7 +4,7 @@ from hashlib import md5
 import json
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-from eveuniverse.models import EveEntity, EveUniverseEntityModel
+from eveuniverse.models import EveEntity, EveType, EveUniverseEntityModel
 
 from . import _currentdir
 from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
@@ -124,3 +124,6 @@ class LoadTestDataMixin:
         cls.corporation_2021 = EveCorporationInfo.objects.get(corporation_id=2011)
         cls.alliance_3001 = EveAllianceInfo.objects.get(alliance_id=3001)
         cls.alliance_3011 = EveAllianceInfo.objects.get(alliance_id=3011)
+        cls.type_merlin = EveType.objects.get(id=603)
+        cls.type_svipul = EveType.objects.get(id=34562)
+        cls.type_gnosis = EveType.objects.get(id=2977)

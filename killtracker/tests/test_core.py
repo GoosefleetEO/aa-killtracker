@@ -112,6 +112,10 @@ class TestKillmailBasics(NoSocketsTestCase):
         killmail = load_killmail(10000001)
         self.assertListEqual(killmail.attackers_ship_type_ids(), [34562, 3756, 3756])
 
+    def test_ships_types(self):
+        killmail = load_killmail(10000001)
+        self.assertSetEqual(set(killmail.ship_type_ids()), {603, 34562, 3756, 3756})
+
 
 class TestEntityCount(NoSocketsTestCase):
     def test_is_alliance(self):

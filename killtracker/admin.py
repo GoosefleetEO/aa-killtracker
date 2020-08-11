@@ -19,6 +19,7 @@ from . import tasks
 class WebhookAdmin(admin.ModelAdmin):
     list_display = ("name", "is_enabled", "_messages_in_queue")
     list_filter = ("is_enabled",)
+    ordering = ("name",)
 
     def _messages_in_queue(self, obj):
         return obj.queue_size()
@@ -181,6 +182,7 @@ class TrackerAdmin(admin.ModelAdmin):
         ("origin_solar_system", admin.RelatedOnlyFieldListFilter),
         ("webhook", admin.RelatedOnlyFieldListFilter),
     )
+    ordering = ("name",)
 
     def _clauses(self, obj):
         clauses = list()

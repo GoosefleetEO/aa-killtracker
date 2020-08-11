@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.2.4] - 2020-08-11
+
+### Changed
+
+- Initial data during installation is now loaded with a new management command: killtracker_load_eve
+
+### Fixed
+
+- Tracker will no longer break on ship types, which are added by CCP after the initial data load from ESI
+
 ## [0.2.3] - 2020-08-08
 
 ### Added

@@ -136,31 +136,40 @@ class Killmail(_KillmailBase):
         ]
 
     def attackers_ship_type_ids(self) -> List[int]:
-        """returns ship type IDs of all attackers"""
+        """returns ship type IDs of all attackers as list (including duplicates!)"""
         return [
             obj.ship_type_id for obj in self.attackers if obj.ship_type_id is not None
         ]
 
     def entity_ids(self) -> Set[int]:
-        """returns IDs of all entities that are not None"""
-        ids = [
+        """returns set of IDs of all entities that are not None"""
+        ids = {
             self.victim.character_id,
             self.victim.corporation_id,
             self.victim.alliance_id,
             self.victim.faction_id,
             self.victim.ship_type_id,
             self.solar_system_id,
-        ]
+        }
         for attacker in self.attackers:
-            ids += [
-                attacker.character_id,
-                attacker.corporation_id,
-                attacker.alliance_id,
-                attacker.faction_id,
-                attacker.ship_type_id,
-                attacker.weapon_type_id,
-            ]
-        return {x for x in ids if x is not None}
+            ids.update(
+                {
+                    attacker.character_id,
+                    attacker.corporation_id,
+                    attacker.alliance_id,
+                    attacker.faction_id,
+                    attacker.ship_type_id,
+                    attacker.weapon_type_id,
+                }
+            )
+        ids.discard(None)
+        return ids
+
+    def ship_type_ids(self) -> Set[int]:
+        """returns ship type IDs of all entities that are not None as set"""
+        ids = set(self.attackers_ship_type_ids())
+        ids.add(self.victim.ship_type_id)
+        return ids
 
     @classmethod
     def from_dict(cls, data: dict) -> "Killmail":

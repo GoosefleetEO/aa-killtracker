@@ -839,7 +839,8 @@ class Tracker(models.Model):
         return self.name
 
     @property
-    def has_localization_filter(self) -> bool:
+    def has_localization_clause(self) -> bool:
+        """returns True if tracker has a clause that needs the killmais's solar system"""
         return (
             self.exclude_high_sec
             or self.exclude_low_sec
@@ -850,6 +851,17 @@ class Tracker(models.Model):
             or self.require_regions.all()
             or self.require_constellations.all()
             or self.require_solar_systems.all()
+        )
+
+    @property
+    def has_type_clause(self) -> bool:
+        """returns True if tracker has a clause that needs a type from the killmail,
+        e.g. the ship type of the victim        
+        """
+        return (
+            self.require_attackers_ship_groups.all()
+            or self.require_attackers_ship_types.all()
+            or self.require_victim_ship_groups.all()
         )
 
     def process_killmail(
@@ -876,7 +888,7 @@ class Tracker(models.Model):
         is_w_space = None
         matching_ship_type_ids = None
         if killmail.solar_system_id and (
-            self.origin_solar_system or self.has_localization_filter
+            self.origin_solar_system or self.has_localization_clause
         ):
             solar_system = (
                 EveSolarSystem.objects.filter(id=killmail.solar_system_id)
@@ -893,6 +905,10 @@ class Tracker(models.Model):
                         self.origin_solar_system.distance_to(solar_system)
                     )
                     jumps = self.origin_solar_system.jumps_to(solar_system)
+
+        # Make sure all ship types are in the local database
+        if self.has_type_clause:
+            EveType.objects.bulk_get_or_create_esi(ids=killmail.ship_type_ids())
 
         # apply filters
         is_matching = True

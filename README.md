@@ -97,11 +97,7 @@ python manage.py eveuniverse_load_data map
 ```
 
 ```bash
-python manage.py eveuniverse_load_data ships
-```
-
-```bash
-python manage.py eveuniverse_load_data structures
+python manage.py killtracker_load_eve
 ```
 
 You may want to wait until the loading is complete before starting to create new trackers.
