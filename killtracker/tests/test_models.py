@@ -234,7 +234,10 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
 
     @patch(MODULE_PATH + ".KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER", 60)
     def test_excludes_older_killmails(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1,)
+        tracker = Tracker.objects.create(
+            name="Test",
+            webhook=self.webhook_1,
+        )
         killmail_1 = load_killmail(10000001)
         killmail_2 = load_killmail(10000002)
         killmail_2.time = now() - timedelta(hours=1, seconds=1)
@@ -593,7 +596,7 @@ class TestWebhookSendQueuedMessages(LoadTestDataMixin, TestCase):
 
     def test_one_message(self, mock_send_killmail):
         """
-        when one mesage in queue 
+        when one mesage in queue
         then send it and returns 1
         """
         mock_send_killmail.return_value = True
@@ -607,7 +610,7 @@ class TestWebhookSendQueuedMessages(LoadTestDataMixin, TestCase):
 
     def test_three_message(self, mock_send_killmail):
         """
-        when three mesages in queue 
+        when three mesages in queue
         then sends them and returns 3
         """
         mock_send_killmail.return_value = True
@@ -623,7 +626,7 @@ class TestWebhookSendQueuedMessages(LoadTestDataMixin, TestCase):
 
     def test_no_messages(self, mock_send_killmail):
         """
-        when no message in queue 
+        when no message in queue
         then do nothing and return 0
         """
         mock_send_killmail.return_value = True
@@ -635,8 +638,8 @@ class TestWebhookSendQueuedMessages(LoadTestDataMixin, TestCase):
 
     def test_failed_message(self, mock_send_killmail):
         """
-        given one message in queue 
-        when sending fails 
+        given one message in queue
+        when sending fails
         then re-queues message and return 0
         """
         mock_send_killmail.return_value = False
@@ -687,7 +690,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
-        args, kwargs = mock_execute.call_args
+        _, kwargs = mock_execute.call_args
         embed = kwargs["embeds"][0]
         self.assertIn("| Fleetkill", embed.title)
 
@@ -696,7 +699,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         self.webhook_1.send_killmail(killmail, intro_text="Intro Text")
 
         self.assertTrue(mock_execute.called, True)
-        args, kwargs = mock_execute.call_args
+        _, kwargs = mock_execute.call_args
         self.assertIn("Intro Text", kwargs["content"])
 
     def test_without_tracker_info(self, mock_execute):
@@ -710,7 +713,9 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
     def test_can_ping_everybody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, ping_type=Tracker.PING_TYPE_EVERYBODY,
+            name="Test",
+            webhook=self.webhook_1,
+            ping_type=Tracker.PING_TYPE_EVERYBODY,
         )
         killmail = tracker.process_killmail(load_killmail(10000001))
 

@@ -21,13 +21,16 @@ setup(
     description="An app for running killmail trackers with Alliance Auth and Discord",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    url="https://gitlab.com/ErikKalkoken/aa-killtracker",
     author="Erik Kalkoken",
     author_email="kalkoken87@gmail.com",
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Django",
         "Framework :: Django :: 2.2",
-        "Intended Audience :: Developers",
+        "Framework :: Django :: 3.0",
+        "Framework :: Django :: 3.1",
+        "Intended Audience :: End Users/Desktop",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
@@ -39,10 +42,16 @@ setup(
     ],
     python_requires="~=3.6",
     install_requires=[
+        "allianceauth>=2.7.3",
         "dataclasses>='0.7';python_version<'3.7'",
         "dacite",
         "django-eveuniverse>=0.3",
         "redis-simple-mq",
         "dhooks-lite>=0.4",
     ],
+    extras_require={
+        "testing": [
+            "django-webtest",
+        ]
+    },
 )
