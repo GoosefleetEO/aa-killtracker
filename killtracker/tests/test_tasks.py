@@ -104,7 +104,10 @@ class TestRunTracker(TestTrackerBase):
         self.assertFalse(mock_add_killmail_to_queue.called)
 
     def test_run_normal(
-        self, mock_logger, mock_send_killmails_to_webhook, mock_add_killmail_to_queue,
+        self,
+        mock_logger,
+        mock_send_killmails_to_webhook,
+        mock_add_killmail_to_queue,
     ):
         killmail = load_killmail(10000001)
         killmail_json = killmail.asjson()

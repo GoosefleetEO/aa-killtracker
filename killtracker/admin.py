@@ -95,7 +95,9 @@ class TrackerAdminForm(forms.ModelForm):
             )
 
         self._validate_not_same_options_chosen(
-            cleaned_data, "exclude_attacker_alliances", "require_attacker_alliances",
+            cleaned_data,
+            "exclude_attacker_alliances",
+            "require_attacker_alliances",
         )
         self._validate_not_same_options_chosen(
             cleaned_data,
@@ -143,7 +145,10 @@ class TrackerAdminForm(forms.ModelForm):
             text = ", ".join(
                 [
                     field_nice_display(x)
-                    for x in ["exclude_npc_kills", "require_npc_kills",]
+                    for x in [
+                        "exclude_npc_kills",
+                        "require_npc_kills",
+                    ]
                 ]
             )
             raise ValidationError(
@@ -159,7 +164,10 @@ class TrackerAdminForm(forms.ModelForm):
         )
         if same_options:
             same_options_text = ", ".join(
-                map(str, [display_func(x) for x in same_options],)
+                map(
+                    str,
+                    [display_func(x) for x in same_options],
+                )
             )
             raise ValidationError(
                 f"Can not choose same options for {field_nice_display(field_name_1)} "
@@ -304,7 +312,13 @@ class TrackerAdmin(admin.ModelAdmin):
         (None, {"fields": ("name", "description", "is_enabled")}),
         (
             "Discord Configuration",
-            {"fields": ("webhook", "ping_type", "is_posting_name",),},
+            {
+                "fields": (
+                    "webhook",
+                    "ping_type",
+                    "is_posting_name",
+                ),
+            },
         ),
         (
             "Locations",

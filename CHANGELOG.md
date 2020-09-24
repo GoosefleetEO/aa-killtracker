@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.2.5] - 2020-09-24
+
+- Add test matrix for Django 3+
+- Reformat for new Black version
+
 ## [0.2.4] - 2020-08-11
 
 ### Changed

@@ -188,8 +188,8 @@ class Killmail(_KillmailBase):
 
     @classmethod
     def create_from_zkb_redisq(cls) -> "Killmail":
-        """Fetches and returns a killmail from ZKB. 
-        
+        """Fetches and returns a killmail from ZKB.
+
         Returns None if no killmail is received.
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
@@ -209,7 +209,7 @@ class Killmail(_KillmailBase):
     @classmethod
     def create_from_zkb_api(cls, killmail_id: int) -> "Killmail":
         """Fetches and returns a killmail from ZKB API.
-        
+
         results are cached
         """
 

@@ -20,7 +20,7 @@ class EveKillmailQuerySet(models.QuerySet):
     """Custom queryset for EveKillmail"""
 
     def load_entities(self) -> int:
-        """loads unknown entities for all killmails of this QuerySet. 
+        """loads unknown entities for all killmails of this QuerySet.
         Returns count of updated entities
         """
         entity_ids = []

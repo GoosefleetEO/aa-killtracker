@@ -194,11 +194,11 @@ def clean_setting(
 
 def set_test_logger(logger_name: str, name: str) -> object:
     """set logger for current test module
-    
+
     Args:
     - logger: current logger object
     - name: name of current module, e.g. __file__
-    
+
     Returns:
     - amended logger
     """
@@ -217,9 +217,9 @@ def set_test_logger(logger_name: str, name: str) -> object:
 
 
 def timeuntil_str(duration: timedelta) -> str:
-    """return the duration as nicely formatted string. 
-    Or empty string if duration is negative. 
-    
+    """return the duration as nicely formatted string.
+    Or empty string if duration is negative.
+
     Format: '[[[999y] [99m]] 99d] 99h 99m 99s'
     """
     seconds = int(duration.total_seconds())
@@ -394,9 +394,9 @@ class JsonDateTimeDecoder(json.JSONDecoder):
 
 
 class JsonDateTimeEncoder(json.JSONEncoder):
-    """ Instead of letting the default encoder convert datetime to string,
-        convert datetime objects into a dict, which can be decoded by the
-        JsonDateTimeDecoder
+    """Instead of letting the default encoder convert datetime to string,
+    convert datetime objects into a dict, which can be decoded by the
+    JsonDateTimeDecoder
     """
 
     def default(self, o: Any) -> Any:

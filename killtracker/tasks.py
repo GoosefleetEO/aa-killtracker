@@ -89,13 +89,15 @@ def run_tracker(
 
 
 @shared_task(base=QueueOnce)
-def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -> None:
-    """Main task for running the Killtracker. 
+def run_killtracker(
+    max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+) -> None:
+    """Main task for running the Killtracker.
     Will fetch new killmails from ZKB and start running trackers for them
 
     Params:
-    - max_killmails_in_total: override the default number of max killmails 
-    received per run 
+    - max_killmails_in_total: override the default number of max killmails
+    received per run
     """
     start = timer()
     logger.info("Killtracker run started...")
@@ -111,7 +113,8 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
         killmail_json = killmail.asjson()
         for tracker in Tracker.objects.filter(is_enabled=True):
             run_tracker.delay(
-                tracker_pk=tracker.pk, killmail_json=killmail_json,
+                tracker_pk=tracker.pk,
+                killmail_json=killmail_json,
             )
 
         if KILLTRACKER_STORING_KILLMAILS_ENABLED:
@@ -131,7 +134,7 @@ def run_killtracker(max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,) -
 
 @shared_task
 def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
-    """send a test message to given webhook. 
+    """send a test message to given webhook.
     Optional inform user about result if user ok is given
     """
     try:

@@ -250,14 +250,14 @@ class Webhook(models.Model):
 
     def add_killmail_to_queue(self, killmail: Killmail) -> int:
         """Adds killmail to queue for later sending
-        
+
         Returns updated size of queue
         """
         return self._queue.enqueue(killmail.asjson())
 
     def send_queued_killmails(self) -> int:
         """sends all killmails in the queue to this webhook
-        
+
         returns number of successfull sent messages
 
         Killmails that could not be sent are put back into the queue for later retry
@@ -303,8 +303,8 @@ class Webhook(models.Model):
 
     def send_killmail(self, killmail: Killmail, intro_text: str = None) -> bool:
         """send given killmail to webhook
-        
-        returns True if successful, else False        
+
+        returns True if successful, else False
         """
         resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 
@@ -318,7 +318,8 @@ class Webhook(models.Model):
 
         if killmail.victim.character_id:
             victim_character_zkb_link = self._character_zkb_link(
-                killmail.victim.character_id, resolver,
+                killmail.victim.character_id,
+                resolver,
             )
             victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link}) "
         elif killmail.victim.corporation_id:
@@ -589,7 +590,8 @@ class Webhook(models.Model):
     def zkb_icon_url() -> str:
         """avatar url for all messages"""
         return urljoin(
-            get_site_base_url(), staticfiles_storage.url("killtracker/zkb_icon.png"),
+            get_site_base_url(),
+            staticfiles_storage.url("killtracker/zkb_icon.png"),
         )
 
     @staticmethod
@@ -704,7 +706,8 @@ class Tracker(models.Model):
         help_text="when true: kills are interpreted and shown as fleet kills",
     )
     exclude_blue_attackers = models.BooleanField(
-        default=False, help_text=("exclude killmails with blue attackers"),
+        default=False,
+        help_text=("exclude killmails with blue attackers"),
     )
     require_blue_victim = models.BooleanField(
         default=False,
@@ -856,7 +859,7 @@ class Tracker(models.Model):
     @property
     def has_type_clause(self) -> bool:
         """returns True if tracker has a clause that needs a type from the killmail,
-        e.g. the ship type of the victim        
+        e.g. the ship type of the victim
         """
         return (
             self.require_attackers_ship_groups.all()
@@ -868,7 +871,7 @@ class Tracker(models.Model):
         self, killmail: Killmail, ignore_max_age: bool = False
     ) -> Optional[Killmail]:
         """runs tracker on given killmail
-        
+
         returns new killmail amended with tracker info if killmail matches
         else returns None
         """
