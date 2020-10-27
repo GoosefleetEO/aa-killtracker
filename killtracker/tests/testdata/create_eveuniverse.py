@@ -7,19 +7,15 @@ from . import test_data_filename
 
 class CreateEveUniverseTestData(TestCase):
     def test_create_testdata(self):
-        testdata_spec = {
-            "EveFaction": ModelSpec(ids=[500001], include_children=False),
-            "EveType": ModelSpec(
+        testdata_spec = [
+            ModelSpec("EveFaction", ids=[500001]),
+            ModelSpec(
+                "EveType",
                 ids=[603, 621, 638, 2488, 2977, 3756, 11379, 16238, 34562, 37483],
-                include_children=False,
             ),
-            "EveSolarSystem": ModelSpec(
-                ids=[30001161, 30004976, 30004984, 30045349, 31000005],
-                include_children=False,
+            ModelSpec(
+                "EveSolarSystem", ids=[30001161, 30004976, 30004984, 30045349, 31000005]
             ),
-            "EveRegion": ModelSpec(
-                ids=[10000038],
-                include_children=True,
-            ),
-        }
+            ModelSpec("EveRegion", ids=[10000038], include_children=True),
+        ]
         create_testdata(testdata_spec, test_data_filename())

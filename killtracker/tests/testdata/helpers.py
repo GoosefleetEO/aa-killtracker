@@ -54,15 +54,18 @@ def load_eveentities() -> None:
         )
 
     for MyModel in EveUniverseEntityModel.all_models():
-        if MyModel.eve_entity_category():
-            for obj in MyModel.objects.all():
-                EveEntity.objects.update_or_create(
-                    id=obj.id,
-                    defaults={
-                        "name": obj.name,
-                        "category": MyModel.eve_entity_category(),
-                    },
-                )
+        try:
+            if MyModel.eve_entity_category():
+                for obj in MyModel.objects.all():
+                    EveEntity.objects.update_or_create(
+                        id=obj.id,
+                        defaults={
+                            "name": obj.name,
+                            "category": MyModel.eve_entity_category(),
+                        },
+                    )
+        except AttributeError:
+            pass
 
 
 def load_evealliances() -> None:
