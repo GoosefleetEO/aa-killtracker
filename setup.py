@@ -42,6 +42,7 @@ setup(
     ],
     python_requires="~=3.6",
     install_requires=[
+        "django-esi>=2.0.4",
         "allianceauth>=2.7.3",
         "dataclasses>='0.7';python_version<'3.7'",
         "dacite",

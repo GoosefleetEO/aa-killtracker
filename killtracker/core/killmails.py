@@ -11,7 +11,7 @@ from django.utils.dateparse import parse_datetime
 
 from allianceauth.services.hooks import get_extension_logger
 
-from .. import __title__
+from .. import __title__, USER_AGENT_TEXT
 from ..providers import esi
 from ..utils import LoggerAddTag, JsonDateTimeDecoder, JsonDateTimeEncoder
 
@@ -193,7 +193,11 @@ class Killmail(_KillmailBase):
         Returns None if no killmail is received.
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
-        r = requests.get(ZKB_REDISQ_URL, timeout=REQUESTS_TIMEOUT)
+        r = requests.get(
+            ZKB_REDISQ_URL,
+            timeout=REQUESTS_TIMEOUT,
+            headers={"User-Agent": USER_AGENT_TEXT},
+        )
         r.raise_for_status()
         data = r.json()
         if data:
@@ -223,7 +227,9 @@ class Killmail(_KillmailBase):
                 killmail_id,
             )
             url = f"{ZKB_API_URL}killID/{killmail_id}/"
-            r = requests.get(url, timeout=REQUESTS_TIMEOUT)
+            r = requests.get(
+                url, timeout=REQUESTS_TIMEOUT, headers={"User-Agent": USER_AGENT_TEXT}
+            )
             r.raise_for_status()
             zkb_data = r.json()
             if not zkb_data:

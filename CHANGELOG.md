@@ -13,7 +13,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.2.6] - 2020-12-09
+
+### Added
+
+- Now sending proper user agent to ESI and ZKB
+
+### Fixed
+
+- Storing killmails is broken [#15](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/15)
+
 ## [0.2.5] - 2020-09-24
+
+### Added
 
 - Add test matrix for Django 3+
 - Reformat for new Black version
