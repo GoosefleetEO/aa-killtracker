@@ -3,9 +3,9 @@
  {% block content %}
  <form action="" method="post">
     {% csrf_token %}
-    <input type="hidden" name="action" value="run_test_killmail" />    
-    {{ form }}            
-    {% for tracker in queryset %}        
+    <input type="hidden" name="action" value="run_test_killmail" />
+    {{ form }}
+    {% for tracker in queryset %}
         <input type="hidden" name="_selected_action" value="{{ tracker.pk }}" />
     {% endfor %}
     <br>

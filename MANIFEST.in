@@ -7,4 +7,3 @@ recursive-include killtracker/templates *
 recursive-include killtracker/tools *.sql
 recursive-exclude killtracker/tests *
 recursive-exclude testauth *
-

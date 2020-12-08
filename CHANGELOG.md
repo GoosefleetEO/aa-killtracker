@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Now sending proper user agent to ESI and ZKB
+- pre-commit for white spaces, EOF and black
 
 ### Fixed
 
