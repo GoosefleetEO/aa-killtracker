@@ -118,6 +118,18 @@
             "size_factor": 5.0,
             "station_count": 1523,
             "station_system_count": 527
+        },
+        {
+            "corporation_id": 1000035,
+            "description": "FAKED",
+            "eve_solar_system_id": 30000145,
+            "id": 500004,
+            "is_unique": true,
+            "militia_corporation_id": 1000180,
+            "name": "Galente Federation",
+            "size_factor": 5.0,
+            "station_count": 1523,
+            "station_system_count": 527
         }
     ],
     "EveGroup": [

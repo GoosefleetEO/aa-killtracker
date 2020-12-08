@@ -70,7 +70,7 @@ class TestRunKilltracker(TestTrackerBase):
 
         run_killtracker()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
-        self.assertEqual(mock_store_killmail.delay.call_count, 0)
+        self.assertEqual(mock_store_killmail.si.call_count, 0)
         self.assertFalse(mock_delete_stale_killmails.delay.called)
 
     @patch(MODULE_PATH + ".KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 30)
@@ -86,7 +86,7 @@ class TestRunKilltracker(TestTrackerBase):
 
         run_killtracker()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
-        self.assertEqual(mock_store_killmail.delay.call_count, 3)
+        self.assertEqual(mock_store_killmail.si.call_count, 3)
         self.assertTrue(mock_delete_stale_killmails.delay.called)
 
 

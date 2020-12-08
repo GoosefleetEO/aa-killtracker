@@ -105,6 +105,8 @@ class TestKillmailBasics(NoSocketsTestCase):
             2977,
             3756,
             2488,
+            500001,
+            500004,
         }
         self.assertSetEqual(result, expected)
 

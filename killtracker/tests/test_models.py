@@ -66,31 +66,63 @@ class TestWebhookQueue(LoadTestDataMixin, TestCase):
 
 
 class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
     def test_create_from_killmail(self):
         killmail = load_killmail(10000001)
         eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
 
         self.assertIsInstance(eve_killmail, EveKillmail)
         self.assertEqual(eve_killmail.id, 10000001)
-        self.assertEqual(eve_killmail.solar_system_id, 30004984)
+        self.assertEqual(eve_killmail.solar_system, EveEntity.objects.get(id=30004984))
         self.assertAlmostEqual(eve_killmail.time, now(), delta=timedelta(seconds=30))
 
-        self.assertEqual(eve_killmail.victim.alliance_id, 3011)
-        self.assertEqual(eve_killmail.victim.character_id, 1011)
-        self.assertEqual(eve_killmail.victim.corporation_id, 2011)
+        self.assertEqual(eve_killmail.victim.alliance, EveEntity.objects.get(id=3011))
+        self.assertEqual(eve_killmail.victim.character, EveEntity.objects.get(id=1011))
+        self.assertEqual(
+            eve_killmail.victim.corporation, EveEntity.objects.get(id=2011)
+        )
+        self.assertEqual(eve_killmail.victim.faction, EveEntity.objects.get(id=500004))
         self.assertEqual(eve_killmail.victim.damage_taken, 434)
-        self.assertEqual(eve_killmail.victim.ship_type_id, 603)
+        self.assertEqual(eve_killmail.victim.ship_type, EveEntity.objects.get(id=603))
 
-        self.assertEqual(eve_killmail.attackers.count(), 3)
+        attacker_ids = list(eve_killmail.attackers.values_list("pk", flat=True))
+        self.assertEqual(len(attacker_ids), 3)
 
-        attacker_1 = eve_killmail.attackers.first()
-        self.assertEqual(attacker_1.alliance_id, 3001)
-        self.assertEqual(attacker_1.character_id, 1001)
-        self.assertEqual(attacker_1.corporation_id, 2001)
-        self.assertEqual(attacker_1.damage_done, 434)
-        self.assertEqual(attacker_1.security_status, -10)
-        self.assertEqual(attacker_1.ship_type_id, 34562)
-        self.assertEqual(attacker_1.weapon_type_id, 2977)
+        attacker = eve_killmail.attackers.get(pk=attacker_ids[0])
+        self.assertEqual(attacker.alliance, EveEntity.objects.get(id=3001))
+        self.assertEqual(attacker.character, EveEntity.objects.get(id=1001))
+        self.assertEqual(attacker.corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(attacker.faction, EveEntity.objects.get(id=500001))
+        self.assertEqual(attacker.damage_done, 434)
+        self.assertEqual(attacker.security_status, -10)
+        self.assertEqual(attacker.ship_type, EveEntity.objects.get(id=34562))
+        self.assertEqual(attacker.weapon_type, EveEntity.objects.get(id=2977))
+        self.assertTrue(attacker.is_final_blow)
+
+        attacker = eve_killmail.attackers.get(pk=attacker_ids[1])
+        self.assertEqual(attacker.alliance, EveEntity.objects.get(id=3001))
+        self.assertEqual(attacker.character, EveEntity.objects.get(id=1002))
+        self.assertEqual(attacker.corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(attacker.faction, EveEntity.objects.get(id=500001))
+        self.assertEqual(attacker.damage_done, 50)
+        self.assertEqual(attacker.security_status, -10)
+        self.assertEqual(attacker.ship_type, EveEntity.objects.get(id=3756))
+        self.assertEqual(attacker.weapon_type, EveEntity.objects.get(id=2488))
+        self.assertFalse(attacker.is_final_blow)
+
+        attacker = eve_killmail.attackers.get(pk=attacker_ids[2])
+        self.assertEqual(attacker.alliance, EveEntity.objects.get(id=3001))
+        self.assertEqual(attacker.character, EveEntity.objects.get(id=1003))
+        self.assertEqual(attacker.corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(attacker.faction, EveEntity.objects.get(id=500001))
+        self.assertEqual(attacker.damage_done, 99)
+        self.assertEqual(attacker.security_status, 5)
+        self.assertEqual(attacker.ship_type, EveEntity.objects.get(id=3756))
+        self.assertEqual(attacker.weapon_type, EveEntity.objects.get(id=2488))
+        self.assertFalse(attacker.is_final_blow)
 
         self.assertEqual(eve_killmail.zkb.location_id, 50012306)
         self.assertEqual(eve_killmail.zkb.fitted_value, 10000)

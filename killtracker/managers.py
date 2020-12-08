@@ -42,8 +42,15 @@ class EveKillmailManager(models.Manager):
             deadline = now() - timedelta(days=KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS)
             return self.filter(time__lt=deadline).delete()
 
-    def create_from_killmail(self, killmail: Killmail) -> models.Model:
-        """create a new EveKillmail from a Killmail object and returns it"""
+    def create_from_killmail(
+        self, killmail: Killmail, resolve_ids=True
+    ) -> models.Model:
+        """create a new EveKillmail from a Killmail object and returns it
+
+        Args:
+        - resolve_ids: When set to False will not resolve EveEntity IDs
+
+        """
         from .models import (
             EveKillmailAttacker,
             EveKillmailPosition,
@@ -89,6 +96,9 @@ class EveKillmailManager(models.Manager):
                     **self._create_args_for_entities(attacker),
                 }
                 EveKillmailAttacker.objects.create(**args)
+
+        if resolve_ids:
+            EveEntity.objects.bulk_update_new_esi()
 
         eve_killmail.refresh_from_db()
         return eve_killmail

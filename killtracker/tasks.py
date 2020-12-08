@@ -1,9 +1,11 @@
 from timeit import default_timer as timer
 
-from celery import shared_task
+from celery import shared_task, chain
 
 from django.db import IntegrityError
 from django.contrib.auth.models import User
+
+from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
@@ -31,7 +33,7 @@ def store_killmail(killmail_json: str) -> None:
     """stores killmail as EveKillmail object"""
     killmail = Killmail.from_json(killmail_json)
     try:
-        EveKillmail.objects.create_from_killmail(killmail)
+        EveKillmail.objects.create_from_killmail(killmail, resolve_ids=False)
     except IntegrityError:
         logger.warning(
             "Failed to store killmail with ID %d, because it already exists",
@@ -118,7 +120,10 @@ def run_killtracker(
             )
 
         if KILLTRACKER_STORING_KILLMAILS_ENABLED:
-            store_killmail.delay(killmail_json=killmail_json)
+            chain(
+                store_killmail.si(killmail_json=killmail_json),
+                update_unresolved_eve_entities.si(),
+            ).delay()
 
     if (
         KILLTRACKER_STORING_KILLMAILS_ENABLED
