@@ -23,3 +23,7 @@ KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS = clean_setting(
 KILLTRACKER_STORING_KILLMAILS_ENABLED = clean_setting(
     "KILLTRACKER_STORING_KILLMAILS_ENABLED", False
 )
+
+# Wether app sets the name and avatar icon of a webhook.
+# When False the webhook will use it's own values as set on the platform
+KILLTRACKER_WEBHOOK_SET_AVATAR = clean_setting("KILLTRACKER_WEBHOOK_SET_AVATAR", True)

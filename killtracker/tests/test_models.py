@@ -689,6 +689,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
 
+    @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")
     def test_normal(self, mock_esi, mock_execute):
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
@@ -708,11 +709,35 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         self.assertTrue(mock_execute.called, True)
         _, kwargs = mock_execute.call_args
         self.assertEqual(kwargs["username"], "Killtracker")
+        self.assertIsNotNone(kwargs["avatar_url"])
         self.assertIn("My Tracker", kwargs["content"])
         embed = kwargs["embeds"][0]
         self.assertIn("| Killmail", embed.title)
         self.assertIn("Combat Battlecruiser", embed.description)
         self.assertIn("Tracked ship types", embed.description)
+
+    @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", False)
+    @patch("eveuniverse.models.esi")
+    def test_disabled_avatar(self, mock_esi, mock_execute):
+        mock_esi.client.Routes.get_route_origin_destination.side_effect = (
+            esi_get_route_origin_destination
+        )
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+
+        self.tracker.origin_solar_system_id = 30003067
+        self.tracker.save()
+        svipul = EveType.objects.get(id=34562)
+        self.tracker.require_attackers_ship_types.add(svipul)
+        gnosis = EveType.objects.get(id=3756)
+        self.tracker.require_attackers_ship_types.add(gnosis)
+        killmail = self.tracker.process_killmail(load_killmail(10000101))
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+        self.assertTrue(mock_execute.called, True)
+        _, kwargs = mock_execute.call_args
+        self.assertIsNone(kwargs["username"])
+        self.assertIsNone(kwargs["avatar_url"])
+        self.assertIn("My Tracker", kwargs["content"])
 
     def test_send_as_fleetkill(self, mock_execute):
         self.tracker.identify_fleets = True

@@ -29,7 +29,10 @@ from eveuniverse.models import (
 )
 
 from . import __title__
-from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
+from .app_settings import (
+    KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
+    KILLTRACKER_WEBHOOK_SET_AVATAR,
+)
 from .constants import (
     EVE_CATEGORY_ID_SHIP,
     EVE_CATEGORY_ID_STRUCTURE,
@@ -516,11 +519,17 @@ class Webhook(models.Model):
         )
 
         hook = dhooks_lite.Webhook(url=self.url)
+        username = (
+            Webhook.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
+        )
+        avatar_url = (
+            Webhook.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
+        )
         response = hook.execute(
             content=intro,
             embeds=[embed],
-            username=Webhook.default_username(),
-            avatar_url=Webhook.default_avatar_url(),
+            username=username,
+            avatar_url=avatar_url,
             wait_for_response=True,
         )
         logger.debug("headers: %s", response.headers)
