@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.db.models import Max
+from django.test.utils import override_settings
 
 from allianceauth.tests.auth_utils import AuthUtils
 
@@ -45,6 +46,7 @@ class TestTrackerBase(LoadTestDataMixin, NoSocketsTestCase):
         )
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODULE_PATH + ".delete_stale_killmails")
 @patch(MODULE_PATH + ".store_killmail")
 @patch(MODULE_PATH + ".Killmail.create_from_zkb_redisq")

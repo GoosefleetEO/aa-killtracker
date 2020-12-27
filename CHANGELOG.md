@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Reduce runtime of run_killtracker task [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
+
 ## [0.2.6] - 2020-12-09
 
 ### Added

@@ -26,26 +26,23 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-@shared_task(base=QueueOnce)
+@shared_task(timeout=600)
 def run_killtracker(
-    max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+    killmails_max=KILLTRACKER_MAX_KILLMAILS_PER_RUN, killmails_count=0
 ) -> None:
     """Main task for running the Killtracker.
     Will fetch new killmails from ZKB and start running trackers for them
 
     Params:
-    - max_killmails_in_total: override the default number of max killmails
+    - killmails_max: override the default number of max killmails
     received per run
     """
-    logger.info("Killtracker run started...")
-    total_killmails = 0
-    while total_killmails < max_killmails_in_total:
-        killmail = Killmail.create_from_zkb_redisq()
-        if killmail:
-            total_killmails += 1
-        else:
-            break
+    if killmails_count == 0:
+        logger.info("Killtracker run started...")
 
+    killmail = Killmail.create_from_zkb_redisq()
+    if killmail:
+        killmails_count += 1
         killmail_json = killmail.asjson()
         for tracker in Tracker.objects.filter(is_enabled=True):
             run_tracker.delay(
@@ -59,13 +56,20 @@ def run_killtracker(
                 update_unresolved_eve_entities.si(),
             ).delay()
 
-    if (
-        KILLTRACKER_STORING_KILLMAILS_ENABLED
-        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
-    ):
-        delete_stale_killmails.delay()
+    if killmail and killmails_count < killmails_max:
+        run_killtracker.delay(
+            killmails_max=killmails_max, killmails_count=killmails_count
+        )
+    else:
+        if (
+            KILLTRACKER_STORING_KILLMAILS_ENABLED
+            and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
+        ):
+            delete_stale_killmails.delay()
 
-    logger.info("Total killmails received from ZKB in: %d", total_killmails)
+        logger.info(
+            "Killtracker completed. %d killmails received from ZKB", killmails_count
+        )
 
 
 @shared_task
