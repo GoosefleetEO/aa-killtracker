@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.0] - TBD
+
 ### Update notes
 
 Please rerun **killtracker_load_eve** to get the newly added POCOs.
@@ -17,6 +19,8 @@ Please rerun **killtracker_load_eve** to get the newly added POCOs.
 - Option to deactivate webhook branding [#18](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/18)
 
 ### Changed
+
+- Remove support for Django 2.1 & 3.0 [#17](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/17)
 
 ### Fixed
 
