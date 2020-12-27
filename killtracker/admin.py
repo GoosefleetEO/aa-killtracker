@@ -1,12 +1,10 @@
-from django import forms
 from django.contrib import admin
-from django.core.exceptions import ValidationError
+
 from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext_lazy as _
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
@@ -19,6 +17,7 @@ from .constants import (
     EVE_GROUP_ORBITAL_INFRASTRUCTURE,
 )
 from .core.killmails import Killmail
+from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
 from .models import Webhook, Tracker
 from . import tasks
 
@@ -62,125 +61,6 @@ class WebhookAdmin(admin.ModelAdmin):
         )
 
     send_test_message.short_description = "Send test message to selected webhooks"
-
-
-class TrackerAdminKillmailId(forms.Form):
-    killmail_id = forms.IntegerField()
-
-
-def field_nice_display(name: str) -> str:
-    return name.replace("_", " ").capitalize()
-
-
-class TrackerAdminForm(forms.ModelForm):
-    def clean(self):
-        cleaned_data = super().clean()
-
-        if (
-            cleaned_data["require_max_jumps"]
-            and not cleaned_data["origin_solar_system"]
-        ):
-            raise ValidationError(
-                {
-                    "origin_solar_system": _(
-                        "'Require max jumps' needs an "
-                        f"{field_nice_display('origin_solar_system')} to work"
-                    )
-                }
-            )
-
-        if (
-            cleaned_data["require_max_distance"]
-            and not cleaned_data["origin_solar_system"]
-        ):
-            raise ValidationError(
-                {
-                    "origin_solar_system": _(
-                        "'Require max distance' needs an "
-                        f"{field_nice_display('origin_solar_system')} to work"
-                    )
-                }
-            )
-
-        self._validate_not_same_options_chosen(
-            cleaned_data,
-            "exclude_attacker_alliances",
-            "require_attacker_alliances",
-        )
-        self._validate_not_same_options_chosen(
-            cleaned_data,
-            "exclude_attacker_corporations",
-            "require_attacker_corporations",
-        )
-
-        if (
-            cleaned_data["require_min_attackers"]
-            and cleaned_data["require_max_attackers"]
-            and cleaned_data["require_min_attackers"]
-            > cleaned_data["require_max_attackers"]
-        ):
-            raise ValidationError(
-                {
-                    "require_min_attackers": _(
-                        "Can not be larger than "
-                        f"{field_nice_display('require_max_attackers')}"
-                    )
-                }
-            )
-
-        if (
-            cleaned_data["exclude_high_sec"]
-            and cleaned_data["exclude_low_sec"]
-            and cleaned_data["exclude_null_sec"]
-            and cleaned_data["exclude_w_space"]
-        ):
-            text = ", ".join(
-                [
-                    field_nice_display(x)
-                    for x in [
-                        "exclude_low_sec",
-                        "exclude_null_sec",
-                        "exclude_w_space",
-                        "exclude_high_sec",
-                    ]
-                ]
-            )
-            raise ValidationError(
-                f"Setting all four clauses together does not make sense: {text}"
-            )
-
-        if cleaned_data["exclude_npc_kills"] and cleaned_data["require_npc_kills"]:
-            text = ", ".join(
-                [
-                    field_nice_display(x)
-                    for x in [
-                        "exclude_npc_kills",
-                        "require_npc_kills",
-                    ]
-                ]
-            )
-            raise ValidationError(
-                f"Setting both clauses together does not make sense: {text}"
-            )
-
-    @staticmethod
-    def _validate_not_same_options_chosen(
-        cleaned_data, field_name_1, field_name_2, display_func=lambda x: x
-    ) -> None:
-        same_options = set(cleaned_data[field_name_1]).intersection(
-            set(cleaned_data[field_name_2])
-        )
-        if same_options:
-            same_options_text = ", ".join(
-                map(
-                    str,
-                    [display_func(x) for x in same_options],
-                )
-            )
-            raise ValidationError(
-                f"Can not choose same options for {field_nice_display(field_name_1)} "
-                f"& {field_nice_display(field_name_2)}: {same_options_text}"
-            )
 
 
 @admin.register(Tracker)
@@ -251,7 +131,7 @@ class TrackerAdmin(admin.ModelAdmin):
 
     def run_test_killmail(self, request, queryset):
         if "apply" in request.POST:
-            form = TrackerAdminKillmailId(request.POST)
+            form = TrackerAdminKillmailIdForm(request.POST)
             if form.is_valid():
                 killmail_id = form.cleaned_data["killmail_id"]
                 killmail = Killmail.create_from_zkb_api(killmail_id)
@@ -286,7 +166,7 @@ class TrackerAdmin(admin.ModelAdmin):
                 initial = {"killmail_id": last_killmail_id}
             else:
                 initial = None
-            form = TrackerAdminKillmailId(initial=initial)
+            form = TrackerAdminKillmailIdForm(initial=initial)
 
         return render(
             request,
