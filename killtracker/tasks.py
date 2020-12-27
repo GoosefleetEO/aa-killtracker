@@ -1,5 +1,3 @@
-from timeit import default_timer as timer
-
 from celery import shared_task, chain
 
 from django.db import IntegrityError
@@ -26,6 +24,70 @@ from .models import (
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+@shared_task(base=QueueOnce)
+def run_killtracker(
+    max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+) -> None:
+    """Main task for running the Killtracker.
+    Will fetch new killmails from ZKB and start running trackers for them
+
+    Params:
+    - max_killmails_in_total: override the default number of max killmails
+    received per run
+    """
+    logger.info("Killtracker run started...")
+    total_killmails = 0
+    while total_killmails < max_killmails_in_total:
+        killmail = Killmail.create_from_zkb_redisq()
+        if killmail:
+            total_killmails += 1
+        else:
+            break
+
+        killmail_json = killmail.asjson()
+        for tracker in Tracker.objects.filter(is_enabled=True):
+            run_tracker.delay(
+                tracker_pk=tracker.pk,
+                killmail_json=killmail_json,
+            )
+
+        if KILLTRACKER_STORING_KILLMAILS_ENABLED:
+            chain(
+                store_killmail.si(killmail_json=killmail_json),
+                update_unresolved_eve_entities.si(),
+            ).delay()
+
+    if (
+        KILLTRACKER_STORING_KILLMAILS_ENABLED
+        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
+    ):
+        delete_stale_killmails.delay()
+
+    logger.info("Total killmails received from ZKB in: %d", total_killmails)
+
+
+@shared_task
+def run_tracker(
+    tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
+) -> None:
+    """run tracker for given killmail and trigger sending killmails if it matches"""
+    try:
+        tracker = Tracker.objects.get(pk=tracker_pk)
+    except Tracker.DoesNotExist:
+        logger.error("Tracker with pk = %s does not exist", tracker_pk)
+    else:
+        logger.info("Started running tracker %s", tracker)
+        killmail = Killmail.from_json(killmail_json)
+        killmail_new = tracker.process_killmail(
+            killmail=killmail, ignore_max_age=ignore_max_age
+        )
+        if killmail_new:
+            tracker.webhook.add_killmail_to_queue(killmail_new)
+            send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
+
+        logger.info("Finished running tracker %s", tracker)
 
 
 @shared_task
@@ -66,75 +128,6 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         logger.info("Started sending killmails to webhook %s", webhook)
         webhook.send_queued_killmails()
         logger.info("Completed sending killmails to webhook %s", webhook)
-
-
-@shared_task
-def run_tracker(
-    tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
-) -> None:
-    """run tracker for given killmail and trigger sending killmails if it matches"""
-    try:
-        tracker = Tracker.objects.get(pk=tracker_pk)
-    except Tracker.DoesNotExist:
-        logger.error("Tracker with pk = %s does not exist", tracker_pk)
-    else:
-        logger.info("Started running tracker %s", tracker)
-        killmail = Killmail.from_json(killmail_json)
-        killmail_new = tracker.process_killmail(
-            killmail=killmail, ignore_max_age=ignore_max_age
-        )
-        if killmail_new:
-            tracker.webhook.add_killmail_to_queue(killmail_new)
-            send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
-
-        logger.info("Finished running tracker %s", tracker)
-
-
-@shared_task(base=QueueOnce)
-def run_killtracker(
-    max_killmails_in_total=KILLTRACKER_MAX_KILLMAILS_PER_RUN,
-) -> None:
-    """Main task for running the Killtracker.
-    Will fetch new killmails from ZKB and start running trackers for them
-
-    Params:
-    - max_killmails_in_total: override the default number of max killmails
-    received per run
-    """
-    start = timer()
-    logger.info("Killtracker run started...")
-    total_killmails = 0
-    killmail = None
-    while total_killmails < max_killmails_in_total:
-        killmail = Killmail.create_from_zkb_redisq()
-        if killmail:
-            total_killmails += 1
-        else:
-            break
-
-        killmail_json = killmail.asjson()
-        for tracker in Tracker.objects.filter(is_enabled=True):
-            run_tracker.delay(
-                tracker_pk=tracker.pk,
-                killmail_json=killmail_json,
-            )
-
-        if KILLTRACKER_STORING_KILLMAILS_ENABLED:
-            chain(
-                store_killmail.si(killmail_json=killmail_json),
-                update_unresolved_eve_entities.si(),
-            ).delay()
-
-    if (
-        KILLTRACKER_STORING_KILLMAILS_ENABLED
-        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
-    ):
-        delete_stale_killmails.delay()
-
-    end = timer()
-    logger.info(
-        "Total killmails received from ZKB in %d secs: %d", end - start, total_killmails
-    )
 
 
 @shared_task
