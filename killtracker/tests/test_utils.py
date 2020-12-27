@@ -1,9 +1,11 @@
-from datetime import timedelta
+import datetime as dt
 import json
 from unittest.mock import Mock, patch
 
 import requests
 
+from django.contrib.auth.models import User
+from django.http import HttpRequest
 from django.test import TestCase
 from django.utils import translation
 from django.utils.html import mark_safe
@@ -24,21 +26,22 @@ from ..utils import (
     create_link_html,
     add_bs_label_html,
     get_site_base_url,
-    JsonDateTimeDecoder,
-    JsonDateTimeEncoder,
+    JSONDateTimeDecoder,
+    JSONDateTimeEncoder,
+    generate_invalid_pk,
+    datetime_round_hour,
     humanize_value,
 )
 from ..utils import set_test_logger
 
-
-MODULE_PATH = "killtracker.utils"
+MODULE_PATH = "{}.utils".format(__package__.partition(".")[0])
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
 class TestMessagePlus(TestCase):
-    @patch(MODULE_PATH + ".messages")
+    @patch(MODULE_PATH + ".messages", spec=True)
     def test_valid_call(self, mock_messages):
-        messages_plus.debug(Mock(), "Test Message")
+        messages_plus.debug(Mock(spec=HttpRequest), "Test Message")
         self.assertTrue(mock_messages.debug.called)
         call_args_list = mock_messages.debug.call_args_list
         args, kwargs = call_args_list[0]
@@ -56,19 +59,19 @@ class TestMessagePlus(TestCase):
     @patch(MODULE_PATH + ".messages")
     def test_all_levels(self, mock_messages):
         text = "Test Message"
-        messages_plus.error(Mock(), text)
+        messages_plus.error(Mock(spec=HttpRequest), text)
         self.assertTrue(mock_messages.error.called)
 
-        messages_plus.debug(Mock(), text)
+        messages_plus.debug(Mock(spec=HttpRequest), text)
         self.assertTrue(mock_messages.debug.called)
 
-        messages_plus.info(Mock(), text)
+        messages_plus.info(Mock(spec=HttpRequest), text)
         self.assertTrue(mock_messages.info.called)
 
-        messages_plus.success(Mock(), text)
+        messages_plus.success(Mock(spec=HttpRequest), text)
         self.assertTrue(mock_messages.success.called)
 
-        messages_plus.warning(Mock(), text)
+        messages_plus.warning(Mock(spec=HttpRequest), text)
         self.assertTrue(mock_messages.warning.called)
 
 
@@ -123,22 +126,54 @@ class TestCleanSetting(TestCase):
         self.assertEqual(result, 50)
 
     @patch(MODULE_PATH + ".settings")
+    def test_none_allowed_for_type_int(self, mock_settings):
+        mock_settings.TEST_SETTING_DUMMY = None
+        result = clean_setting("TEST_SETTING_DUMMY", 50)
+        self.assertIsNone(result)
+
+    @patch(MODULE_PATH + ".settings")
     def test_default_if_below_minimum_1(self, mock_settings):
+        """when setting is below minimum and default is > minium, then use minimum"""
         mock_settings.TEST_SETTING_DUMMY = -5
         result = clean_setting("TEST_SETTING_DUMMY", default_value=50)
-        self.assertEqual(result, 50)
+        self.assertEqual(result, 0)
 
     @patch(MODULE_PATH + ".settings")
     def test_default_if_below_minimum_2(self, mock_settings):
+        """when setting is below minimum, then use minimum"""
         mock_settings.TEST_SETTING_DUMMY = -50
         result = clean_setting("TEST_SETTING_DUMMY", default_value=50, min_value=-10)
+        self.assertEqual(result, -10)
+
+    @patch(MODULE_PATH + ".settings")
+    def test_default_if_below_minimum_3(self, mock_settings):
+        """when default is None and setting is below minimum, then use minimum"""
+        mock_settings.TEST_SETTING_DUMMY = 10
+        result = clean_setting(
+            "TEST_SETTING_DUMMY", default_value=None, required_type=int, min_value=30
+        )
+        self.assertEqual(result, 30)
+
+    @patch(MODULE_PATH + ".settings")
+    def test_setting_if_above_maximum(self, mock_settings):
+        """when setting is above maximum, then use maximum"""
+        mock_settings.TEST_SETTING_DUMMY = 100
+        result = clean_setting("TEST_SETTING_DUMMY", default_value=10, max_value=50)
         self.assertEqual(result, 50)
 
     @patch(MODULE_PATH + ".settings")
-    def test_default_for_invalid_type_int_2(self, mock_settings):
-        mock_settings.TEST_SETTING_DUMMY = 1000
-        result = clean_setting("TEST_SETTING_DUMMY", default_value=50, max_value=100)
-        self.assertEqual(result, 50)
+    def test_default_below_minimum(self, mock_settings):
+        """when default is below minimum, then raise exception"""
+        mock_settings.TEST_SETTING_DUMMY = 10
+        with self.assertRaises(ValueError):
+            clean_setting("TEST_SETTING_DUMMY", default_value=10, min_value=50)
+
+    @patch(MODULE_PATH + ".settings")
+    def test_default_above_maximum(self, mock_settings):
+        """when default is below minimum, then raise exception"""
+        mock_settings.TEST_SETTING_DUMMY = 10
+        with self.assertRaises(ValueError):
+            clean_setting("TEST_SETTING_DUMMY", default_value=100, max_value=50)
 
     @patch(MODULE_PATH + ".settings")
     def test_default_is_none_needs_required_type(self, mock_settings):
@@ -165,27 +200,27 @@ class TestCleanSetting(TestCase):
 
 class TestTimeUntil(TestCase):
     def test_timeuntil(self):
-        duration = timedelta(days=365 + 30 * 4 + 5, seconds=3600 * 14 + 60 * 33 + 10)
+        duration = dt.timedelta(days=365 + 30 * 4 + 5, seconds=3600 * 14 + 60 * 33 + 10)
         expected = "1y 4mt 5d 14h 33m 10s"
         self.assertEqual(timeuntil_str(duration), expected)
 
-        duration = timedelta(days=2, seconds=3600 * 14 + 60 * 33 + 10)
+        duration = dt.timedelta(days=2, seconds=3600 * 14 + 60 * 33 + 10)
         expected = "2d 14h 33m 10s"
         self.assertEqual(timeuntil_str(duration), expected)
 
-        duration = timedelta(days=2, seconds=3600 * 14 + 60 * 33 + 10)
+        duration = dt.timedelta(days=2, seconds=3600 * 14 + 60 * 33 + 10)
         expected = "2d 14h 33m 10s"
         self.assertEqual(timeuntil_str(duration), expected)
 
-        duration = timedelta(days=0, seconds=60 * 33 + 10)
+        duration = dt.timedelta(days=0, seconds=60 * 33 + 10)
         expected = "0h 33m 10s"
         self.assertEqual(timeuntil_str(duration), expected)
 
-        duration = timedelta(days=0, seconds=10)
+        duration = dt.timedelta(days=0, seconds=10)
         expected = "0h 0m 10s"
         self.assertEqual(timeuntil_str(duration), expected)
 
-        duration = timedelta(days=-10, seconds=-20)
+        duration = dt.timedelta(days=-10, seconds=-20)
         expected = ""
         self.assertEqual(timeuntil_str(duration), expected)
 
@@ -286,22 +321,49 @@ class TestGetSiteBaseUrl(NoSocketsTestCase):
         "https://www.mysite.com/not-valid/",
     )
     def test_return_dummy_if_url_defined_but_not_valid(self):
-        expected = "http://www.example.com"
+        expected = ""
         self.assertEqual(get_site_base_url(), expected)
 
     @patch(MODULE_PATH + ".settings")
     def test_return_dummy_if_url_not_defined(self, mock_settings):
         delattr(mock_settings, "ESI_SSO_CALLBACK_URL")
-        expected = "http://www.example.com"
+        expected = ""
         self.assertEqual(get_site_base_url(), expected)
 
 
 class TestJsonSerializer(NoSocketsTestCase):
     def test_encode_decode(self):
         my_dict = {"alpha": "hello", "bravo": now()}
-        my_json = json.dumps(my_dict, cls=JsonDateTimeEncoder)
-        my_dict_new = json.loads(my_json, cls=JsonDateTimeDecoder)
+        my_json = json.dumps(my_dict, cls=JSONDateTimeEncoder)
+        my_dict_new = json.loads(my_json, cls=JSONDateTimeDecoder)
         self.assertDictEqual(my_dict, my_dict_new)
+
+
+class TestGenerateInvalidPk(NoSocketsTestCase):
+    def test_normal(self):
+        User.objects.all().delete()
+        User.objects.create(username="John Doe", password="dummy")
+        invalid_pk = generate_invalid_pk(User)
+        with self.assertRaises(User.DoesNotExist):
+            User.objects.get(pk=invalid_pk)
+
+
+class TestDatetimeRoundHour(TestCase):
+    def test_round_down(self):
+        obj = dt.datetime(2020, 12, 18, 22, 19)
+        self.assertEqual(datetime_round_hour(obj), dt.datetime(2020, 12, 18, 22, 0))
+
+    def test_round_up(self):
+        obj = dt.datetime(2020, 12, 18, 22, 44)
+        self.assertEqual(datetime_round_hour(obj), dt.datetime(2020, 12, 18, 23, 0))
+
+    def test_before_midnight(self):
+        obj = dt.datetime(2020, 12, 18, 23, 44)
+        self.assertEqual(datetime_round_hour(obj), dt.datetime(2020, 12, 19, 0, 0))
+
+    def test_after_midnight(self):
+        obj = dt.datetime(2020, 12, 19, 00, 14)
+        self.assertEqual(datetime_round_hour(obj), dt.datetime(2020, 12, 19, 0, 0))
 
 
 class TestFormatIskValue(NoSocketsTestCase):

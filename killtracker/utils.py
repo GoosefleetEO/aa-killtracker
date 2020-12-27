@@ -1,3 +1,9 @@
+"""
+Utility functions meant to be used in many apps
+
+Version 1.1.0
+"""
+
 import socket
 from datetime import datetime, timedelta
 import json
@@ -5,6 +11,7 @@ import logging
 import os
 import re
 from typing import Any
+from urllib.parse import urljoin
 
 from pytz import timezone
 
@@ -12,7 +19,9 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.messages.constants import DEBUG, ERROR, SUCCESS, WARNING, INFO
 from django.contrib import messages
+from django.db import models
 from django.test import TestCase
+from django.urls import reverse
 from django.utils.functional import lazy
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -151,17 +160,21 @@ def clean_setting(
     max_value: int = None,
     required_type: type = None,
     choices: list = None,
-):
+) -> Any:
     """cleans the input for a custom setting
 
-    Will use `default_value` if settings does not exit or has the wrong type
-    or is outside define boundaries (for int only)
+    Will use default_value if setting is not defined.
+    Will use minimum or maximum value if respective boundary is exceeded.
 
-    Need to define `required_type` if `default_value` is `None`
+    Args:
+    - `default_value`: value to use if setting is not defined
+    - `min_value`: minimum allowed value (0 assumed for int)
+    - `max_value`: maximum value value
+    - `required_type`: Mandatory if `default_value` is `None`,
+    otherwise derived from default_value
 
-    Will assume `min_value` of 0 for int (can be overriden)
-
-    Returns cleaned value for setting
+    Returns:
+    - cleaned value for setting
     """
     if default_value is None and not required_type:
         raise ValueError("You must specify a required_type for None defaults")
@@ -169,20 +182,46 @@ def clean_setting(
     if not required_type:
         required_type = type(default_value)
 
-    if min_value is None and required_type == int:
+    if min_value is None and issubclass(required_type, int):
         min_value = 0
+
+    if issubclass(required_type, int) and default_value is not None:
+        if min_value is not None and default_value < min_value:
+            raise ValueError("default_value can not be below min_value")
+        if max_value is not None and default_value > max_value:
+            raise ValueError("default_value can not be above max_value")
 
     if not hasattr(settings, name):
         cleaned_value = default_value
     else:
         dirty_value = getattr(settings, name)
-        if (
+        if dirty_value is None or (
             isinstance(dirty_value, required_type)
             and (min_value is None or dirty_value >= min_value)
             and (max_value is None or dirty_value <= max_value)
             and (choices is None or dirty_value in choices)
         ):
             cleaned_value = dirty_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and min_value is not None
+            and dirty_value < min_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using minimum value for now: {}".format(name, min_value)
+            )
+            cleaned_value = min_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and max_value is not None
+            and dirty_value > max_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using maximum value for now: {}".format(name, max_value)
+            )
+            cleaned_value = max_value
         else:
             logger.warn(
                 "You setting for {} it not valid. Please correct it. "
@@ -214,6 +253,13 @@ def set_test_logger(logger_name: str, name: str) -> object:
     my_logger.addHandler(f_handler)
     my_logger.propagate = False
     return my_logger
+
+
+def datetime_round_hour(obj) -> datetime:
+    """Rounds to nearest hour"""
+    return obj.replace(second=0, microsecond=0, minute=0, hour=obj.hour) + timedelta(
+        hours=obj.minute // 30
+    )
 
 
 def timeuntil_str(duration: timedelta) -> str:
@@ -291,14 +337,19 @@ def yesno_str(value: bool) -> str:
 
 def get_site_base_url() -> str:
     """return base URL for this site"""
-
-    base_url = "http://www.example.com"
-    if hasattr(settings, "ESI_SSO_CALLBACK_URL"):
+    try:
         match = re.match(r"(.+)\/sso\/callback", settings.ESI_SSO_CALLBACK_URL)
         if match:
-            base_url = match.group(1)
+            return match.group(1)
+    except AttributeError:
+        pass
 
-    return base_url
+    return ""
+
+
+def get_absolute_url(url_name: str) -> str:
+    """Returns absolute URL for the given URL name."""
+    return urljoin(get_site_base_url(), reverse(url_name))
 
 
 def dt_eveformat(dt: object) -> str:
@@ -309,7 +360,7 @@ def dt_eveformat(dt: object) -> str:
     return dt2.isoformat()
 
 
-def add_bs_label_html(text: str, label: str) -> str:
+def add_bs_label_html(text: str, label: str = "default") -> str:
     """create Bootstrap label and return HTML"""
     return format_html('<div class="label label-{}">{}</div>', label, text)
 
@@ -357,6 +408,24 @@ def create_bs_button_html(
     )
 
 
+def create_fa_button_html(
+    url: str,
+    fa_code: str,
+    button_type: str,
+    tooltip: str = None,
+    disabled: bool = False,
+) -> str:
+    """create BS botton and return HTML"""
+    return format_html(
+        '<a href="{}" class="btn btn-{}"{}>{}{}</a>',
+        url,
+        button_type,
+        mark_safe(f' title="{tooltip}"') if tooltip else "",
+        mark_safe(' disabled="disabled"') if disabled else "",
+        mark_safe(f'<i class="{fa_code}"></i>'),
+    )
+
+
 dimensions = [(12, "t"), (9, "b"), (6, "m"), (3, "k")]
 
 
@@ -372,7 +441,7 @@ def humanize_value(value: float, precision: int = 2) -> str:
     return f"{value:,.{precision}f}"
 
 
-class JsonDateTimeDecoder(json.JSONDecoder):
+class JSONDateTimeDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs) -> None:
         json.JSONDecoder.__init__(
             self, object_hook=self.dict_to_object, *args, **kwargs
@@ -393,10 +462,10 @@ class JsonDateTimeDecoder(json.JSONDecoder):
             return dct
 
 
-class JsonDateTimeEncoder(json.JSONEncoder):
+class JSONDateTimeEncoder(json.JSONEncoder):
     """Instead of letting the default encoder convert datetime to string,
     convert datetime objects into a dict, which can be decoded by the
-    JsonDateTimeDecoder
+    JSONDateTimeDecoder
     """
 
     def default(self, o: Any) -> Any:
@@ -414,3 +483,9 @@ class JsonDateTimeEncoder(json.JSONEncoder):
             }
         else:
             return json.JSONEncoder.default(self, o)
+
+
+def generate_invalid_pk(MyModel: models.Model) -> int:
+    """return an invalid PK for the given Django model"""
+    pk_max = MyModel.objects.aggregate(models.Max("pk"))["pk__max"]
+    return pk_max + 1 if pk_max else 1

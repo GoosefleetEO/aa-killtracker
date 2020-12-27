@@ -13,7 +13,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__, USER_AGENT_TEXT
 from ..providers import esi
-from ..utils import LoggerAddTag, JsonDateTimeDecoder, JsonDateTimeEncoder
+from ..utils import LoggerAddTag, JSONDateTimeDecoder, JSONDateTimeEncoder
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -180,11 +180,11 @@ class Killmail(_KillmailBase):
             raise ex
 
     def asjson(self) -> str:
-        return json.dumps(asdict(self), cls=JsonDateTimeEncoder)
+        return json.dumps(asdict(self), cls=JSONDateTimeEncoder)
 
     @classmethod
     def from_json(cls, json_str: str) -> "Killmail":
-        return cls.from_dict(json.loads(json_str, cls=JsonDateTimeDecoder))
+        return cls.from_dict(json.loads(json_str, cls=JSONDateTimeDecoder))
 
     @classmethod
     def create_from_zkb_redisq(cls) -> "Killmail":
