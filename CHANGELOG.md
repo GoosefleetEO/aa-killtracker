@@ -11,13 +11,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Update notes
 
-Please rerun **killtracker_load_eve** to get the newly added POCOs.
+Please rerun **killtracker_load_eve** to get all the newly added types.
 
 ### Added
 
 - Add Orbital Infrastructure to victim groups [#19](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/19)
 - Option to deactivate webhook branding [#18](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/18)
 - Added timeouts to all tasks to prevent pileup during outage
+- Added fighters and mining drones (e.g. Excavators) to tracker clauses [#12](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/12)
 
 ### Changed
 

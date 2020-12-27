@@ -14,6 +14,8 @@ from eveuniverse.models import EveGroup, EveType
 from .constants import (
     EVE_CATEGORY_ID_SHIP,
     EVE_CATEGORY_ID_STRUCTURE,
+    EVE_CATEGORY_ID_FIGHTER,
+    EVE_GROUP_MINING_DRONE,
     EVE_GROUP_ORBITAL_INFRASTRUCTURE,
 )
 from .core.killmails import Killmail
@@ -409,7 +411,11 @@ class TrackerAdmin(admin.ModelAdmin):
             )
         elif db_field.name == "require_attackers_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
-                eve_category_id__in=[EVE_CATEGORY_ID_STRUCTURE, EVE_CATEGORY_ID_SHIP],
+                eve_category_id__in=[
+                    EVE_CATEGORY_ID_STRUCTURE,
+                    EVE_CATEGORY_ID_SHIP,
+                    EVE_CATEGORY_ID_FIGHTER,
+                ],
                 published=True,
             ).order_by(Lower("name"))
         elif db_field.name == "require_attackers_ship_types":
@@ -419,6 +425,7 @@ class TrackerAdmin(admin.ModelAdmin):
                     eve_group__eve_category_id__in=[
                         EVE_CATEGORY_ID_STRUCTURE,
                         EVE_CATEGORY_ID_SHIP,
+                        EVE_CATEGORY_ID_FIGHTER,
                     ],
                     published=True,
                 )
@@ -431,10 +438,12 @@ class TrackerAdmin(admin.ModelAdmin):
                         eve_category_id__in=[
                             EVE_CATEGORY_ID_STRUCTURE,
                             EVE_CATEGORY_ID_SHIP,
+                            EVE_CATEGORY_ID_FIGHTER,
                         ]
                     )
                     & Q(published=True)
                 )
+                | (Q(id=EVE_GROUP_MINING_DRONE) & Q(published=True))
                 | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
 
@@ -447,10 +456,12 @@ class TrackerAdmin(admin.ModelAdmin):
                             eve_group__eve_category_id__in=[
                                 EVE_CATEGORY_ID_STRUCTURE,
                                 EVE_CATEGORY_ID_SHIP,
+                                EVE_CATEGORY_ID_FIGHTER,
                             ]
                         )
                         & Q(published=True)
                     )
+                    | (Q(eve_group_id=EVE_GROUP_MINING_DRONE) & Q(published=True))
                     | Q(eve_group_id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
                 )
                 .order_by(Lower("name"))

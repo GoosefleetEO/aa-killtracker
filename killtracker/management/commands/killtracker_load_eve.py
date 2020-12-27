@@ -6,6 +6,8 @@ from ... import __title__
 from ...constants import (
     EVE_CATEGORY_ID_SHIP,
     EVE_CATEGORY_ID_STRUCTURE,
+    EVE_CATEGORY_ID_FIGHTER,
+    EVE_GROUP_MINING_DRONE,
     EVE_GROUP_ORBITAL_INFRASTRUCTURE,
 )
 from ...utils import LoggerAddTag
@@ -25,6 +27,12 @@ class Command(BaseCommand):
             str(EVE_CATEGORY_ID_SHIP),
             "--category_id",
             str(EVE_CATEGORY_ID_STRUCTURE),
+            "--category_id",
+            str(EVE_CATEGORY_ID_FIGHTER),
+            "--group_id",
+            str(EVE_GROUP_ORBITAL_INFRASTRUCTURE),
+            "--group_id",
+            str(EVE_GROUP_MINING_DRONE),
             "--group_id",
             str(EVE_GROUP_ORBITAL_INFRASTRUCTURE),
         )
