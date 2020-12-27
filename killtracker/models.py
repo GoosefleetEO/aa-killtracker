@@ -637,7 +637,7 @@ class Tracker(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="tracker_origin_solar_systems_set",
+        related_name="+",
         help_text=(
             "Solar system to calculate distance and jumps from. "
             "When provided distance and jumps will be shown on killmail messages"
@@ -661,35 +661,35 @@ class Tracker(models.Model):
     )
     exclude_attacker_alliances = models.ManyToManyField(
         EveAllianceInfo,
-        related_name="tracker_exclude_attacker_alliances_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text="exclude killmails with attackers from one of these alliances",
     )
     require_attacker_alliances = models.ManyToManyField(
         EveAllianceInfo,
-        related_name="tracker_required_attacker_alliances_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text="only include killmails with attackers from one of these alliances",
     )
     exclude_attacker_corporations = models.ManyToManyField(
         EveCorporationInfo,
-        related_name="tracker_exclude_attacker_corporations_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text="exclude killmails with attackers from one of these corporations",
     )
     require_attacker_corporations = models.ManyToManyField(
         EveCorporationInfo,
-        related_name="tracker_required_attacker_corporations_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text="only include killmails with attackers from one of these corporations",
     )
     require_victim_alliances = models.ManyToManyField(
         EveAllianceInfo,
-        related_name="tracker_require_victim_alliances_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text=(
@@ -698,7 +698,7 @@ class Tracker(models.Model):
     )
     require_victim_corporations = models.ManyToManyField(
         EveCorporationInfo,
-        related_name="tracker_require_victim_corporations_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text=(
@@ -752,19 +752,21 @@ class Tracker(models.Model):
         EveRegion,
         default=None,
         blank=True,
+        related_name="+",
         help_text=("Only include killmails that occurred in one of these regions"),
     )
     require_constellations = models.ManyToManyField(
         EveConstellation,
         default=None,
         blank=True,
+        related_name="+",
         help_text=("Only include killmails that occurred in one of these regions"),
     )
     require_solar_systems = models.ManyToManyField(
         EveSolarSystem,
         default=None,
         blank=True,
-        related_name="tracker_require_solar_systems_set",
+        related_name="+",
         help_text=("Only include killmails that occurred in one of these regions"),
     )
     require_min_value = models.PositiveIntegerField(
@@ -775,7 +777,7 @@ class Tracker(models.Model):
     )
     require_attackers_ship_groups = models.ManyToManyField(
         EveGroup,
-        related_name="tracker_require_attackers_ship_groups_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text=(
@@ -785,7 +787,7 @@ class Tracker(models.Model):
     )
     require_attackers_ship_types = models.ManyToManyField(
         EveType,
-        related_name="tracker_require_attackers_ship_groups_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text=(
@@ -795,11 +797,20 @@ class Tracker(models.Model):
     )
     require_victim_ship_groups = models.ManyToManyField(
         EveGroup,
-        related_name="tracker_require_victim_ship_groups_set",
+        related_name="+",
         default=None,
         blank=True,
         help_text=(
             "Only include killmails where victim is flying one of these ship groups"
+        ),
+    )
+    require_victim_ship_types = models.ManyToManyField(
+        EveType,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "Only include killmails where victim is flying one of these ship types"
         ),
     )
     exclude_npc_kills = models.BooleanField(
@@ -855,6 +866,7 @@ class Tracker(models.Model):
             self.require_attackers_ship_groups.all()
             or self.require_attackers_ship_types.all()
             or self.require_victim_ship_groups.all()
+            or self.require_victim_ship_types.all()
         )
 
     def process_killmail(
@@ -1009,16 +1021,22 @@ class Tracker(models.Model):
                     EveType.objects.filter(
                         eve_group__in=self.require_victim_ship_groups.all(),
                         id=killmail.victim.ship_type_id,
-                    ).select_related()
+                    )
+                )
+
+            if is_matching and self.require_victim_ship_types.count() > 0:
+                is_matching = bool(
+                    EveType.objects.filter(
+                        id__in=self.require_victim_ship_types.all(),
+                        id=killmail.victim.ship_type_id,
+                    )
                 )
 
             if is_matching and self.require_attackers_ship_groups.count() > 0:
                 attackers_ship_type_ids = killmail.attackers_ship_type_ids()
-                ship_types_matching_qs = (
-                    EveType.objects.filter(id__in=attackers_ship_type_ids)
-                    .filter(eve_group__in=self.require_attackers_ship_groups.all())
-                    .select_related("eve_group")
-                )
+                ship_types_matching_qs = EveType.objects.filter(
+                    id__in=attackers_ship_type_ids
+                ).filter(eve_group__in=self.require_attackers_ship_groups.all())
                 is_matching = bool(ship_types_matching_qs)
                 matching_ship_type_ids = list(
                     ship_types_matching_qs.values_list("id", flat=True)

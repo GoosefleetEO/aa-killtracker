@@ -245,6 +245,11 @@ class TestHasTypeClause(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_victim_ship_groups.add(self.type_svipul.eve_group)
         self.assertTrue(tracker.has_type_clause)
 
+    def test_has_require_victim_ship_types(self):
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_victim_ship_types.add(self.type_svipul)
+        self.assertTrue(tracker.has_type_clause)
+
 
 class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
     @staticmethod
@@ -498,6 +503,15 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         td3s = EveGroup.objects.get(id=1305)
         tracker.require_victim_ship_groups.add(td3s)
+        results = self._calculate_results(tracker, killmail_ids)
+        expected = {10000101}
+        self.assertSetEqual(results, expected)
+
+    def test_can_require_victim_ship_types(self):
+        killmail_ids = {10000101, 10000201}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        svipul = EveType.objects.get(id=34562)
+        tracker.require_victim_ship_types.add(svipul)
         results = self._calculate_results(tracker, killmail_ids)
         expected = {10000101}
         self.assertSetEqual(results, expected)

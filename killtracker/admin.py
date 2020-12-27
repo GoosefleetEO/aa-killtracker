@@ -225,6 +225,7 @@ class TrackerAdmin(admin.ModelAdmin):
             ("require_attackers_ship_groups", self._add_to_clauses_2),
             ("require_attackers_ship_types", self._add_to_clauses_2),
             ("require_victim_ship_groups", self._add_to_clauses_2),
+            ("require_victim_ship_types", self._add_to_clauses_2),
             ("exclude_npc_kills", self._add_to_clauses_1),
             ("require_npc_kills", self._add_to_clauses_1),
         ]:
@@ -312,6 +313,7 @@ class TrackerAdmin(admin.ModelAdmin):
         "require_attackers_ship_groups",
         "require_attackers_ship_types",
         "require_victim_ship_groups",
+        "require_victim_ship_types",
     )
 
     fieldsets = (
@@ -385,6 +387,7 @@ class TrackerAdmin(admin.ModelAdmin):
                     "require_attackers_ship_groups",
                     "require_attackers_ship_types",
                     "require_victim_ship_groups",
+                    "require_victim_ship_types",
                 ),
             },
         ),
@@ -434,5 +437,23 @@ class TrackerAdmin(admin.ModelAdmin):
                 )
                 | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
+
+        elif db_field.name == "require_victim_ship_types":
+            kwargs["queryset"] = (
+                EveType.objects.select_related("eve_group")
+                .filter(
+                    (
+                        Q(
+                            eve_group__eve_category_id__in=[
+                                EVE_CATEGORY_ID_STRUCTURE,
+                                EVE_CATEGORY_ID_SHIP,
+                            ]
+                        )
+                        & Q(published=True)
+                    )
+                    | Q(eve_group_id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
+                )
+                .order_by(Lower("name"))
+            )
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
