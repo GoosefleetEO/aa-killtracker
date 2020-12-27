@@ -10,7 +10,6 @@ from simple_mq import SimpleMQ
 from django.core.cache import cache
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
-from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
 
@@ -32,11 +31,6 @@ from . import __title__
 from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
-)
-from .constants import (
-    EVE_CATEGORY_ID_SHIP,
-    EVE_CATEGORY_ID_STRUCTURE,
-    EVE_GROUP_ORBITAL_INFRASTRUCTURE,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import EveKillmailManager
@@ -781,11 +775,6 @@ class Tracker(models.Model):
     )
     require_attackers_ship_groups = models.ManyToManyField(
         EveGroup,
-        limit_choices_to=(
-            Q(eve_category_id=EVE_CATEGORY_ID_STRUCTURE)
-            | Q(eve_category_id=EVE_CATEGORY_ID_SHIP)
-        )
-        & Q(published=True),
         related_name="tracker_require_attackers_ship_groups_set",
         default=None,
         blank=True,
@@ -796,11 +785,6 @@ class Tracker(models.Model):
     )
     require_attackers_ship_types = models.ManyToManyField(
         EveType,
-        limit_choices_to=(
-            Q(eve_group__eve_category_id=EVE_CATEGORY_ID_STRUCTURE)
-            | Q(eve_group__eve_category_id=EVE_CATEGORY_ID_SHIP)
-        )
-        & Q(published=True),
         related_name="tracker_require_attackers_ship_groups_set",
         default=None,
         blank=True,
@@ -811,11 +795,6 @@ class Tracker(models.Model):
     )
     require_victim_ship_groups = models.ManyToManyField(
         EveGroup,
-        limit_choices_to=(
-            Q(eve_category_id__in=[EVE_CATEGORY_ID_STRUCTURE, EVE_CATEGORY_ID_SHIP])
-            & Q(published=True)
-        )
-        | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE),
         related_name="tracker_require_victim_ship_groups_set",
         default=None,
         blank=True,

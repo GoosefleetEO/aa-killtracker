@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
@@ -10,6 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
 
+from .constants import (
+    EVE_CATEGORY_ID_SHIP,
+    EVE_CATEGORY_ID_STRUCTURE,
+    EVE_GROUP_ORBITAL_INFRASTRUCTURE,
+)
 from .core.killmails import Killmail
 from .models import Webhook, Tracker
 from . import tasks
@@ -399,9 +405,34 @@ class TrackerAdmin(admin.ModelAdmin):
                 Lower("alliance_name")
             )
         elif db_field.name == "require_attackers_ship_groups":
-            kwargs["queryset"] = EveGroup.objects.all().order_by(Lower("name"))
-
+            kwargs["queryset"] = EveGroup.objects.filter(
+                eve_category_id__in=[EVE_CATEGORY_ID_STRUCTURE, EVE_CATEGORY_ID_SHIP],
+                published=True,
+            ).order_by(Lower("name"))
         elif db_field.name == "require_attackers_ship_types":
-            kwargs["queryset"] = EveType.objects.all().order_by(Lower("name"))
+            kwargs["queryset"] = (
+                EveType.objects.select_related("eve_group")
+                .filter(
+                    eve_group__eve_category_id__in=[
+                        EVE_CATEGORY_ID_STRUCTURE,
+                        EVE_CATEGORY_ID_SHIP,
+                    ],
+                    published=True,
+                )
+                .order_by(Lower("name"))
+            )
+        elif db_field.name == "require_victim_ship_groups":
+            kwargs["queryset"] = EveGroup.objects.filter(
+                (
+                    Q(
+                        eve_category_id__in=[
+                            EVE_CATEGORY_ID_STRUCTURE,
+                            EVE_CATEGORY_ID_SHIP,
+                        ]
+                    )
+                    & Q(published=True)
+                )
+                | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
+            ).order_by(Lower("name"))
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
