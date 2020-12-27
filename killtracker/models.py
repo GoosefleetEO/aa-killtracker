@@ -30,6 +30,11 @@ from eveuniverse.models import (
 
 from . import __title__
 from .app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
+from .constants import (
+    EVE_CATEGORY_ID_SHIP,
+    EVE_CATEGORY_ID_STRUCTURE,
+    EVE_GROUP_ORBITAL_INFRASTRUCTURE,
+)
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import EveKillmailManager
 from .utils import LoggerAddTag, get_site_base_url, humanize_value
@@ -37,9 +42,6 @@ from .utils import LoggerAddTag, get_site_base_url, humanize_value
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_MAX_AGE_HOURS = 4
-EVE_CATEGORY_ID_SHIP = 6
-EVE_CATEGORY_ID_STRUCTURE = 65
-
 
 # delay in seconds between every message sent to Discord
 # this needs to be >= 1 to prevent 429 Too Many Request errors
@@ -801,10 +803,10 @@ class Tracker(models.Model):
     require_victim_ship_groups = models.ManyToManyField(
         EveGroup,
         limit_choices_to=(
-            Q(eve_category_id=EVE_CATEGORY_ID_STRUCTURE)
-            | Q(eve_category_id=EVE_CATEGORY_ID_SHIP)
+            Q(eve_category_id__in=[EVE_CATEGORY_ID_STRUCTURE, EVE_CATEGORY_ID_SHIP])
+            & Q(published=True)
         )
-        & Q(published=True),
+        | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE),
         related_name="tracker_require_victim_ship_groups_set",
         default=None,
         blank=True,

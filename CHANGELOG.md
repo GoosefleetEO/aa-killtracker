@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Update notes
+
+Please rerun **killtracker_load_eve** to get the newly added POCOs.
+
 ### Added
+
+- Add Orbital Infrastructure to victim groups [#19](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/19)
 
 ### Changed
 
