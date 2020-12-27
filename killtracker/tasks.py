@@ -24,9 +24,10 @@ from .models import (
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+TASKS_DEFAULT_TIMEOUT = 1800
 
 
-@shared_task(timeout=600)
+@shared_task(timeout=TASKS_DEFAULT_TIMEOUT)
 def run_killtracker(
     killmails_max=KILLTRACKER_MAX_KILLMAILS_PER_RUN, killmails_count=0
 ) -> None:
@@ -72,7 +73,7 @@ def run_killtracker(
         )
 
 
-@shared_task
+@shared_task(timeout=TASKS_DEFAULT_TIMEOUT)
 def run_tracker(
     tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
 ) -> None:
@@ -94,7 +95,7 @@ def run_tracker(
         logger.info("Finished running tracker %s", tracker)
 
 
-@shared_task
+@shared_task(timeout=TASKS_DEFAULT_TIMEOUT)
 def store_killmail(killmail_json: str) -> None:
     """stores killmail as EveKillmail object"""
     killmail = Killmail.from_json(killmail_json)
@@ -109,7 +110,7 @@ def store_killmail(killmail_json: str) -> None:
         logger.info("Stored killmail with ID %d", killmail.id)
 
 
-@shared_task
+@shared_task(timeout=TASKS_DEFAULT_TIMEOUT)
 def delete_stale_killmails() -> None:
     """deleted all EveKillmail objects that are considered stale"""
     _, details = EveKillmail.objects.delete_stale()
@@ -117,7 +118,7 @@ def delete_stale_killmails() -> None:
         logger.info("Deleted %d stale killmails", details["killtracker.EveKillmail"])
 
 
-@shared_task(base=QueueOnce)
+@shared_task(base=QueueOnce, timeout=TASKS_DEFAULT_TIMEOUT)
 def send_killmails_to_webhook(webhook_pk: int) -> None:
     """send all currently queued killmails in given webhook object to Discord"""
     try:
@@ -134,7 +135,7 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         logger.info("Completed sending killmails to webhook %s", webhook)
 
 
-@shared_task
+@shared_task(timeout=TASKS_DEFAULT_TIMEOUT)
 def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
     """send a test message to given webhook.
     Optional inform user about result if user ok is given

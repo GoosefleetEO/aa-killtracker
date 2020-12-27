@@ -17,6 +17,7 @@ Please rerun **killtracker_load_eve** to get the newly added POCOs.
 
 - Add Orbital Infrastructure to victim groups [#19](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/19)
 - Option to deactivate webhook branding [#18](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/18)
+- Added timeouts to all tasks to prevent pileup during outage
 
 ### Changed
 
