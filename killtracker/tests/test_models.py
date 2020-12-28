@@ -3,7 +3,9 @@ from unittest.mock import Mock, patch
 from bravado.exception import HTTPNotFound
 
 import dhooks_lite
+from requests.exceptions import HTTPError
 
+from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now
@@ -24,7 +26,7 @@ from . import BravadoOperationStub
 from ..core.killmails import Killmail
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
-from ..utils import NoSocketsTestCase, set_test_logger
+from ..utils import app_labels, NoSocketsTestCase, set_test_logger
 
 
 MODULE_PATH = "killtracker.models"
@@ -794,7 +796,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test",
             webhook=self.webhook_1,
-            ping_type=Tracker.PING_TYPE_EVERYBODY,
+            ping_type=Tracker.ChannelPingType.EVERYBODY,
         )
         killmail = tracker.process_killmail(load_killmail(10000001))
 
@@ -805,7 +807,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
 
     def test_can_ping_here(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        self.tracker.ping_type = Tracker.PING_TYPE_HERE
+        self.tracker.ping_type = Tracker.ChannelPingType.HERE
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
@@ -816,7 +818,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
 
     def test_can_ping_nobody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        self.tracker.ping_type = Tracker.PING_TYPE_NONE
+        self.tracker.ping_type = Tracker.ChannelPingType.NONE
         self.tracker.save()
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
@@ -899,6 +901,94 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(mock_execute.called, True)
+
+
+if "discord" in app_labels():
+
+    @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
+    @patch(MODULE_PATH + ".DiscordUser", spec=True)
+    class TestGroupPings(LoadTestDataMixin, NoSocketsTestCase):
+        @classmethod
+        def setUpClass(cls):
+            super().setUpClass()
+            cls.group_1 = Group.objects.create(name="Dummy Group 1")
+            cls.group_2 = Group.objects.create(name="Dummy Group 2")
+
+        def setUp(self):
+            self.tracker = Tracker.objects.create(
+                name="My Tracker",
+                webhook=self.webhook_1,
+                exclude_null_sec=True,
+                exclude_w_space=True,
+            )
+
+        @staticmethod
+        def _my_group_to_role(group: Group) -> dict:
+            if not isinstance(group, Group):
+                raise TypeError("group must be of type Group")
+
+            return {"id": group.pk, "name": group.name}
+
+        def test_can_ping_one_group(self, mock_DiscordUser, mock_execute):
+            mock_execute.return_value = dhooks_lite.WebhookResponse(
+                dict(), status_code=200
+            )
+            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
+            self.tracker.ping_groups.add(self.group_1)
+
+            killmail = self.tracker.process_killmail(load_killmail(10000101))
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
+            args, kwargs = mock_execute.call_args
+            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
+
+        def test_can_ping_multiple_groups(self, mock_DiscordUser, mock_execute):
+            mock_execute.return_value = dhooks_lite.WebhookResponse(
+                dict(), status_code=200
+            )
+            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
+            self.tracker.ping_groups.add(self.group_1)
+            self.tracker.ping_groups.add(self.group_2)
+
+            killmail = self.tracker.process_killmail(load_killmail(10000101))
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
+            args, kwargs = mock_execute.call_args
+            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
+            self.assertIn(f"<@&{self.group_2.pk}>", kwargs["content"])
+
+        def test_can_combine_with_channel_ping(self, mock_DiscordUser, mock_execute):
+            mock_execute.return_value = dhooks_lite.WebhookResponse(
+                dict(), status_code=200
+            )
+            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
+            self.tracker.ping_groups.add(self.group_1)
+            self.tracker.ping_type = Tracker.ChannelPingType.HERE
+            self.tracker.save()
+
+            killmail = self.tracker.process_killmail(load_killmail(10000101))
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
+            args, kwargs = mock_execute.call_args
+            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
+            self.assertIn("@here", kwargs["content"])
+
+        def test_can_handle_error_from_discord(self, mock_DiscordUser, mock_execute):
+            mock_execute.return_value = dhooks_lite.WebhookResponse(
+                dict(), status_code=200
+            )
+            mock_DiscordUser.objects.group_to_role.side_effect = HTTPError
+            self.tracker.ping_groups.add(self.group_1)
+
+            killmail = self.tracker.process_killmail(load_killmail(10000101))
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
+            args, kwargs = mock_execute.call_args
+            self.assertNotIn(f"<@&{self.group_1.pk}>", kwargs["content"])
 
 
 class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):

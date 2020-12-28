@@ -206,6 +206,7 @@ class TrackerAdmin(admin.ModelAdmin):
         "require_attackers_ship_types",
         "require_victim_ship_groups",
         "require_victim_ship_types",
+        "ping_groups",
     )
 
     fieldsets = (
@@ -216,6 +217,7 @@ class TrackerAdmin(admin.ModelAdmin):
                 "fields": (
                     "webhook",
                     "ping_type",
+                    "ping_groups",
                     "is_posting_name",
                 ),
             },

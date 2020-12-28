@@ -5,9 +5,11 @@ from urllib.parse import urljoin
 from typing import Optional, List, Tuple
 
 import dhooks_lite
+from requests.exceptions import HTTPError
 from simple_mq import SimpleMQ
 
 from django.core.cache import cache
+from django.contrib.auth.models import Group
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +18,7 @@ from django.utils.timezone import now
 from allianceauth.eveonline.evelinks import eveimageserver, zkillboard, dotlan
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
+from allianceauth.services.modules.discord.models import DiscordUser
 
 from eveuniverse.helpers import meters_to_ly, EveEntityNameResolver
 from eveuniverse.models import (
@@ -34,7 +37,7 @@ from .app_settings import (
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import EveKillmailManager
-from .utils import LoggerAddTag, get_site_base_url, humanize_value
+from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -510,22 +513,41 @@ class Webhook(models.Model):
             timestamp=killmail.time,
             color=embed_color,
         )
+        intro_parts = []
         if tracker:
-            if tracker.ping_type == Tracker.PING_TYPE_EVERYBODY:
-                intro = "@everybody "
-            elif tracker.ping_type == Tracker.PING_TYPE_HERE:
-                intro = "@here "
-            else:
-                intro = ""
+            if tracker.ping_type == Tracker.ChannelPingType.EVERYBODY:
+                intro_parts.append("@everybody")
+            elif tracker.ping_type == Tracker.ChannelPingType.HERE:
+                intro_parts.append("@here")
+
+            if tracker.ping_groups.exists():
+                if "discord" not in app_labels():
+                    logger.warning(
+                        "Discord service needs to be installed in order "
+                        "to use groups ping features."
+                    )
+                else:
+                    for group in tracker.ping_groups.all():
+                        try:
+                            role = DiscordUser.objects.group_to_role(group)
+                        except HTTPError:
+                            logger.warning(
+                                "Failed to get Discord roles. Can not ping groups.",
+                                exc_info=True,
+                            )
+                        else:
+                            if role:
+                                intro_parts.append(f"<@&{role['id']}>")
 
             if tracker.is_posting_name:
-                intro += f"Tracker **{tracker.name}**:"
+                intro_parts.append(f"Tracker **{tracker.name}**:")
 
-        else:
-            intro = ""
-
+        intro_parts_2 = []
         if intro_text:
-            intro = f"{intro_text}\n{intro}"
+            intro_parts_2.append(intro_text)
+        if intro_parts:
+            intro_parts_2.append(" ".join(intro_parts))
+        intro = "\n".join(intro_parts_2)
 
         logger.info(
             "%sSending killmail to Discord for killmail %s",
@@ -631,14 +653,10 @@ class Tracker(models.Model):
     MAIN_MINIMUM_COUNT = 2
     MAIN_MINIMUM_SHARE = 0.25
 
-    PING_TYPE_NONE = "PN"
-    PING_TYPE_HERE = "PH"
-    PING_TYPE_EVERYBODY = "PE"
-    PING_TYPE_CHOICES = (
-        (PING_TYPE_NONE, "(no ping)"),
-        (PING_TYPE_HERE, "@here"),
-        (PING_TYPE_EVERYBODY, "@everybody"),
-    )
+    class ChannelPingType(models.TextChoices):
+        NONE = "PN", "(none)"
+        HERE = "PH", "@here"
+        EVERYBODY = "PE", "@everybody"
 
     name = models.CharField(
         max_length=100,
@@ -854,9 +872,18 @@ class Tracker(models.Model):
     )
     ping_type = models.CharField(
         max_length=2,
-        choices=PING_TYPE_CHOICES,
-        default=PING_TYPE_NONE,
-        help_text="Options for pinging on every matching killmail",
+        choices=ChannelPingType.choices,
+        default=ChannelPingType.NONE,
+        verbose_name="channel pings",
+        help_text="Option to ping every member of the channel",
+    )
+    ping_groups = models.ManyToManyField(
+        Group,
+        default=None,
+        blank=True,
+        verbose_name="group pings",
+        related_name="+",
+        help_text="Option to ping specific group members - ",
     )
     is_posting_name = models.BooleanField(
         default=True, help_text="whether posted messages include the tracker's name"

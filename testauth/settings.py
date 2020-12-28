@@ -262,7 +262,11 @@ SITE_NAME = "testauth"
 DEBUG = False
 
 # Add any additional apps to this list.
-INSTALLED_APPS += ["eveuniverse", "killtracker"]
+INSTALLED_APPS += [
+    "eveuniverse",
+    "killtracker",
+    "allianceauth.services.modules.discord",
+]
 
 # Enter credentials to use MySQL/MariaDB. Comment out to use sqlite3
 """
@@ -276,6 +280,14 @@ DATABASES['default'] = {
     'OPTIONS': {'charset': 'utf8mb4'},
 }
 """
+
+# Discord Configuration
+DISCORD_GUILD_ID = ""
+DISCORD_CALLBACK_URL = ""
+DISCORD_APP_ID = ""
+DISCORD_APP_SECRET = ""
+DISCORD_BOT_TOKEN = ""
+DISCORD_SYNC_NAMES = False
 
 # Register an application at https://developers.eveonline.com for Authentication
 # & API Access and fill out these settings. Be sure to set the callback URL
