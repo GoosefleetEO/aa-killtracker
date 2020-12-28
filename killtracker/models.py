@@ -308,6 +308,18 @@ class Webhook(models.Model):
         resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 
         # victim
+        if killmail.victim.alliance_id:
+            victim_organization = EveEntity.objects.get(id=killmail.victim.alliance_id)
+            victim_org_url = zkillboard.alliance_url(killmail.victim.alliance_id)
+        elif killmail.victim.corporation_id:
+            victim_organization = EveEntity.objects.get(
+                id=killmail.victim.corporation_id
+            )
+            victim_org_url = zkillboard.corporation_url(killmail.victim.corporation_id)
+        else:
+            victim_organization = None
+            victim_org_url = None
+
         if killmail.victim.corporation_id:
             victim_corporation_zkb_link = self._corporation_zkb_link(
                 killmail.victim.corporation_id, resolver
@@ -388,9 +400,11 @@ class Webhook(models.Model):
         main_org_icon_url = eveimageserver.alliance_logo_url(1, size=self.ICON_SIZE)
         main_ship_group_text = ""
         tracked_ship_types_text = ""
+        embed_color = None
         if killmail.tracker_info:
             tracker = Tracker.objects.get(pk=killmail.tracker_info.tracker_pk)
             show_as_fleetkill = tracker.identify_fleets
+            embed_color = int(tracker.color[1:], 16) if tracker.color else None
             if tracker.origin_solar_system:
                 origin_solar_system_link = self._convert_to_discord_link(
                     name=tracker.origin_solar_system.name,
@@ -479,7 +493,13 @@ class Webhook(models.Model):
             )
 
         zkb_killmail_url = f"{self.ZKB_KILLMAIL_BASEURL}{killmail.id}/"
+        author = (
+            dhooks_lite.Author(name=victim_organization.name, url=victim_org_url)
+            if victim_organization and victim_org_url
+            else None
+        )
         embed = dhooks_lite.Embed(
+            author=author,
             description=description,
             title=title,
             url=zkb_killmail_url,
@@ -488,6 +508,7 @@ class Webhook(models.Model):
                 text="zKillboard", icon_url=Webhook.zkb_icon_url()
             ),
             timestamp=killmail.time,
+            color=embed_color,
         )
         if tracker:
             if tracker.ping_type == Tracker.PING_TYPE_EVERYBODY:
@@ -630,6 +651,13 @@ class Tracker(models.Model):
         help_text=(
             "Brief description what this tracker is for. Will not be shown on alerts."
         ),
+    )
+    color = models.CharField(
+        max_length=7,
+        default=None,
+        null=True,
+        blank=True,
+        help_text="Optional color for embed on Discord",
     )
     origin_solar_system = models.ForeignKey(
         EveSolarSystem,
@@ -1008,18 +1036,28 @@ class Tracker(models.Model):
                 ).exists()
 
             if is_matching and self.require_victim_ship_groups.exists():
-                is_matching = EveType.objects.filter(
+                ship_types_matching_qs = EveType.objects.filter(
                     eve_group__in=self.require_victim_ship_groups.all(),
                     id=killmail.victim.ship_type_id,
-                ).exists()
+                )
+                is_matching = ship_types_matching_qs.exists()
+                if is_matching:
+                    matching_ship_type_ids = list(
+                        ship_types_matching_qs.values_list("id", flat=True)
+                    )
 
             if is_matching and self.require_victim_ship_types.exists():
-                is_matching = EveType.objects.filter(
+                ship_types_matching_qs = EveType.objects.filter(
                     id__in=list(
                         self.require_victim_ship_types.values_list("id", flat=True)
                     ),
                     id=killmail.victim.ship_type_id,
-                ).exists()
+                )
+                is_matching = ship_types_matching_qs.exists()
+                if is_matching:
+                    matching_ship_type_ids = list(
+                        ship_types_matching_qs.values_list("id", flat=True)
+                    )
 
             if is_matching and self.require_attackers_ship_groups.exists():
                 attackers_ship_type_ids = killmail.attackers_ship_type_ids()

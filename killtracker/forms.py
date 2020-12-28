@@ -1,6 +1,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.forms.widgets import TextInput
 from django.utils.translation import gettext_lazy as _
+
+from .models import Tracker
 
 
 def field_nice_display(name: str) -> str:
@@ -12,6 +15,13 @@ class TrackerAdminKillmailIdForm(forms.Form):
 
 
 class TrackerAdminForm(forms.ModelForm):
+    class Meta:
+        model = Tracker
+        fields = "__all__"
+        widgets = {
+            "color": TextInput(attrs={"type": "color"}),
+        }
+
     def clean(self):
         cleaned_data = super().clean()
 

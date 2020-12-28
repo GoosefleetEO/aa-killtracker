@@ -252,20 +252,26 @@ class TestHasTypeClause(LoadTestDataMixin, NoSocketsTestCase):
 
 
 class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
+    @classmethod
+    def _matching_killmail_ids(cls, tracker: Tracker, killmail_ids: set) -> set:
+        return {
+            killmail.id for killmail in cls._matching_killmails(tracker, killmail_ids)
+        }
+
     @staticmethod
-    def _calculate_results(tracker: Tracker, killmail_ids: set) -> set:
-        results = set()
+    def _matching_killmails(tracker: Tracker, killmail_ids: set) -> list:
+        results = list()
         for killmail_id in killmail_ids:
             killmail = load_killmail(killmail_id)
-            if tracker.process_killmail(killmail):
-                results.add(killmail_id)
-
+            new_killmail = tracker.process_killmail(killmail)
+            if new_killmail:
+                results.append(new_killmail)
         return results
 
     def test_can_match_all(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
         self.assertSetEqual(results, expected)
 
@@ -297,7 +303,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", exclude_high_sec=True, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000003, 10000004}
         self.assertSetEqual(results, expected)
 
@@ -306,7 +312,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", exclude_low_sec=True, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000002, 10000003, 10000004}
         self.assertSetEqual(results, expected)
 
@@ -315,7 +321,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", exclude_null_sec=True, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000004}
         self.assertSetEqual(results, expected)
 
@@ -324,7 +330,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", exclude_w_space=True, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003}
         self.assertSetEqual(results, expected)
 
@@ -333,7 +339,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", require_min_attackers=3, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001}
         self.assertSetEqual(results, expected)
 
@@ -342,7 +348,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", require_max_attackers=2, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000002, 10000003, 10000004}
         self.assertSetEqual(results, expected)
 
@@ -351,7 +357,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", require_min_value=1000, webhook=self.webhook_1
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000004}
         self.assertSetEqual(results, expected)
 
@@ -368,7 +374,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
             require_max_jumps=3,
             webhook=self.webhook_1,
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000102, 10000103}
         self.assertSetEqual(results, expected)
 
@@ -385,7 +391,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
             require_max_distance=2,
             webhook=self.webhook_1,
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000102, 10000103}
         self.assertSetEqual(results, expected)
 
@@ -395,7 +401,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.exclude_attacker_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -405,7 +411,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.exclude_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -415,7 +421,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_attacker_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3011)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -425,7 +431,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2011)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -435,7 +441,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_victim_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -445,7 +451,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_victim_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000005}
         self.assertSetEqual(results, expected)
 
@@ -456,7 +462,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         )
         excluded_alliance = EveAllianceInfo.objects.get(alliance_id=3001)
         tracker.require_attacker_alliances.add(excluded_alliance)
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000004}
         self.assertSetEqual(results, expected)
 
@@ -464,7 +470,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_regions.add(EveRegion.objects.get(id=10000014))
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000003}
         self.assertSetEqual(results, expected)
 
@@ -472,7 +478,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_constellations.add(EveConstellation.objects.get(id=20000169))
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000003}
         self.assertSetEqual(results, expected)
 
@@ -480,7 +486,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         killmail_ids = {10000001, 10000002, 10000003, 10000004}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         tracker.require_solar_systems.add(EveSolarSystem.objects.get(id=30001161))
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000003}
         self.assertSetEqual(results, expected)
 
@@ -491,30 +497,33 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         td3s = EveGroup.objects.get(id=1305)
         tracker.require_attackers_ship_groups.add(frigate)
         tracker.require_attackers_ship_groups.add(td3s)
-        results = self._calculate_results(tracker, killmail_ids)
-        expected = {10000101}
-        self.assertSetEqual(results, expected)
-
-        killmail = tracker.process_killmail(load_killmail(10000101))
-        self.assertSetEqual(set(killmail.tracker_info.matching_ship_type_ids), {34562})
+        results = self._matching_killmails(tracker, killmail_ids)
+        self.assertEqual(len(results), 1)
+        killmail = results[0]
+        self.assertEqual(killmail.id, 10000101)
+        self.assertListEqual(killmail.tracker_info.matching_ship_type_ids, [34562])
 
     def test_can_require_victim_ship_group(self):
         killmail_ids = {10000101, 10000201}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         td3s = EveGroup.objects.get(id=1305)
         tracker.require_victim_ship_groups.add(td3s)
-        results = self._calculate_results(tracker, killmail_ids)
-        expected = {10000101}
-        self.assertSetEqual(results, expected)
+        results = self._matching_killmails(tracker, killmail_ids)
+        self.assertEqual(len(results), 1)
+        killmail = results[0]
+        self.assertEqual(killmail.id, 10000101)
+        self.assertListEqual(killmail.tracker_info.matching_ship_type_ids, [34562])
 
     def test_can_require_victim_ship_types(self):
         killmail_ids = {10000101, 10000201}
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         svipul = EveType.objects.get(id=34562)
         tracker.require_victim_ship_types.add(svipul)
-        results = self._calculate_results(tracker, killmail_ids)
-        expected = {10000101}
-        self.assertSetEqual(results, expected)
+        results = self._matching_killmails(tracker, killmail_ids)
+        self.assertEqual(len(results), 1)
+        killmail = results[0]
+        self.assertEqual(killmail.id, 10000101)
+        self.assertListEqual(killmail.tracker_info.matching_ship_type_ids, [34562])
 
     def test_can_require_attackers_ship_types(self):
         """
@@ -526,19 +535,18 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
         svipul = EveType.objects.get(id=34562)
         tracker.require_attackers_ship_types.add(svipul)
-        results = self._calculate_results(tracker, killmail_ids)
-        expected = {10000101}
-        self.assertSetEqual(results, expected)
-
-        killmail = tracker.process_killmail(load_killmail(10000101))
-        self.assertSetEqual(set(killmail.tracker_info.matching_ship_type_ids), {34562})
+        results = self._matching_killmails(tracker, killmail_ids)
+        self.assertEqual(len(results), 1)
+        killmail = results[0]
+        self.assertEqual(killmail.id, 10000101)
+        self.assertListEqual(killmail.tracker_info.matching_ship_type_ids, [34562])
 
     def test_can_exclude_npc_kills(self):
         killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005, 10000301}
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, exclude_npc_kills=True
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000001, 10000002, 10000003, 10000004, 10000005}
         self.assertSetEqual(results, expected)
 
@@ -547,7 +555,7 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         tracker = Tracker.objects.create(
             name="Test", webhook=self.webhook_1, require_npc_kills=True
         )
-        results = self._calculate_results(tracker, killmail_ids)
+        results = self._matching_killmail_ids(tracker, killmail_ids)
         expected = {10000301}
         self.assertSetEqual(results, expected)
 
