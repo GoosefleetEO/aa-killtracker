@@ -12,8 +12,10 @@ from django.utils.dateparse import parse_datetime
 from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__, USER_AGENT_TEXT
+from ..app_settings import KILLTRACKER_REDISQ_TTW
 from ..providers import esi
 from ..utils import LoggerAddTag, JSONDateTimeDecoder, JSONDateTimeEncoder
+
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -195,6 +197,7 @@ class Killmail(_KillmailBase):
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
         r = requests.get(
             ZKB_REDISQ_URL,
+            params={"ttw": KILLTRACKER_REDISQ_TTW},
             timeout=REQUESTS_TIMEOUT,
             headers={"User-Agent": USER_AGENT_TEXT},
         )

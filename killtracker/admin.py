@@ -142,10 +142,24 @@ class TrackerAdmin(admin.ModelAdmin):
     def _append_field_to_clauses(self, clauses, field, text):
         clauses.append(f"{field_nice_display(field)} = {text}")
 
-    actions = ["run_test_killmail", "reset_color"]
+    actions = ["disable_tracker", "enable_tracker", "reset_color", "run_test_killmail"]
 
     def reset_color(self, request, queryset):
         queryset.update(color="")
+
+    reset_color.short_description = "Reset color for selected trackers"
+
+    def enable_tracker(self, request, queryset):
+        queryset.update(is_enabled=True)
+        self.message_user(request, f"{queryset.count()} trackers enabled.")
+
+    enable_tracker.short_description = "Enable selected trackers"
+
+    def disable_tracker(self, request, queryset):
+        queryset.update(is_enabled=False)
+        self.message_user(request, f"{queryset.count()} trackers disabled.")
+
+    disable_tracker.short_description = "Disable selected trackers"
 
     def run_test_killmail(self, request, queryset):
         if "apply" in request.POST:

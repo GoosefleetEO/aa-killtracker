@@ -33,6 +33,4 @@ class Command(BaseCommand):
             str(EVE_GROUP_ORBITAL_INFRASTRUCTURE),
             "--group_id",
             str(EVE_GROUP_MINING_DRONE),
-            "--group_id",
-            str(EVE_GROUP_ORBITAL_INFRASTRUCTURE),
         )

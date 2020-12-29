@@ -27,3 +27,17 @@ KILLTRACKER_STORING_KILLMAILS_ENABLED = clean_setting(
 # Wether app sets the name and avatar icon of a webhook.
 # When False the webhook will use it's own values as set on the platform
 KILLTRACKER_WEBHOOK_SET_AVATAR = clean_setting("KILLTRACKER_WEBHOOK_SET_AVATAR", True)
+
+
+#####################
+# INTERNAL SETTINGS
+
+# Max duration to wait for new killmails from redisq in seconds
+KILLTRACKER_REDISQ_TTW = clean_setting("KILLTRACKER_REDISQ_TTW", 5)
+
+# Maximum duration in seconds for a killtracker run.
+# Important to ensure that the current run finishes before CRON starts the next one
+KILLTRACKER_MAX_DURATION_PER_RUN = clean_setting("KILLTRACKER_MAX_DURATION_PER_RUN", 50)
+
+# Tasks hard timeout
+KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1800)
