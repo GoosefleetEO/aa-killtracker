@@ -2,25 +2,29 @@ from datetime import timedelta
 import unittest
 from unittest.mock import patch
 
+import requests_mock
+
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
-from . import CacheStub, ResponseStub, BravadoOperationStub
-from ..core.killmails import Killmail, EntityCount
+from . import CacheStub, BravadoOperationStub
+from ..core.killmails import Killmail, EntityCount, ZKB_REDISQ_URL, ZKB_API_URL
 from .testdata.helpers import killmails_data, load_killmail
-from ..utils import NoSocketsTestCase, set_test_logger
+from ..utils import NoSocketsTestCase
 
 
 MODULE_PATH = "killtracker.core.killmails"
-logger = set_test_logger(MODULE_PATH, __file__)
 unittest.util._MAX_LENGTH = 1000
 
 
-@patch(MODULE_PATH + ".requests", spec=True)
+@requests_mock.Mocker()
 class TestCreateFromZkbRedisq(NoSocketsTestCase):
-    def test_normal(self, mock_requests):
-        mock_requests.get.return_value = ResponseStub(
-            {"package": killmails_data()[10000001]}
+    def test_normal(self, requests_mocker):
+        requests_mocker.register_uri(
+            "GET",
+            ZKB_REDISQ_URL,
+            status_code=200,
+            json={"package": killmails_data()[10000001]},
         )
 
         killmail = Killmail.create_from_zkb_redisq()
@@ -55,15 +59,23 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         self.assertFalse(killmail.zkb.is_solo)
         self.assertFalse(killmail.zkb.is_awox)
 
-    def test_zkb_returns_empty_package(self, mock_requests):
-        mock_requests.get.return_value = ResponseStub({"package": None})
+    def test_zkb_returns_empty_package(self, requests_mocker):
+        requests_mocker.register_uri(
+            "GET",
+            ZKB_REDISQ_URL,
+            status_code=200,
+            json={"package": None},
+        )
 
         killmail = Killmail.create_from_zkb_redisq()
         self.assertIsNone(killmail)
 
-    def test_zkb_can_handle_no_solar_system(self, mock_requests):
-        mock_requests.get.return_value = ResponseStub(
-            {"package": killmails_data()[10000402]}
+    def test_zkb_can_handle_no_solar_system(self, requests_mocker):
+        requests_mocker.register_uri(
+            "GET",
+            ZKB_REDISQ_URL,
+            status_code=200,
+            json={"package": killmails_data()[10000402]},
         )
 
         killmail = Killmail.create_from_zkb_redisq()
@@ -137,15 +149,20 @@ class TestEntityCount(NoSocketsTestCase):
 
 @patch(MODULE_PATH + ".cache", CacheStub())
 @patch(MODULE_PATH + ".esi")
-@patch(MODULE_PATH + ".requests", spec=True)
+@requests_mock.Mocker()
 class TestCreateFromZkbApi(NoSocketsTestCase):
-    def test_normal(self, mock_requests, mock_esi):
+    def test_normal(self, mock_esi, requests_mocker):
         killmail_id = 10000001
         killmail_data = killmails_data()[killmail_id]
         zkb_api_data = [
             {"killmail_id": killmail_data["killID"], "zkb": killmail_data["zkb"]}
         ]
-        mock_requests.get.return_value = ResponseStub(zkb_api_data)
+        requests_mocker.register_uri(
+            "GET",
+            f"{ZKB_API_URL}killID/{killmail_id}/",
+            status_code=200,
+            json=zkb_api_data,
+        )
         killmail_data["killmail"]["killmail_time"] = parse_datetime(
             killmail_data["killmail"]["killmail_time"]
         )

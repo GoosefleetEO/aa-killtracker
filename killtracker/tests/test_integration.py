@@ -1,12 +1,13 @@
 from unittest.mock import patch
 
 import dhooks_lite
+import requests_mock
 
 from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from . import ResponseStub
+from ..core.killmails import ZKB_REDISQ_URL
 from ..models import Tracker
 from .. import tasks
 from .testdata.helpers import killmails_data, LoadTestDataMixin
@@ -17,7 +18,7 @@ PACKAGE_PATH = "killtracker"
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(PACKAGE_PATH + ".models.sleep", new=lambda x: None)
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
-@patch(PACKAGE_PATH + ".core.killmails.requests", spec=True)
+@requests_mock.Mocker()
 class TestIntegration(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -30,18 +31,18 @@ class TestIntegration(LoadTestDataMixin, TestCase):
             webhook=cls.webhook_1,
         )
 
-    @staticmethod
-    def my_redisq(*args, **kwargs):
-        my_killmails_data = killmails_data()
-        for killmail_id in [10000001, 10000002, 10000003, None]:
-            if killmail_id:
-                yield ResponseStub({"package": my_killmails_data[killmail_id]})
-            else:
-                yield ResponseStub({"package": None})
-
-    def test_normal_case(self, mock_requests, mock_execute):
+    def test_normal_case(self, mock_execute, requests_mocker):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        mock_requests.get.side_effect = self.my_redisq()
+        requests_mocker.register_uri(
+            "GET",
+            ZKB_REDISQ_URL,
+            [
+                {"status_code": 200, "json": {"package": killmails_data()[10000001]}},
+                {"status_code": 200, "json": {"package": killmails_data()[10000002]}},
+                {"status_code": 200, "json": {"package": killmails_data()[10000003]}},
+                {"status_code": 200, "json": {"package": None}},
+            ],
+        )
 
         tasks.run_killtracker.delay()
         self.assertTrue(mock_execute.call_count, 2)

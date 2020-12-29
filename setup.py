@@ -48,9 +48,4 @@ setup(
         "redis-simple-mq",
         "dhooks-lite>=0.4",
     ],
-    extras_require={
-        "testing": [
-            "django-webtest",
-        ]
-    },
 )
