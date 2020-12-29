@@ -11,25 +11,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Update notes
 
-Please rerun **killtracker_load_eve** to get all the newly added types.
+Please re-run **killtracker_load_eve** to get all the newly added types.
 
 ### Added
 
-- Add Orbital Infrastructure to victim groups [#19](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/19)
-- Option to deactivate webhook branding [#18](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/18)
-- Added timeouts to all tasks to prevent pileup during outage
-- Added fighters and mining drones (e.g. Excavators) to tracker clauses [#12](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/12)
+- Add ping groups for trackers [#11](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/11)
 - Option to set colors for Discord embed per tracker [#8](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/8)
 - Author on Discord embed now shows victim organization [#8](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/8)
-- Add ping groups for trackers [#11](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/11)
+- Add Orbital Infrastructure to victim groups [#19](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/19)
+- Option to deactivate webhook branding [#18](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/18)
+- Added fighters and mining drones (e.g. Excavators) to tracker clauses [#12](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/12)
+- Added timeouts to all tasks to prevent pileup during outage
 
 ### Changed
 
+- Improve celery performance of main task [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
 - Remove support for Django 2.1 & 3.0 [#17](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/17)
-
-### Fixed
-
-- Reduce runtime of run_killtracker task [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
 
 ## [0.2.6] - 2020-12-09
 
