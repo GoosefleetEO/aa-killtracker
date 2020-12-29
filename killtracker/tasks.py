@@ -90,6 +90,8 @@ def run_tracker(
         )
         if killmail_new:
             tracker.webhook.add_killmail_to_queue(killmail_new)
+
+        if killmail_new or tracker.webhook.queue_size():
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 
         logger.info("Finished running tracker %s", tracker)

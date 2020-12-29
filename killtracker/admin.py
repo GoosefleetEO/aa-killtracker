@@ -72,6 +72,7 @@ class TrackerAdmin(admin.ModelAdmin):
         "webhook",
         "identify_fleets",
         "_clauses",
+        "_pings",
         "_color",
     )
     list_filter = (
@@ -86,6 +87,13 @@ class TrackerAdmin(admin.ModelAdmin):
             f'<input type="color" value="{obj.color}" disabled>' if obj.color else "-"
         )
         return mark_safe(html)
+
+    def _pings(self, obj):
+        parts = [f"@{group.name}" for group in obj.ping_groups.all()]
+        if obj.ping_type != Tracker.ChannelPingType.NONE:
+            parts.append(obj.get_ping_type_display())
+
+        return sorted(parts, key=str.casefold) if parts else None
 
     def _clauses(self, obj):
         clauses = list()
