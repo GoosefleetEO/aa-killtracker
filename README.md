@@ -34,8 +34,8 @@ Or you maybe want to be informed about any capitals being active within your jum
 ## Key Features
 
 - Automatically post killmails conforming with a set of conditions to a Discord channel as soon as they arrive on zKillboard
-- Use 20+ clauses to define exactly what you want to track
-- Clauses for "ships" include ships, structures, customs offices, fighters and excavator drones
+- Use 20+ clauses to define exactly what you want to track incl. clauses for location, organization and ship types
+- Clauses for "ship types" include ships, structures, customs offices, fighters and excavator drones
 - Optional channel and group pinging for matching killmails
 - Designed for fast response times, high throughput and low resource requirements
 - Get additional insights about killmails like distance from staging

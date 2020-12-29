@@ -1,4 +1,3 @@
-USE aa_dev_3;
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS killtracker_evekillmail;
 DROP TABLE IF EXISTS killtracker_evekillmailattacker;

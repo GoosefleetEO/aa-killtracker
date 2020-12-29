@@ -36,7 +36,7 @@ from .app_settings import (
     KILLTRACKER_WEBHOOK_SET_AVATAR,
     KILLTRACKER_DISCORD_SEND_DELAY,
 )
-from .core.killmails import EntityCount, Killmail, TrackerInfo
+from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
 from .managers import EveKillmailManager
 from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
 
@@ -202,19 +202,18 @@ class EveKillmailZkb(models.Model):
 class Webhook(models.Model):
     """A destination for forwarding killmails"""
 
-    ZKB_KILLMAIL_BASEURL = "https://zkillboard.com/kill/"
     ICON_SIZE = 128
 
-    TYPE_DISCORD = 1
-    TYPE_CHOICES = [
-        (TYPE_DISCORD, _("Discord Webhook")),
-    ]
+    class WebhookType(models.IntegerChoices):
+        DISCORD = 1, _("Discord Webhook")
 
     name = models.CharField(
         max_length=64, unique=True, help_text="short name to identify this webhook"
     )
     webhook_type = models.IntegerField(
-        choices=TYPE_CHOICES, default=TYPE_DISCORD, help_text="type of this webhook"
+        choices=WebhookType.choices,
+        default=WebhookType.DISCORD,
+        help_text="type of this webhook",
     )
     url = models.CharField(
         max_length=255,
@@ -225,8 +224,7 @@ class Webhook(models.Model):
         ),
     )
     notes = models.TextField(
-        null=True,
-        default=None,
+        default="",
         blank=True,
         help_text="you can add notes about this webhook here if you want",
     )
@@ -495,7 +493,7 @@ class Webhook(models.Model):
                 killmail.victim.ship_type_id, size=self.ICON_SIZE
             )
 
-        zkb_killmail_url = f"{self.ZKB_KILLMAIL_BASEURL}{killmail.id}/"
+        zkb_killmail_url = f"{ZKB_KILLMAIL_BASEURL}{killmail.id}/"
         author = (
             dhooks_lite.Author(name=victim_organization.name, url=victim_org_url)
             if victim_organization and victim_org_url
@@ -1068,7 +1066,9 @@ class Tracker(models.Model):
 
             if is_matching and self.require_victim_ship_groups.exists():
                 ship_types_matching_qs = EveType.objects.filter(
-                    eve_group__in=self.require_victim_ship_groups.all(),
+                    eve_group_id__in=list(
+                        self.require_victim_ship_groups.values_list("id", flat=True)
+                    ),
                     id=killmail.victim.ship_type_id,
                 )
                 is_matching = ship_types_matching_qs.exists()
