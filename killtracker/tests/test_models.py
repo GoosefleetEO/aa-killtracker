@@ -253,6 +253,15 @@ class TestHasTypeClause(LoadTestDataMixin, NoSocketsTestCase):
         self.assertTrue(tracker.has_type_clause)
 
 
+class TestSaveMethod(LoadTestDataMixin, NoSocketsTestCase):
+    def test_black_color_is_none(self):
+        tracker = Tracker.objects.create(
+            name="Test", webhook=self.webhook_1, color="#000000"
+        )
+        tracker.refresh_from_db()
+        self.assertFalse(tracker.color)
+
+
 class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
     @classmethod
     def _matching_killmail_ids(cls, tracker: Tracker, killmail_ids: set) -> set:

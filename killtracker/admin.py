@@ -145,7 +145,7 @@ class TrackerAdmin(admin.ModelAdmin):
     actions = ["run_test_killmail", "reset_color"]
 
     def reset_color(self, request, queryset):
-        queryset.update(color=None)
+        queryset.update(color="")
 
     def run_test_killmail(self, request, queryset):
         if "apply" in request.POST:

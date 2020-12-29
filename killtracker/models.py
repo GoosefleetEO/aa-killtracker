@@ -672,10 +672,12 @@ class Tracker(models.Model):
     )
     color = models.CharField(
         max_length=7,
-        default=None,
-        null=True,
+        default="",
         blank=True,
-        help_text="Optional color for embed on Discord",
+        help_text=(
+            "Optional color for embed on Discord - #000000 / "
+            "black means no color selected"
+        ),
     )
     origin_solar_system = models.ForeignKey(
         EveSolarSystem,
@@ -896,6 +898,11 @@ class Tracker(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.color == "#000000":
+            self.color = ""
+        super().save(*args, **kwargs)
 
     @property
     def has_localization_clause(self) -> bool:
