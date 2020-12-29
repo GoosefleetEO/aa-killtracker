@@ -34,11 +34,13 @@ Or you maybe want to be informed about any capitals being active within your jum
 ## Key Features
 
 - Automatically post killmails conforming with a set of conditions to a Discord channel as soon as they arrive on zKillboard
-- Use 20+ conditions to define exactly what you want to track
-- Optional pinging for every matching killmail
+- Use 20+ clauses to define exactly what you want to track
+- Clauses for "ships" include ships, structures, customs offices, fighters and excavator drones
+- Optional channel and group pinging for matching killmails
 - Designed for fast response times, high throughput and low resource requirements
 - Get additional insights about killmails like distance from staging
 - See which fleets / groups are active in your area of interest
+- Customize killmail messages with titles and colors
 
 ## Screenshots
 
@@ -52,13 +54,13 @@ And here is how posted killmails look on Discord:
 
 ## Installation
 
-### Preconditions
+### Step 1 - Check preconditions
 
 1. Killtracker is a plugin for Alliance Auth. If you don't have Alliance Auth running already, please install it first before proceeding. (see the official [AA installation guide](https://allianceauth.readthedocs.io/en/latest/installation/auth/allianceauth/) for details)
 
-2. Killtracker needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
+2. Killtracker needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before continuing.
 
-### Step 1 - Install app
+### Step 2 - Install app
 
 Make sure you are in the virtual environment (venv) of your Alliance Auth installation. Then install the newest release from PyPI:
 
@@ -66,7 +68,7 @@ Make sure you are in the virtual environment (venv) of your Alliance Auth instal
 pip install aa-killtracker
 ```
 
-### Step 2 - Configure settings
+### Step 3 - Configure settings
 
 Configure your Auth settings (`local.py`) as follows:
 
@@ -82,7 +84,7 @@ CELERYBEAT_SCHEDULE['killtracker_run_killtracker'] = {
 
 - Optional: Add additional settings if you want to change any defaults. See [Settings](#settings) for the full list.
 
-### Step 3 - Finalize installation
+### Step 4 - Finalize installation
 
 Run migrations & copy static files
 
@@ -93,15 +95,17 @@ python manage.py collectstatic
 
 Restart your supervisor services for Auth
 
-### Step 4 - Load Eve Universe map data
+### Step 5 - Load Eve Universe map data
 
-In order to be able to select solar systems and ships types for trackers you need to load that data from ESI once. If you already have run those commands previously you can skip this step.
+In order to be able to select solar systems and types for trackers you need to load that data from ESI once.
 
-Load Eve Online map:
+Load Eve Online map: (If you already have run this command with another app you can skip this step)
 
 ```bash
 python manage.py eveuniverse_load_data map
 ```
+
+Load app specific types:
 
 ```bash
 python manage.py killtracker_load_eve
@@ -109,7 +113,7 @@ python manage.py killtracker_load_eve
 
 You may want to wait until the loading is complete before starting to create new trackers.
 
-### Step 5 - Setup trackers
+### Step 6 - Setup trackers
 
 The setup and configuration for trackers is done on the admin page under **Killtracker**.
 
@@ -163,6 +167,7 @@ require solar systems|Only include killmails that occurred in one of these regio
 require attackers ship groups|Only include killmails where at least one attacker is flying one of these ship groups
 require attackers ship types|Only include killmails where at least one attacker is flying one of these ship types
 require victim ship groups|Only include killmails where victim is flying one of these ship groups
+require victim ship types|Only include killmails where victim is flying one of these ship types
 
 ## Settings
 
@@ -173,6 +178,7 @@ Note that all settings are optional and the app will use the documented default 
 Name | Description | Default
 -- | -- | --
 `KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER`| Ignore killmails that are older than the given number in minutes. Sometimes killmails appear belated on ZKB, this feature ensures they don't create new alerts | `60`
-`KILLTRACKER_MAX_KILLMAILS_PER_RUN`| Maximum number of killmails retrieved from ZKB by task run. This value should be set such that the task that fetches new killmails from ZKB every minute will reliable finish within one minute. To test this run a "Catch all" tacker and see how many killmails your system is capable of processing. Note that you can that exact information from the worker's log file. It will look something like this: `Total killmails received from ZKB in 49 secs: 251`   | `250`
+`KILLTRACKER_MAX_KILLMAILS_PER_RUN`| Maximum number of killmails retrieved from ZKB by task run. This value should be set such that the task that fetches new killmails from ZKB every minute will reliable finish within one minute. To test this run a "Catch all" tracker and see how many killmails your system is capable of processing. Note that you can get that information from the worker's log file. It will look something like this: `Total killmails received from ZKB in 49 secs: 251`   | `250`
 `KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS`| Killmails older than set number of days will be purged from the database. If you want to keep all killmails set this to 0. Note that this setting is only relevant if you have storing killmails enabled.  | `30`
+`KILLTRACKER_WEBHOOK_SET_AVATAR`| Wether app sets the name and avatar icon of a webhook. When False the webhook will use it's own values as set on the platform  | `True`
 `KILLTRACKER_STORING_KILLMAILS_ENABLED`| If set to true Killtracker will automatically store all received killmails in the local database. This can be useful if you want to run analytics on killmails etc. However, please note that Killtracker itself currently does not use stored killmails in any way.  | `False`
