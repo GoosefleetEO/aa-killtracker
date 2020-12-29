@@ -34,18 +34,13 @@ from . import __title__
 from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
+    KILLTRACKER_DISCORD_SEND_DELAY,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .managers import EveKillmailManager
 from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-DEFAULT_MAX_AGE_HOURS = 4
-
-# delay in seconds between every message sent to Discord
-# this needs to be >= 1 to prevent 429 Too Many Request errors
-DISCORD_SEND_DELAY = 2
 
 
 class EveKillmail(models.Model):
@@ -97,7 +92,7 @@ class EveKillmailCharacter(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="%(class)s_characters_set",
+        related_name="+",
     )
     corporation = models.ForeignKey(
         EveEntity,
@@ -105,7 +100,7 @@ class EveKillmailCharacter(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="%(class)s_corporations_set",
+        related_name="+",
     )
     alliance = models.ForeignKey(
         EveEntity,
@@ -113,7 +108,7 @@ class EveKillmailCharacter(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="%(class)s_alliances_set",
+        related_name="+",
     )
     faction = models.ForeignKey(
         EveEntity,
@@ -121,7 +116,7 @@ class EveKillmailCharacter(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="%(class)s_factions_set",
+        related_name="+",
     )
     ship_type = models.ForeignKey(
         EveEntity,
@@ -129,7 +124,7 @@ class EveKillmailCharacter(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="%(class)s_shiptypes_set",
+        related_name="+",
     )
 
     class Meta:
@@ -167,7 +162,12 @@ class EveKillmailAttacker(EveKillmailCharacter):
     )
     security_status = models.FloatField(default=None, null=True, blank=True)
     weapon_type = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+        EveEntity,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="+",
     )
 
 
@@ -273,7 +273,7 @@ class Webhook(models.Model):
                 logger.debug(
                     "Sending killmail with ID %d to webhook %s", killmail.id, self
                 )
-                sleep(DISCORD_SEND_DELAY)
+                sleep(KILLTRACKER_DISCORD_SEND_DELAY)
                 if self.send_killmail(killmail):
                     killmail_counter += 1
                 else:
@@ -383,9 +383,9 @@ class Webhook(models.Model):
             final_attacker_ship_type_name = ""
 
         if killmail.solar_system_id:
-            solar_system = EveSolarSystem.objects.select_related(
-                "eve_constellation__eve_region"
-            ).get(id=killmail.solar_system_id)
+            solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+                id=killmail.solar_system_id
+            )
             solar_system_link = self._convert_to_discord_link(
                 name=solar_system.name, url=dotlan.solar_system_url(solar_system.name)
             )
@@ -957,21 +957,18 @@ class Tracker(models.Model):
         if killmail.solar_system_id and (
             self.origin_solar_system or self.has_localization_clause
         ):
-            solar_system = (
-                EveSolarSystem.objects.filter(id=killmail.solar_system_id)
-                .select_related("eve_constellation", "eve_constellation__eve_region")
-                .first()
+            solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+                id=killmail.solar_system_id
             )
-            if solar_system:
-                is_high_sec = solar_system.is_high_sec
-                is_low_sec = solar_system.is_low_sec
-                is_null_sec = solar_system.is_null_sec
-                is_w_space = solar_system.is_w_space
-                if self.origin_solar_system:
-                    distance = meters_to_ly(
-                        self.origin_solar_system.distance_to(solar_system)
-                    )
-                    jumps = self.origin_solar_system.jumps_to(solar_system)
+            is_high_sec = solar_system.is_high_sec
+            is_low_sec = solar_system.is_low_sec
+            is_null_sec = solar_system.is_null_sec
+            is_w_space = solar_system.is_w_space
+            if self.origin_solar_system:
+                distance = meters_to_ly(
+                    self.origin_solar_system.distance_to(solar_system)
+                )
+                jumps = self.origin_solar_system.jumps_to(solar_system)
 
         # Make sure all ship types are in the local database
         if self.has_type_clause:

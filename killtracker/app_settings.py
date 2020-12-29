@@ -41,3 +41,7 @@ KILLTRACKER_MAX_DURATION_PER_RUN = clean_setting("KILLTRACKER_MAX_DURATION_PER_R
 
 # Tasks hard timeout
 KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1800)
+
+# delay in seconds between every message sent to Discord
+# this needs to be >= 1 to prevent 429 Too Many Request errors
+KILLTRACKER_DISCORD_SEND_DELAY = clean_setting("KILLTRACKER_DISCORD_SEND_DELAY", 2)
