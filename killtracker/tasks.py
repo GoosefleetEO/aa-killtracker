@@ -1,3 +1,5 @@
+from time import sleep
+
 from celery import shared_task, chain
 
 from django.db import IntegrityError
@@ -18,6 +20,7 @@ from .app_settings import (
     KILLTRACKER_STORING_KILLMAILS_ENABLED,
     KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
     KILLTRACKER_TASKS_TIMEOUT,
+    KILLTRACKER_DISCORD_SEND_DELAY,
 )
 from .core.killmails import Killmail
 from .models import (
@@ -146,14 +149,37 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
         logger.error("Webhook with pk = %s does not exist", webhook_pk)
-    else:
-        if not webhook.is_enabled:
-            logger.info("Webhook %s disabled - skipping sending", webhook)
-            return
+        return
 
-        logger.info("Started sending killmails to webhook %s", webhook)
-        webhook.send_queued_killmails()
-        logger.info("Completed sending killmails to webhook %s", webhook)
+    if not webhook.is_enabled:
+        logger.info("Webhook %s disabled - skipping sending", webhook)
+        return
+
+    logger.info("Started sending killmails to webhook %s", webhook)
+
+    failed_killmails = list()
+    killmail_counter = 0
+    while True:
+        message = webhook._queue.dequeue()
+        if message:
+            killmail = Killmail.from_json(message)
+            logger.debug(
+                "Sending killmail with ID %d to webhook %s", killmail.id, webhook
+            )
+            sleep(KILLTRACKER_DISCORD_SEND_DELAY)
+            if webhook.send_killmail(killmail):
+                killmail_counter += 1
+            else:
+                failed_killmails.append(killmail)
+        else:
+            break
+
+    if failed_killmails:
+        for killmail in failed_killmails:
+            webhook.add_killmail_to_queue(killmail)
+
+    logger.info("Completed sending killmails to webhook %s", webhook)
+    return killmail_counter
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)

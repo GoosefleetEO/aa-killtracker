@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.db.models import Max
+from django.test import TestCase
 from django.test.utils import override_settings
 
 from allianceauth.tests.auth_utils import AuthUtils
@@ -15,15 +15,10 @@ from ..tasks import (
     store_killmail,
     send_test_message_to_webhook,
 )
-from ..utils import NoSocketsTestCase, set_test_logger
+from ..utils import NoSocketsTestCase, generate_invalid_pk
 
 
 MODULE_PATH = "killtracker.tasks"
-logger = set_test_logger(MODULE_PATH, __file__)
-
-
-def generate_invalid_pk(MyModel):
-    return MyModel.objects.aggregate(Max("pk"))["pk__max"] + 1
 
 
 class TestTrackerBase(LoadTestDataMixin, NoSocketsTestCase):
@@ -121,29 +116,85 @@ class TestRunTracker(TestTrackerBase):
         self.assertFalse(mock_logger.error.called)
 
 
-@patch(MODULE_PATH + ".Webhook.send_queued_killmails")
+@patch(MODULE_PATH + ".sleep", new=lambda x: None)
+@patch(MODULE_PATH + ".Webhook.send_killmail")
 @patch(MODULE_PATH + ".logger")
-class TestSendKillmailsToWebhook(TestTrackerBase):
-    def test_log_warning_when_pk_is_invalid(
-        self, mock_logger, mock_send_queued_killmails
-    ):
-        send_killmails_to_webhook(generate_invalid_pk(Webhook))
+class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
+    def setUp(self) -> None:
+        self.webhook_1.clear_queue()
 
-        self.assertFalse(mock_send_queued_killmails.called)
-        self.assertTrue(mock_logger.error.called)
+    def test_one_message(self, mock_logger, mock_send_killmail):
+        """
+        when one mesage in queue
+        then send it and returns 1
+        """
+        mock_send_killmail.return_value = True
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
 
-    def test_run_normal(self, mock_logger, mock_send_queued_killmails):
-        send_killmails_to_webhook(self.webhook_1.pk)
-        self.assertEqual(mock_send_queued_killmails.call_count, 1)
+        result = send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertEqual(result, 1)
+        self.assertTrue(mock_send_killmail.called)
+        self.assertEqual(self.webhook_1.queue_size(), 0)
         self.assertFalse(mock_logger.error.called)
 
-    def test_log_info_if_not_enabled(self, mock_logger, mock_send_queued_killmails):
+    def test_three_message(self, mock_logger, mock_send_killmail):
+        """
+        when three mesages in queue
+        then sends them and returns 3
+        """
+        mock_send_killmail.return_value = True
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000002))
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000003))
+
+        result = send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertEqual(result, 3)
+        self.assertEqual(mock_send_killmail.call_count, 3)
+        self.assertEqual(self.webhook_1.queue_size(), 0)
+
+    def test_no_messages(self, mock_logger, mock_send_killmail):
+        """
+        when no message in queue
+        then do nothing and return 0
+        """
+        mock_send_killmail.return_value = True
+
+        result = send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertEqual(result, 0)
+        self.assertFalse(mock_send_killmail.called)
+        self.assertEqual(self.webhook_1.queue_size(), 0)
+
+    def test_failed_message(self, mock_logger, mock_send_killmail):
+        """
+        given one message in queue
+        when sending fails
+        then re-queues message and return 0
+        """
+        mock_send_killmail.return_value = False
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+
+        result = send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertEqual(result, 0)
+        self.assertTrue(mock_send_killmail.called)
+        self.assertEqual(self.webhook_1.queue_size(), 1)
+
+    def test_log_warning_when_pk_is_invalid(self, mock_logger, mock_send_killmail):
+        send_killmails_to_webhook(generate_invalid_pk(Webhook))
+
+        self.assertFalse(mock_send_killmail.called)
+        self.assertTrue(mock_logger.error.called)
+
+    def test_log_info_if_not_enabled(self, mock_logger, mock_send_killmail):
         my_webhook = Webhook.objects.create(
             name="disabled", url="dummy-url-2", is_enabled=False
         )
         send_killmails_to_webhook(my_webhook.pk)
 
-        self.assertFalse(mock_send_queued_killmails.called)
+        self.assertFalse(mock_send_killmail.called)
         self.assertTrue(mock_logger.info.called)
 
 

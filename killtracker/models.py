@@ -1,6 +1,5 @@
 from copy import deepcopy
 from datetime import timedelta
-from time import sleep
 from urllib.parse import urljoin
 from typing import Optional, List, Tuple
 
@@ -34,7 +33,6 @@ from . import __title__
 from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
-    KILLTRACKER_DISCORD_SEND_DELAY,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
 from .managers import EveKillmailManager
@@ -236,9 +234,7 @@ class Webhook(models.Model):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._queue = SimpleMQ(
-            cache.get_master_client(), f"{__title__}_webhook_{self.pk}"
-        )
+        self._queue = self._create_queue()
 
     def __str__(self) -> str:
         return self.name
@@ -248,42 +244,25 @@ class Webhook(models.Model):
             self.__class__.__name__, self.id, self.name
         )
 
+    def save(self, *args, **kwargs):
+        is_new = self.id is None
+        super().save(*args, **kwargs)
+        if is_new:
+            self._queue = self._create_queue()
+
+    def _create_queue(self) -> Optional[SimpleMQ]:
+        return (
+            SimpleMQ(cache.get_master_client(), f"{__title__}_webhook_{self.pk}")
+            if self.pk
+            else None
+        )
+
     def add_killmail_to_queue(self, killmail: Killmail) -> int:
         """Adds killmail to queue for later sending
 
         Returns updated size of queue
         """
         return self._queue.enqueue(killmail.asjson())
-
-    def send_queued_killmails(self) -> int:
-        """sends all killmails in the queue to this webhook
-
-        returns number of successfull sent messages
-
-        Killmails that could not be sent are put back into the queue for later retry
-        """
-        failed_killmails = list()
-        killmail_counter = 0
-        while True:
-            message = self._queue.dequeue()
-            if message:
-                killmail = Killmail.from_json(message)
-                logger.debug(
-                    "Sending killmail with ID %d to webhook %s", killmail.id, self
-                )
-                sleep(KILLTRACKER_DISCORD_SEND_DELAY)
-                if self.send_killmail(killmail):
-                    killmail_counter += 1
-                else:
-                    failed_killmails.append(killmail)
-            else:
-                break
-
-        if failed_killmails:
-            for killmail in failed_killmails:
-                self.add_killmail_to_queue(killmail)
-
-        return killmail_counter
 
     def queue_size(self) -> int:
         """returns current size of the queue"""
