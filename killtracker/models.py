@@ -35,6 +35,7 @@ from .app_settings import (
     KILLTRACKER_WEBHOOK_SET_AVATAR,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
+from .exceptions import WebhookBlocked
 from .managers import EveKillmailManager
 from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
 
@@ -280,11 +281,19 @@ class Webhook(models.Model):
 
         return counter
 
+    def _timeout_key(self) -> str:
+        return f"{__title__}_webhook_{self.pk}_timeout" if self.pk else ""
+
     def send_killmail(self, killmail: Killmail, intro_text: str = None) -> bool:
         """send given killmail to webhook
 
         returns True if successful, else False
         """
+        embed, tracker = self._create_embed(killmail)
+        intro = self._create_intro(intro_text, tracker)
+        return self._send_killmail(killmail, tracker, intro, embed)
+
+    def _create_embed(self, killmail: Killmail) -> Tuple[dhooks_lite.Embed, "Tracker"]:
         resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 
         # victim
@@ -490,6 +499,9 @@ class Webhook(models.Model):
             timestamp=killmail.time,
             color=embed_color,
         )
+        return embed, tracker
+
+    def _create_intro(self, intro_text, tracker) -> str:
         intro_parts = []
         if tracker:
             if tracker.ping_type == Tracker.ChannelPingType.EVERYBODY:
@@ -498,12 +510,7 @@ class Webhook(models.Model):
                 intro_parts.append("@here")
 
             if tracker.ping_groups.exists():
-                if "discord" not in app_labels():
-                    logger.warning(
-                        "Discord service needs to be installed in order "
-                        "to use groups ping features."
-                    )
-                else:
+                if "discord" in app_labels():
                     for group in tracker.ping_groups.all():
                         try:
                             role = DiscordUser.objects.group_to_role(group)
@@ -516,6 +523,12 @@ class Webhook(models.Model):
                             if role:
                                 intro_parts.append(f"<@&{role['id']}>")
 
+                else:
+                    logger.warning(
+                        "Discord service needs to be installed in order "
+                        "to use groups ping features."
+                    )
+
             if tracker.is_posting_name:
                 intro_parts.append(f"Tracker **{tracker.name}**:")
 
@@ -524,14 +537,15 @@ class Webhook(models.Model):
             intro_parts_2.append(intro_text)
         if intro_parts:
             intro_parts_2.append(" ".join(intro_parts))
-        intro = "\n".join(intro_parts_2)
 
+        return "\n".join(intro_parts_2)
+
+    def _send_killmail(self, killmail, tracker, intro, embed) -> bool:
         logger.info(
             "%sSending killmail to Discord for killmail %s",
             f"Tracker {tracker.name}: " if tracker else "",
             killmail.id,
         )
-
         hook = dhooks_lite.Webhook(url=self.url)
         username = (
             Webhook.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
@@ -539,6 +553,11 @@ class Webhook(models.Model):
         avatar_url = (
             Webhook.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
         )
+        key = self._timeout_key()
+        seconds = cache.ttl(key)
+        if seconds:
+            raise WebhookBlocked(seconds)
+
         response = hook.execute(
             content=intro,
             embeds=[embed],
@@ -549,6 +568,11 @@ class Webhook(models.Model):
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)
+        remaining = response.headers.get("X-RateLimit-Remaining")
+        if remaining == 0:
+            timeout = response.headers.get("X-RateLimit-Reset-After", 5)
+            cache.set(key=key, value="TIMEOUT", timeout=timeout)
+
         if response.status_ok:
             return True
         else:

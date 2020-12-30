@@ -24,6 +24,7 @@ from killtracker.core.killmails import EntityCount
 
 from . import BravadoOperationStub
 from ..core.killmails import Killmail
+from ..exceptions import WebhookBlocked
 from ..models import EveKillmail, EveKillmailCharacter, Tracker
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..utils import app_labels, NoSocketsTestCase, set_test_logger
@@ -651,9 +652,10 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 
 
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
+class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
+        cache.clear()
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")
@@ -699,7 +701,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         killmail = self.tracker.process_killmail(load_killmail(10000101))
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
         _, kwargs = mock_execute.call_args
         self.assertIsNone(kwargs["username"])
         self.assertIsNone(kwargs["avatar_url"])
@@ -712,7 +714,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         killmail = self.tracker.process_killmail(load_killmail(10000101))
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
         _, kwargs = mock_execute.call_args
         embed = kwargs["embeds"][0]
         self.assertIn("| Fleetkill", embed.title)
@@ -721,7 +723,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         killmail = self.tracker.process_killmail(load_killmail(10000101))
         self.webhook_1.send_killmail(killmail, intro_text="Intro Text")
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
         _, kwargs = mock_execute.call_args
         self.assertIn("Intro Text", kwargs["content"])
 
@@ -731,7 +733,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
 
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_can_ping_everybody(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
@@ -787,7 +789,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
 
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_when_send_ok_returns_true(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
@@ -796,7 +798,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         result = self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertTrue(result)
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_when_send_not_ok_returns_false(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
@@ -805,7 +807,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         result = self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertFalse(result)
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     @patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
     def test_can_send_test_message(self, mock_execute, mock_create_from_zkb_api):
@@ -816,33 +818,80 @@ class TestWebhookSendKillmail(LoadTestDataMixin, NoSocketsTestCase):
         mock_create_from_zkb_api.side_effect = my_create_from_zkb_api
 
         self.webhook_1.send_test_message(killmail_id=10000001)
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_can_handle_victim_without_character(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000501))
+
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_can_handle_victim_without_corporation(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000502))
+
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_can_handle_final_attacker_with_no_character(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000503))
+
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
 
     def test_can_handle_matching_type_ids(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+
         svipul = EveType.objects.get(id=34562)
         self.tracker.require_attackers_ship_types.add(svipul)
         killmail = self.tracker.process_killmail(load_killmail(10000001))
         self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_execute.called, True)
+        self.assertTrue(mock_execute.called)
+
+    def test_will_raise_when_timeout_is_active(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        killmail = load_killmail(10000503)
+        cache.set(key=self.webhook_1._timeout_key(), value="TIMEOUT", timeout=10)
+
+        try:
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookBlocked)
+            self.assertAlmostEqual(ex.seconds, 10, delta=2)
+        else:
+            self.fail("Should have raised exception")
+
+        self.assertFalse(mock_execute.called)
+
+    def test_will_set_timeout_when_rate_limit_exhausted(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(
+            {"X-RateLimit-Remaining": 0, "X-RateLimit-Reset-After": 60}, status_code=200
+        )
+        killmail = load_killmail(10000503)
+
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+        self.assertAlmostEqual(cache.ttl(self.webhook_1._timeout_key()), 60, delta=2)
+        self.assertTrue(mock_execute.called)
+
+    def test_will_set_default_timeout_when_rate_limit_exhausted_header_misssing(
+        self, mock_execute
+    ):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(
+            {"X-RateLimit-Remaining": 0}, status_code=200
+        )
+        killmail = load_killmail(10000503)
+
+        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+
+        self.assertAlmostEqual(cache.ttl(self.webhook_1._timeout_key()), 5, delta=2)
+        self.assertTrue(mock_execute.called)
 
 
 if "discord" in app_labels():

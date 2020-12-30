@@ -1,5 +1,3 @@
-from time import sleep
-
 from celery import shared_task, chain
 
 from django.db import IntegrityError
@@ -20,9 +18,9 @@ from .app_settings import (
     KILLTRACKER_STORING_KILLMAILS_ENABLED,
     KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
     KILLTRACKER_TASKS_TIMEOUT,
-    KILLTRACKER_DISCORD_SEND_DELAY,
 )
 from .core.killmails import Killmail
+from .exceptions import WebhookBlocked
 from .models import (
     EveKillmail,
     Tracker,
@@ -142,8 +140,8 @@ def delete_stale_killmails() -> None:
         logger.info("Deleted %d stale killmails", details["killtracker.EveKillmail"])
 
 
-@shared_task(base=QueueOnce, timeout=KILLTRACKER_TASKS_TIMEOUT)
-def send_killmails_to_webhook(webhook_pk: int) -> None:
+@shared_task(bind=True, base=QueueOnce, timeout=KILLTRACKER_TASKS_TIMEOUT)
+def send_killmails_to_webhook(self, webhook_pk: int) -> None:
     """send all currently queued killmails in given webhook object to Discord"""
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
@@ -152,34 +150,23 @@ def send_killmails_to_webhook(webhook_pk: int) -> None:
         return
 
     if not webhook.is_enabled:
-        logger.info("Webhook %s disabled - skipping sending", webhook)
+        logger.info("Webhook %s disabled - aborting", webhook)
         return
 
-    logger.info("Started sending killmails to webhook %s", webhook)
-
-    failed_killmails = list()
-    killmail_counter = 0
-    while True:
-        message = webhook._queue.dequeue()
-        if message:
-            killmail = Killmail.from_json(message)
-            logger.debug(
-                "Sending killmail with ID %d to webhook %s", killmail.id, webhook
-            )
-            sleep(KILLTRACKER_DISCORD_SEND_DELAY)
-            if webhook.send_killmail(killmail):
-                killmail_counter += 1
-            else:
-                failed_killmails.append(killmail)
+    message = webhook._queue.dequeue()
+    if message:
+        killmail = Killmail.from_json(message)
+        logger.debug("Sending killmail with ID %d to webhook %s", killmail.id, webhook)
+        try:
+            webhook.send_killmail(killmail)
+        except WebhookBlocked as ex:
+            webhook._queue.enqueue(message)
+            self.retry(countdown=ex.seconds)
         else:
-            break
-
-    if failed_killmails:
-        for killmail in failed_killmails:
-            webhook.add_killmail_to_queue(killmail)
-
-    logger.info("Completed sending killmails to webhook %s", webhook)
-    return killmail_counter
+            if webhook.queue_size():
+                self.retry()
+    else:
+        logger.info("No queued killmails for webhook %s", webhook)
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)

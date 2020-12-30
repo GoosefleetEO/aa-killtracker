@@ -16,7 +16,6 @@ PACKAGE_PATH = "killtracker"
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(PACKAGE_PATH + ".tasks.sleep", new=lambda x: None)
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @requests_mock.Mocker()
 class TestIntegration(LoadTestDataMixin, TestCase):

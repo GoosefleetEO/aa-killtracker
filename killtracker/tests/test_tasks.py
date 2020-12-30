@@ -5,6 +5,7 @@ from django.test.utils import override_settings
 
 from allianceauth.tests.auth_utils import AuthUtils
 
+from ..exceptions import WebhookBlocked
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..tasks import (
@@ -116,63 +117,67 @@ class TestRunTracker(TestTrackerBase):
         self.assertFalse(mock_logger.error.called)
 
 
-@patch(MODULE_PATH + ".sleep", new=lambda x: None)
+@patch(MODULE_PATH + ".send_killmails_to_webhook.retry")
 @patch(MODULE_PATH + ".Webhook.send_killmail")
 @patch(MODULE_PATH + ".logger")
 class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.webhook_1.clear_queue()
 
-    def test_one_message(self, mock_logger, mock_send_killmail):
+    def my_retry(self, *args, **kwargs):
+        send_killmails_to_webhook(self.webhook_1.pk)
+
+    def test_one_message(self, mock_logger, mock_send_killmail, mock_retry):
         """
         when one mesage in queue
         then send it and returns 1
         """
+        mock_retry.side_effect = self.my_retry
         mock_send_killmail.return_value = True
         self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
 
-        result = send_killmails_to_webhook(self.webhook_1.pk)
+        send_killmails_to_webhook(self.webhook_1.pk)
 
-        self.assertEqual(result, 1)
-        self.assertTrue(mock_send_killmail.called)
+        self.assertEqual(mock_send_killmail.call_count, 1)
         self.assertEqual(self.webhook_1.queue_size(), 0)
         self.assertFalse(mock_logger.error.called)
 
-    def test_three_message(self, mock_logger, mock_send_killmail):
+    def test_three_message(self, mock_logger, mock_send_killmail, mock_retry):
         """
         when three mesages in queue
         then sends them and returns 3
         """
+
+        mock_retry.side_effect = self.my_retry
         mock_send_killmail.return_value = True
         self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
         self.webhook_1.add_killmail_to_queue(load_killmail(10000002))
         self.webhook_1.add_killmail_to_queue(load_killmail(10000003))
 
-        result = send_killmails_to_webhook(self.webhook_1.pk)
+        send_killmails_to_webhook(self.webhook_1.pk)
 
-        self.assertEqual(result, 3)
         self.assertEqual(mock_send_killmail.call_count, 3)
         self.assertEqual(self.webhook_1.queue_size(), 0)
 
-    def test_no_messages(self, mock_logger, mock_send_killmail):
+    def test_no_messages(self, mock_logger, mock_send_killmail, mock_retry):
         """
         when no message in queue
         then do nothing and return 0
         """
+        mock_retry.side_effect = self.my_retry
         mock_send_killmail.return_value = True
 
-        result = send_killmails_to_webhook(self.webhook_1.pk)
+        send_killmails_to_webhook(self.webhook_1.pk)
 
-        self.assertEqual(result, 0)
-        self.assertFalse(mock_send_killmail.called)
+        self.assertEqual(mock_send_killmail.call_count, 0)
         self.assertEqual(self.webhook_1.queue_size(), 0)
 
-    def test_failed_message(self, mock_logger, mock_send_killmail):
+    def test_failed_message(self, mock_logger, mock_send_killmail, mock_retry):
         """
         given one message in queue
         when sending fails
         then re-queues message and return 0
-        """
+
         mock_send_killmail.return_value = False
         self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
 
@@ -181,14 +186,34 @@ class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
         self.assertEqual(result, 0)
         self.assertTrue(mock_send_killmail.called)
         self.assertEqual(self.webhook_1.queue_size(), 1)
+        """
 
-    def test_log_warning_when_pk_is_invalid(self, mock_logger, mock_send_killmail):
+    def test_retry_on_exception(self, mock_logger, mock_send_killmail, mock_retry):
+        """
+        when WebhookBlocked exception is raised
+        then retry
+        """
+        mock_retry.side_effect = lambda countdown: None
+        mock_send_killmail.side_effect = WebhookBlocked(10)
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+
+        send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertTrue(mock_retry.called)
+        self.assertEqual(mock_send_killmail.call_count, 1)
+        self.assertEqual(self.webhook_1.queue_size(), 1)
+
+    def test_log_warning_when_pk_is_invalid(
+        self, mock_logger, mock_send_killmail, mock_retry
+    ):
+        mock_retry.side_effect = self.my_retry
+
         send_killmails_to_webhook(generate_invalid_pk(Webhook))
 
         self.assertFalse(mock_send_killmail.called)
         self.assertTrue(mock_logger.error.called)
 
-    def test_log_info_if_not_enabled(self, mock_logger, mock_send_killmail):
+    def test_log_info_if_not_enabled(self, mock_logger, mock_send_killmail, mock_retry):
         my_webhook = Webhook.objects.create(
             name="disabled", url="dummy-url-2", is_enabled=False
         )
