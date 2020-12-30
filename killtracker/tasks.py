@@ -1,13 +1,11 @@
 from celery import shared_task, chain
 
 from django.db import IntegrityError
-from django.contrib.auth.models import User
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from eveuniverse.tasks import update_unresolved_eve_entities
 
-from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
@@ -140,7 +138,13 @@ def delete_stale_killmails() -> None:
         logger.info("Deleted %d stale killmails", details["killtracker.EveKillmail"])
 
 
-@shared_task(bind=True, base=QueueOnce, timeout=KILLTRACKER_TASKS_TIMEOUT)
+@shared_task(
+    bind=True,
+    base=QueueOnce,
+    timeout=KILLTRACKER_TASKS_TIMEOUT,
+    retry_backoff=False,
+    max_retries=None,
+)
 def send_killmails_to_webhook(self, webhook_pk: int) -> None:
     """send all currently queued killmails in given webhook object to Discord"""
     try:
@@ -164,13 +168,15 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
             self.retry(countdown=ex.seconds)
         else:
             if webhook.queue_size():
-                self.retry()
+                self.retry(countdown=0)
     else:
         logger.info("No queued killmails for webhook %s", webhook)
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
-def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
+def send_test_message_to_webhook(
+    webhook_pk: int, count: int = 1, killmail_id: int = 82700336
+) -> None:
     """send a test message to given webhook.
     Optional inform user about result if user ok is given
     """
@@ -178,28 +184,20 @@ def send_test_message_to_webhook(webhook_pk: int, user_pk: int = None) -> None:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
         logger.error("Webhook with pk = %s does not exist", webhook_pk)
-    else:
-        logger.info("Sending test message to webhook %s", webhook)
-        error_text, success = webhook.send_test_message()
+        return
 
-        if user_pk:
-            message = (
-                f"Error text: {error_text}\nCheck log files for details."
-                if not success
-                else "No errors"
-            )
-            try:
-                user = User.objects.get(pk=user_pk)
-            except User.DoesNotExist:
-                logger.warning("User with pk = %s does not exist", user_pk)
-            else:
-                level = "success" if success else "error"
-                notify(
-                    user=user,
-                    title=(
-                        f"{__title__}: Result of test message to webhook {webhook}: "
-                        f"{level.upper()}"
-                    ),
-                    message=message,
-                    level=level,
-                )
+    logger.info("Sending test message to webhook %s", webhook)
+    try:
+        killmail = Killmail.create_from_zkb_api(killmail_id)
+    except Exception as ex:
+        logger.warning(
+            "Failed to fetch killmail from ZKB for test message to webhook %s: %s",
+            webhook,
+            ex,
+            exc_info=True,
+        )
+    else:
+        for _ in range(count):
+            webhook.add_killmail_to_queue(killmail)
+
+        send_killmails_to_webhook.delay(webhook.pk)

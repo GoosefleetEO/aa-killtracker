@@ -568,10 +568,29 @@ class Webhook(models.Model):
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)
-        remaining = response.headers.get("X-RateLimit-Remaining")
-        if remaining == 0:
-            timeout = response.headers.get("X-RateLimit-Reset-After", 5)
+        if response.status_code == 429:
+            try:
+                timeout = response.content.get("retry_after")
+            except (ValueError, TypeError):
+                timeout = 600
             cache.set(key=key, value="TIMEOUT", timeout=timeout)
+            logger.info("Rate limit reached. Blocking webhook for %s seconds", timeout)
+
+        else:
+            try:
+                remaining = int(response.headers.get("x-ratelimit-remaining"))
+            except (ValueError, TypeError):
+                remaining = None
+            logger.debug("Remaining requests: %s", remaining)
+            if remaining == 0:
+                try:
+                    timeout = int(response.headers.get("x-ratelimit-reset-after", 5))
+                except (ValueError, TypeError):
+                    timeout = 5
+                cache.set(key=key, value="TIMEOUT", timeout=timeout)
+                logger.info(
+                    "Rate limit reached. Blocking webhook for %s seconds", timeout
+                )
 
         if response.status_ok:
             return True
@@ -608,24 +627,6 @@ class Webhook(models.Model):
     @classmethod
     def _convert_to_discord_link(cls, name: str, url: str) -> str:
         return f"[{str(name)}]({str(url)})"
-
-    def send_test_message(self, killmail_id: int = 82700336) -> Tuple[str, bool]:
-        """Sends a test notification to this webhook and returns send report"""
-        try:
-            success = self.send_killmail(
-                Killmail.create_from_zkb_api(killmail_id=killmail_id),
-                f"Test notification for webhook {self.name}:",
-            )
-        except Exception as ex:
-            logger.warning(
-                "Failed to send test notification to webhook %s: %s",
-                self,
-                ex,
-                exc_info=True,
-            )
-            return str(ex), False
-        else:
-            return "(no info)", success
 
     @staticmethod
     def default_avatar_url() -> str:

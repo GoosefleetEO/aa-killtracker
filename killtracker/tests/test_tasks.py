@@ -1,9 +1,8 @@
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
-
-from allianceauth.tests.auth_utils import AuthUtils
 
 from ..exceptions import WebhookBlocked
 from ..models import EveKillmail, Tracker, Webhook
@@ -242,55 +241,36 @@ class TestStoreKillmail(TestTrackerBase):
         self.assertTrue(mock_logger.warning.called)
 
 
-@patch(MODULE_PATH + ".notify")
-@patch(MODULE_PATH + ".Webhook.send_test_message")
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
+@patch(MODULE_PATH + ".Webhook.send_killmail")
 @patch(MODULE_PATH + ".logger")
-class TestSendTestKillmailsToWebhook(TestTrackerBase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.user = AuthUtils.create_user("John X. Doe")
+class TestSendTestKillmailsToWebhook(LoadTestDataMixin, TestCase):
+    def setUp(self) -> None:
+        cache.clear()
+
+    @staticmethod
+    def my_create_from_zkb_api(killmail_id):
+        return load_killmail(killmail_id)
 
     def test_log_warning_when_pk_is_invalid(
-        self, mock_logger, mock_send_test_message, mock_notify
+        self, mock_logger, mock_send_killmail, mock_create_from_zkb_api
     ):
+        mock_create_from_zkb_api.side_effect = self.my_create_from_zkb_api
+
         send_test_message_to_webhook(generate_invalid_pk(Webhook))
 
-        self.assertFalse(mock_send_test_message.called)
+        self.assertEqual(mock_send_killmail.call_count, 0)
         self.assertTrue(mock_logger.error.called)
-        self.assertFalse(mock_notify.called)
 
-    def test_run_normal(self, mock_logger, mock_send_test_message, mock_notify):
-        mock_send_test_message.return_value = ("", True)
-
-        send_test_message_to_webhook(self.webhook_1.pk)
-        self.assertEqual(mock_send_test_message.call_count, 1)
-        self.assertFalse(mock_logger.error.called)
-        self.assertFalse(mock_notify.called)
-
-    def test_run_normal_with_user(
-        self, mock_logger, mock_send_test_message, mock_notify
+    def test_run_normal(
+        self, mock_logger, mock_send_killmail, mock_create_from_zkb_api
     ):
-        mock_send_test_message.return_value = ("", True)
+        mock_create_from_zkb_api.side_effect = self.my_create_from_zkb_api
 
-        send_test_message_to_webhook(self.webhook_1.pk, self.user.pk)
-        self.assertEqual(mock_send_test_message.call_count, 1)
+        send_test_message_to_webhook(self.webhook_1.pk, killmail_id=10000001)
+        self.assertEqual(mock_send_killmail.call_count, 1)
         self.assertFalse(mock_logger.error.called)
-        self.assertTrue(mock_notify.called)
-        _, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs["level"], "success")
-
-    def test_report_errors_to_user(
-        self, mock_logger, mock_send_test_message, mock_notify
-    ):
-        mock_send_test_message.return_value = ("error", False)
-
-        send_test_message_to_webhook(self.webhook_1.pk, self.user.pk)
-        self.assertEqual(mock_send_test_message.call_count, 1)
-        self.assertFalse(mock_logger.error.called)
-        self.assertTrue(mock_notify.called)
-        _, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs["level"], "error")
 
 
 @patch(MODULE_PATH + ".EveKillmail.objects.delete_stale")

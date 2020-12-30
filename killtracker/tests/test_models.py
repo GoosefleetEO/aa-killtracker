@@ -809,17 +809,6 @@ class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
         self.assertFalse(result)
         self.assertTrue(mock_execute.called)
 
-    @patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
-    def test_can_send_test_message(self, mock_execute, mock_create_from_zkb_api):
-        def my_create_from_zkb_api(killmail_id):
-            return load_killmail(killmail_id)
-
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
-        mock_create_from_zkb_api.side_effect = my_create_from_zkb_api
-
-        self.webhook_1.send_test_message(killmail_id=10000001)
-        self.assertTrue(mock_execute.called)
-
     def test_can_handle_victim_without_character(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         killmail = self.tracker.process_killmail(load_killmail(10000501))
@@ -871,7 +860,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
 
     def test_will_set_timeout_when_rate_limit_exhausted(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(
-            {"X-RateLimit-Remaining": 0, "X-RateLimit-Reset-After": 60}, status_code=200
+            {"x-ratelimit-remaining": 0, "x-ratelimit-reset-after": 60}, status_code=200
         )
         killmail = load_killmail(10000503)
 
@@ -884,7 +873,7 @@ class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
         self, mock_execute
     ):
         mock_execute.return_value = dhooks_lite.WebhookResponse(
-            {"X-RateLimit-Remaining": 0}, status_code=200
+            {"x-ratelimit-remaining": 0}, status_code=200
         )
         killmail = load_killmail(10000503)
 
