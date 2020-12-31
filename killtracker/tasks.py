@@ -109,7 +109,7 @@ def run_tracker(
             killmail=killmail, ignore_max_age=ignore_max_age
         )
         if killmail_new:
-            tracker.webhook.add_killmail_to_queue(killmail_new)
+            tracker.webhook.enqueue_killmail(killmail_new)
 
         if killmail_new or tracker.webhook.queue_size():
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
@@ -162,10 +162,9 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
 
     message = webhook._main_queue.dequeue()
     if message:
-        killmail = Killmail.from_json(message)
-        logger.debug("Sending killmail with ID %d to webhook %s", killmail.id, webhook)
+        logger.debug("Sending message to webhook %s", self)
         try:
-            success = webhook.send_killmail(killmail)
+            success = webhook.send_message_to_webhook(message)
         except WebhookTooManyRequests as ex:
             webhook._main_queue.enqueue(message)
             self.retry(countdown=ex.reset_after)
@@ -205,6 +204,6 @@ def send_test_message_to_webhook(
         )
     else:
         for _ in range(count):
-            webhook.add_killmail_to_queue(killmail)
+            webhook.enqueue_killmail(killmail)
 
         send_killmails_to_webhook.delay(webhook.pk)

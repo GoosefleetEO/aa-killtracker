@@ -1,7 +1,8 @@
 from copy import deepcopy
 from datetime import timedelta
-from urllib.parse import urljoin
+import json
 from typing import Optional, List, Tuple
+from urllib.parse import urljoin
 
 import dhooks_lite
 from requests.exceptions import HTTPError
@@ -37,7 +38,14 @@ from .app_settings import (
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
 from .exceptions import WebhookRateLimitReached, WebhookTooManyRequests
 from .managers import EveKillmailManager
-from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
+from .utils import (
+    app_labels,
+    LoggerAddTag,
+    get_site_base_url,
+    humanize_value,
+    JSONDateTimeEncoder,
+    JSONDateTimeDecoder,
+)
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -262,13 +270,6 @@ class Webhook(models.Model):
             else None
         )
 
-    def add_killmail_to_queue(self, killmail: Killmail) -> int:
-        """Adds killmail to queue for later sending
-
-        Returns updated size of queue
-        """
-        return self._main_queue.enqueue(killmail.asjson())
-
     def queue_size(self) -> int:
         """returns current size of the queue"""
         return self._main_queue.size()
@@ -309,14 +310,123 @@ class Webhook(models.Model):
 
         return counter
 
-    def send_killmail(self, killmail: Killmail, intro_text: str = None) -> bool:
+    @staticmethod
+    def discord_message_asjson(
+        content: str = None,
+        embeds: List[dhooks_lite.Embed] = None,
+        tts: bool = None,
+        username: str = None,
+        avatar_url: str = None,
+    ) -> str:
+        """Converts a Discord message to JSON and returns it
+
+        Raises ValueError if mesage is incomplete
+        """
+        if not content and not embeds:
+            raise ValueError("Message must have content or embeds to be valid")
+
+        if embeds:
+            embeds_list = [obj.asdict() for obj in embeds]
+        else:
+            embeds_list = None
+
+        message = dict()
+        if content:
+            message["content"] = content
+        if embeds_list:
+            message["embeds"] = embeds_list
+        if tts:
+            message["tts"] = tts
+        if username:
+            message["username"] = username
+        if avatar_url:
+            message["avatar_url"] = avatar_url
+
+        return json.dumps(message, cls=JSONDateTimeEncoder)
+
+    def send_message_to_webhook(self, message_json: str) -> bool:
+        """Send given message to webhook
+
+        Params
+            message_json: Discord message encoded in JSON
+        """
+        logger.info("Sending killmail to webhook %s", self)
+        message = json.loads(message_json, cls=JSONDateTimeDecoder)
+        if message.get("embeds"):
+            embeds = [
+                dhooks_lite.Embed.from_dict(embed_dict)
+                for embed_dict in message.get("embeds")
+            ]
+        else:
+            embeds = None
+        hook = dhooks_lite.Webhook(url=self.url)
+        response = hook.execute(
+            content=message.get("content"),
+            embeds=embeds,
+            username=message.get("username"),
+            avatar_url=message.get("avatar_url"),
+            wait_for_response=True,
+        )
+        logger.debug("headers: %s", response.headers)
+        logger.debug("status_code: %s", response.status_code)
+        logger.debug("content: %s", response.content)
+        if response.status_code == 429:
+            try:
+                timeout = int(response.content.get("retry_after")) + 1
+            except (ValueError, TypeError):
+                timeout = None
+            logger.warning(
+                "Too many requests for webhook %s. Blocked for %s seconds",
+                self,
+                timeout,
+            )
+            raise WebhookTooManyRequests(timeout)
+
+        else:
+            try:
+                remaining = int(response.headers.get("x-ratelimit-remaining"))
+            except (ValueError, TypeError):
+                remaining = None
+            logger.debug("Remaining requests: %s", remaining)
+            if remaining == 0:
+                try:
+                    timeout = (
+                        int(response.headers.get("x-ratelimit-reset-after", 4)) + 1
+                    )
+                except (ValueError, TypeError):
+                    timeout = None
+                logger.info(
+                    "Rate limit reached for webhook %s. Blocked for %s seconds",
+                    self,
+                    timeout,
+                )
+                raise WebhookRateLimitReached(timeout)
+
+        if response.status_ok:
+            return True
+        else:
+            logger.warning(
+                "Failed to send message to Discord. HTTP status code: %d, response: %s",
+                response.status_code,
+                response.content,
+            )
+            return False
+
+    def enqueue_killmail(self, killmail: Killmail, intro_text: str = None) -> int:
         """send given killmail to webhook
 
         returns True if successful, else False
         """
         embed, tracker = self._create_embed(killmail)
-        intro = self._create_intro(intro_text, tracker)
-        return self._send_killmail(killmail, tracker, intro, embed)
+        content = self._create_content(intro_text, tracker)
+        username = self.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
+        avatar_url = (
+            self.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
+        )
+        message = self.discord_message_asjson(
+            content=content, embeds=[embed], username=username, avatar_url=avatar_url
+        )
+        return self._main_queue.enqueue(message)
 
     def _create_embed(self, killmail: Killmail) -> Tuple[dhooks_lite.Embed, "Tracker"]:
         resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
@@ -526,7 +636,7 @@ class Webhook(models.Model):
         )
         return embed, tracker
 
-    def _create_intro(self, intro_text, tracker) -> str:
+    def _create_content(self, intro_text, tracker) -> str:
         intro_parts = []
         if tracker:
             if tracker.ping_type == Tracker.ChannelPingType.EVERYBODY:
@@ -564,71 +674,6 @@ class Webhook(models.Model):
             intro_parts_2.append(" ".join(intro_parts))
 
         return "\n".join(intro_parts_2)
-
-    def _send_killmail(self, killmail, tracker, intro, embed) -> bool:
-        logger.info(
-            "%sSending killmail to Discord for killmail %s",
-            f"Tracker {tracker.name}: " if tracker else "",
-            killmail.id,
-        )
-        hook = dhooks_lite.Webhook(url=self.url)
-        username = (
-            Webhook.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
-        )
-        avatar_url = (
-            Webhook.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
-        )
-        response = hook.execute(
-            content=intro,
-            embeds=[embed],
-            username=username,
-            avatar_url=avatar_url,
-            wait_for_response=True,
-        )
-        logger.debug("headers: %s", response.headers)
-        logger.debug("status_code: %s", response.status_code)
-        logger.debug("content: %s", response.content)
-        if response.status_code == 429:
-            try:
-                timeout = int(response.content.get("retry_after")) + 1
-            except (ValueError, TypeError):
-                timeout = None
-            logger.warning(
-                "Too many requests for webhook %s. Blocked for %s seconds",
-                self,
-                timeout,
-            )
-            raise WebhookTooManyRequests(timeout)
-
-        else:
-            try:
-                remaining = int(response.headers.get("x-ratelimit-remaining"))
-            except (ValueError, TypeError):
-                remaining = None
-            logger.debug("Remaining requests: %s", remaining)
-            if remaining == 0:
-                try:
-                    timeout = (
-                        int(response.headers.get("x-ratelimit-reset-after", 4)) + 1
-                    )
-                except (ValueError, TypeError):
-                    timeout = None
-                logger.info(
-                    "Rate limit reached for webhook %s. Blocked for %s seconds",
-                    self,
-                    timeout,
-                )
-                raise WebhookRateLimitReached(timeout)
-
-        if response.status_ok:
-            return True
-        else:
-            logger.warning(
-                "Failed to send message to Discord. HTTP status code: %d, response: %s",
-                response.status_code,
-                response.content,
-            )
-            return False
 
     @classmethod
     def _character_zkb_link(
