@@ -235,7 +235,8 @@ class Webhook(models.Model):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._queue = self._create_queue()
+        self._main_queue = self._create_queue("main")
+        self._error_queue = self._create_queue("error")
 
     def __str__(self) -> str:
         return self.name
@@ -249,11 +250,14 @@ class Webhook(models.Model):
         is_new = self.id is None
         super().save(*args, **kwargs)
         if is_new:
-            self._queue = self._create_queue()
+            self._main_queue = self._create_queue("main")
+            self._error_queue = self._create_queue("error")
 
-    def _create_queue(self) -> Optional[SimpleMQ]:
+    def _create_queue(self, suffix: str) -> Optional[SimpleMQ]:
         return (
-            SimpleMQ(cache.get_master_client(), f"{__title__}_webhook_{self.pk}")
+            SimpleMQ(
+                cache.get_master_client(), f"{__title__}_webhook_{self.pk}_{suffix}"
+            )
             if self.pk
             else None
         )
@@ -263,20 +267,44 @@ class Webhook(models.Model):
 
         Returns updated size of queue
         """
-        return self._queue.enqueue(killmail.asjson())
+        return self._main_queue.enqueue(killmail.asjson())
 
     def queue_size(self) -> int:
         """returns current size of the queue"""
-        return self._queue.size()
+        return self._main_queue.size()
 
-    def clear_queue(self) -> int:
+    def clear_main_queue(self) -> int:
+        """deletes all killmails from the queue. Return number of cleared messages."""
+        return self._clear_queue(self._main_queue)
+
+    def clear_error_queue(self) -> int:
+        """deletes all killmails from the queue. Return number of cleared messages."""
+        return self._clear_queue(self._error_queue)
+
+    @staticmethod
+    def _clear_queue(queue) -> int:
         """deletes all killmails from the queue. Return number of cleared messages."""
         counter = 0
         while True:
-            y = self._queue.dequeue()
-            if y is None:
+            message = queue.dequeue()
+            if message is None:
                 break
             else:
+                counter += 1
+
+        return counter
+
+    def reset_failed_messages(self) -> int:
+        """moves all messages from error queue into main queue.
+        returns number of moved messages.
+        """
+        counter = 0
+        while True:
+            message = self._error_queue.dequeue()
+            if message is None:
+                break
+            else:
+                self._main_queue.enqueue(message)
                 counter += 1
 
         return counter

@@ -57,14 +57,30 @@ def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
 
 
 class TestWebhookQueue(LoadTestDataMixin, TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.killmail = load_killmail(10000001)
+
     def setUp(self) -> None:
-        self.webhook_1.clear_queue()
+        self.webhook_1.clear_main_queue()
+        self.webhook_1.clear_error_queue()
 
     def test_queue_features(self):
-        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+        self.webhook_1.add_killmail_to_queue(self.killmail)
         self.assertEqual(self.webhook_1.queue_size(), 1)
-        self.webhook_1.clear_queue()
+        self.webhook_1.clear_main_queue()
         self.assertEqual(self.webhook_1.queue_size(), 0)
+
+    def test_reset_failed_messages(self):
+        killmail_json = self.killmail.asjson()
+        self.webhook_1._error_queue.enqueue(killmail_json)
+        self.webhook_1._error_queue.enqueue(killmail_json)
+        self.assertEqual(self.webhook_1._error_queue.size(), 2)
+        self.assertEqual(self.webhook_1._main_queue.size(), 0)
+        self.webhook_1.reset_failed_messages()
+        self.assertEqual(self.webhook_1._error_queue.size(), 0)
+        self.assertEqual(self.webhook_1._main_queue.size(), 2)
 
 
 class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
@@ -654,7 +670,7 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
-        self.webhook_1.clear_queue()
+        self.webhook_1.clear_main_queue()
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")

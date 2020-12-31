@@ -46,6 +46,8 @@ def run_killtracker(
     """
     if killmails_count == 0:
         logger.info("Killtracker run started...")
+        for webhook in Webhook.objects.filter(is_enabled=True):
+            webhook.reset_failed_messages()
 
     started = now() if not started_str else parse_datetime(started_str)
     duration = (now() - started).total_seconds()
@@ -158,18 +160,20 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
         logger.info("Webhook %s disabled - aborting", webhook)
         return
 
-    message = webhook._queue.dequeue()
+    message = webhook._main_queue.dequeue()
     if message:
         killmail = Killmail.from_json(message)
         logger.debug("Sending killmail with ID %d to webhook %s", killmail.id, webhook)
         try:
-            webhook.send_killmail(killmail)
+            success = webhook.send_killmail(killmail)
         except WebhookTooManyRequests as ex:
-            webhook._queue.enqueue(message)
+            webhook._main_queue.enqueue(message)
             self.retry(countdown=ex.reset_after)
         except WebhookRateLimitReached as ex:
             self.retry(countdown=ex.reset_after)
         else:
+            if not success:
+                webhook._error_queue.enqueue(message)
             if webhook.queue_size():
                 self.retry(countdown=0)
     else:

@@ -14,13 +14,13 @@ from ..tasks import (
     store_killmail,
     send_test_message_to_webhook,
 )
-from ..utils import NoSocketsTestCase, generate_invalid_pk
+from ..utils import generate_invalid_pk
 
 
 MODULE_PATH = "killtracker.tasks"
 
 
-class TestTrackerBase(LoadTestDataMixin, NoSocketsTestCase):
+class TestTrackerBase(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -46,6 +46,10 @@ class TestTrackerBase(LoadTestDataMixin, NoSocketsTestCase):
 @patch(MODULE_PATH + ".Killmail.create_from_zkb_redisq")
 @patch(MODULE_PATH + ".run_tracker")
 class TestRunKilltracker(TestTrackerBase):
+    def setUp(self) -> None:
+        self.webhook_1.clear_main_queue()
+        self.webhook_1.clear_error_queue()
+
     @staticmethod
     def my_fetch_from_zkb():
         for killmail_id in [10000001, 10000002, 10000003, None]:
@@ -63,11 +67,14 @@ class TestRunKilltracker(TestTrackerBase):
         mock_delete_stale_killmails,
     ):
         mock_create_from_zkb_redisq.side_effect = self.my_fetch_from_zkb()
+        self.webhook_1._error_queue.enqueue(load_killmail(10000004).asjson())
 
         run_killtracker()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
         self.assertEqual(mock_store_killmail.si.call_count, 0)
         self.assertFalse(mock_delete_stale_killmails.delay.called)
+        self.assertEqual(self.webhook_1._main_queue.size(), 1)
+        self.assertEqual(self.webhook_1._error_queue.size(), 0)
 
     @patch(MODULE_PATH + ".KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 30)
     @patch(MODULE_PATH + ".KILLTRACKER_STORING_KILLMAILS_ENABLED", True)
@@ -118,9 +125,10 @@ class TestRunTracker(TestTrackerBase):
 @patch(MODULE_PATH + ".send_killmails_to_webhook.retry")
 @patch(MODULE_PATH + ".Webhook.send_killmail")
 @patch(MODULE_PATH + ".logger")
-class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
+class TestSendKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.clear_queue()
+        self.webhook_1.clear_main_queue()
+        self.webhook_1.clear_error_queue()
 
     def my_retry(self, *args, **kwargs):
         send_killmails_to_webhook(self.webhook_1.pk)
@@ -138,6 +146,7 @@ class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
 
         self.assertEqual(mock_send_killmail.call_count, 1)
         self.assertEqual(self.webhook_1.queue_size(), 0)
+        self.assertEqual(self.webhook_1._error_queue.size(), 0)
         self.assertFalse(mock_logger.error.called)
 
     def test_three_message(self, mock_logger, mock_send_killmail, mock_retry):
@@ -156,6 +165,7 @@ class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
 
         self.assertEqual(mock_send_killmail.call_count, 3)
         self.assertEqual(self.webhook_1.queue_size(), 0)
+        self.assertEqual(self.webhook_1._error_queue.size(), 0)
 
     def test_no_messages(self, mock_logger, mock_send_killmail, mock_retry):
         """
@@ -163,12 +173,15 @@ class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
         then do nothing and return 0
         """
         mock_retry.side_effect = self.my_retry
-        mock_send_killmail.return_value = True
+        mock_send_killmail.return_value = False
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
 
         send_killmails_to_webhook(self.webhook_1.pk)
 
-        self.assertEqual(mock_send_killmail.call_count, 0)
+        self.assertEqual(mock_send_killmail.call_count, 1)
         self.assertEqual(self.webhook_1.queue_size(), 0)
+        self.assertEqual(self.webhook_1._error_queue.size(), 1)
+        self.assertFalse(mock_logger.error.called)
 
     def test_failed_message(self, mock_logger, mock_send_killmail, mock_retry):
         """
@@ -263,9 +276,9 @@ class TestStoreKillmail(TestTrackerBase):
 @patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
 @patch(MODULE_PATH + ".Webhook.send_killmail")
 @patch(MODULE_PATH + ".logger")
-class TestSendTestKillmailsToWebhook(LoadTestDataMixin, TestCase):
+class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.clear_queue()
+        self.webhook_1.clear_main_queue()
 
     @staticmethod
     def my_create_from_zkb_api(killmail_id):
