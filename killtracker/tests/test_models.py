@@ -6,7 +6,6 @@ import dhooks_lite
 from requests.exceptions import HTTPError
 
 from django.contrib.auth.models import Group
-from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -24,7 +23,7 @@ from killtracker.core.killmails import EntityCount
 
 from . import BravadoOperationStub
 from ..core.killmails import Killmail
-from ..exceptions import WebhookBlocked
+from ..exceptions import WebhookRateLimitReached, WebhookTooManyRequests
 from ..models import EveKillmail, EveKillmailCharacter, Tracker
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..utils import app_labels, NoSocketsTestCase, set_test_logger
@@ -59,7 +58,7 @@ def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
 
 class TestWebhookQueue(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
-        cache.clear()
+        self.webhook_1.clear_queue()
 
     def test_queue_features(self):
         self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
@@ -655,7 +654,7 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
-        cache.clear()
+        self.webhook_1.clear_queue()
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")
@@ -843,43 +842,82 @@ class TestWebhookSendKillmail(LoadTestDataMixin, TestCase):
 
         self.assertTrue(mock_execute.called)
 
-    def test_will_raise_when_timeout_is_active(self, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+    def test_will_raise_when_rate_limit_exhausted(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(
+            {"x-ratelimit-remaining": "0", "x-ratelimit-reset-after": "60"},
+            status_code=200,
+        )
         killmail = load_killmail(10000503)
-        cache.set(key=self.webhook_1._timeout_key(), value="TIMEOUT", timeout=10)
 
         try:
             self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
         except Exception as ex:
-            self.assertIsInstance(ex, WebhookBlocked)
-            self.assertAlmostEqual(ex.seconds, 10, delta=2)
+            self.assertIsInstance(ex, WebhookRateLimitReached)
+            self.assertEqual(ex.reset_after, 61)
         else:
-            self.fail("Should have raised exception")
+            self.fail("Did not raise excepted exception")
 
-        self.assertFalse(mock_execute.called)
-
-    def test_will_set_timeout_when_rate_limit_exhausted(self, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(
-            {"x-ratelimit-remaining": 0, "x-ratelimit-reset-after": 60}, status_code=200
-        )
-        killmail = load_killmail(10000503)
-
-        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
-
-        self.assertAlmostEqual(cache.ttl(self.webhook_1._timeout_key()), 60, delta=2)
         self.assertTrue(mock_execute.called)
 
-    def test_will_set_default_timeout_when_rate_limit_exhausted_header_misssing(
+    def test_will_set_default_timeout_when_rate_limit_exhausted_and_header_missing(
         self, mock_execute
     ):
         mock_execute.return_value = dhooks_lite.WebhookResponse(
-            {"x-ratelimit-remaining": 0}, status_code=200
+            {"x-ratelimit-remaining": "0"}, status_code=200
         )
         killmail = load_killmail(10000503)
 
-        self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+        try:
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookRateLimitReached)
+            self.assertEqual(ex.reset_after, 5)
+        else:
+            self.fail("Did not raise excepted exception")
 
-        self.assertAlmostEqual(cache.ttl(self.webhook_1._timeout_key()), 5, delta=2)
+        self.assertTrue(mock_execute.called)
+
+    def test_will_raise_when_too_many_requests_reached(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(
+            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "60"},
+            status_code=429,
+            content={
+                "global": False,
+                "message": "You are being rate limited.",
+                "retry_after": 2000,
+            },
+        )
+        killmail = load_killmail(10000503)
+
+        try:
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookTooManyRequests)
+            self.assertEqual(ex.reset_after, 2001)
+        else:
+            self.fail("Did not raise excepted exception")
+
+        self.assertTrue(mock_execute.called)
+
+    def test_will_raise_when_too_many_requests_reached_with_default(self, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(
+            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "60"},
+            status_code=429,
+            content={
+                "global": False,
+                "message": "You are being rate limited.",
+            },
+        )
+        killmail = load_killmail(10000503)
+
+        try:
+            self.webhook_1.send_killmail(Killmail.from_json(killmail.asjson()))
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookTooManyRequests)
+            self.assertEqual(ex.reset_after, 600)
+        else:
+            self.fail("Did not raise excepted exception")
+
         self.assertTrue(mock_execute.called)
 
 

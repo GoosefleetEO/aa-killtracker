@@ -1,10 +1,9 @@
 from unittest.mock import patch
 
-from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from ..exceptions import WebhookBlocked
+from ..exceptions import WebhookRateLimitReached, WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..tasks import (
@@ -187,18 +186,37 @@ class TestSendKillmailsToWebhook(LoadTestDataMixin, TestCase):
         self.assertEqual(self.webhook_1.queue_size(), 1)
         """
 
-    def test_retry_on_exception(self, mock_logger, mock_send_killmail, mock_retry):
+    def test_retry_on_rate_limit(self, mock_logger, mock_send_killmail, mock_retry):
         """
-        when WebhookBlocked exception is raised
-        then retry
+        when WebhookRateLimitReached exception is raised
+        then message was send and retry once
         """
         mock_retry.side_effect = lambda countdown: None
-        mock_send_killmail.side_effect = WebhookBlocked(10)
+        mock_send_killmail.side_effect = WebhookRateLimitReached(10)
         self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
 
         send_killmails_to_webhook(self.webhook_1.pk)
 
         self.assertTrue(mock_retry.called)
+        self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
+        self.assertEqual(mock_send_killmail.call_count, 1)
+        self.assertEqual(self.webhook_1.queue_size(), 0)
+
+    def test_retry_on_too_many_requests(
+        self, mock_logger, mock_send_killmail, mock_retry
+    ):
+        """
+        when WebhookTooManyRequests exception is raised
+        then message is re-queued and retry once
+        """
+        mock_retry.side_effect = lambda countdown: None
+        mock_send_killmail.side_effect = WebhookTooManyRequests(10)
+        self.webhook_1.add_killmail_to_queue(load_killmail(10000001))
+
+        send_killmails_to_webhook(self.webhook_1.pk)
+
+        self.assertTrue(mock_retry.called)
+        self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
         self.assertEqual(mock_send_killmail.call_count, 1)
         self.assertEqual(self.webhook_1.queue_size(), 1)
 
@@ -247,7 +265,7 @@ class TestStoreKillmail(TestTrackerBase):
 @patch(MODULE_PATH + ".logger")
 class TestSendTestKillmailsToWebhook(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
-        cache.clear()
+        self.webhook_1.clear_queue()
 
     @staticmethod
     def my_create_from_zkb_api(killmail_id):

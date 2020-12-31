@@ -35,7 +35,7 @@ from .app_settings import (
     KILLTRACKER_WEBHOOK_SET_AVATAR,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
-from .exceptions import WebhookBlocked
+from .exceptions import WebhookRateLimitReached, WebhookTooManyRequests
 from .managers import EveKillmailManager
 from .utils import app_labels, LoggerAddTag, get_site_base_url, humanize_value
 
@@ -280,9 +280,6 @@ class Webhook(models.Model):
                 counter += 1
 
         return counter
-
-    def _timeout_key(self) -> str:
-        return f"{__title__}_webhook_{self.pk}_timeout" if self.pk else ""
 
     def send_killmail(self, killmail: Killmail, intro_text: str = None) -> bool:
         """send given killmail to webhook
@@ -553,11 +550,6 @@ class Webhook(models.Model):
         avatar_url = (
             Webhook.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
         )
-        key = self._timeout_key()
-        seconds = cache.ttl(key)
-        if seconds:
-            raise WebhookBlocked(seconds)
-
         response = hook.execute(
             content=intro,
             embeds=[embed],
@@ -570,11 +562,15 @@ class Webhook(models.Model):
         logger.debug("content: %s", response.content)
         if response.status_code == 429:
             try:
-                timeout = response.content.get("retry_after")
+                timeout = int(response.content.get("retry_after")) + 1
             except (ValueError, TypeError):
-                timeout = 600
-            cache.set(key=key, value="TIMEOUT", timeout=timeout)
-            logger.info("Rate limit reached. Blocking webhook for %s seconds", timeout)
+                timeout = None
+            logger.warning(
+                "Too many requests for webhook %s. Blocked for %s seconds",
+                self,
+                timeout,
+            )
+            raise WebhookTooManyRequests(timeout)
 
         else:
             try:
@@ -584,13 +580,17 @@ class Webhook(models.Model):
             logger.debug("Remaining requests: %s", remaining)
             if remaining == 0:
                 try:
-                    timeout = int(response.headers.get("x-ratelimit-reset-after", 5))
+                    timeout = (
+                        int(response.headers.get("x-ratelimit-reset-after", 4)) + 1
+                    )
                 except (ValueError, TypeError):
-                    timeout = 5
-                cache.set(key=key, value="TIMEOUT", timeout=timeout)
+                    timeout = None
                 logger.info(
-                    "Rate limit reached. Blocking webhook for %s seconds", timeout
+                    "Rate limit reached for webhook %s. Blocked for %s seconds",
+                    self,
+                    timeout,
                 )
+                raise WebhookRateLimitReached(timeout)
 
         if response.status_ok:
             return True

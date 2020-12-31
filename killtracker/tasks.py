@@ -18,7 +18,7 @@ from .app_settings import (
     KILLTRACKER_TASKS_TIMEOUT,
 )
 from .core.killmails import Killmail
-from .exceptions import WebhookBlocked
+from .exceptions import WebhookRateLimitReached, WebhookTooManyRequests
 from .models import (
     EveKillmail,
     Tracker,
@@ -140,7 +140,8 @@ def delete_stale_killmails() -> None:
 
 @shared_task(
     bind=True,
-    base=QueueOnce,
+    base=QueueOnce,  # celery_once locks stay intact during retries
+    once={"timeout": 60 * 60 * 6},  # too many requests delays can be huge
     timeout=KILLTRACKER_TASKS_TIMEOUT,
     retry_backoff=False,
     max_retries=None,
@@ -163,9 +164,11 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
         logger.debug("Sending killmail with ID %d to webhook %s", killmail.id, webhook)
         try:
             webhook.send_killmail(killmail)
-        except WebhookBlocked as ex:
+        except WebhookTooManyRequests as ex:
             webhook._queue.enqueue(message)
-            self.retry(countdown=ex.seconds)
+            self.retry(countdown=ex.reset_after)
+        except WebhookRateLimitReached as ex:
+            self.retry(countdown=ex.reset_after)
         else:
             if webhook.queue_size():
                 self.retry(countdown=0)
