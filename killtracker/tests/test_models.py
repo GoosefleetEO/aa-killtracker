@@ -64,8 +64,8 @@ class TestWebhookQueue(LoadTestDataMixin, TestCase):
         super().setUpClass()
 
     def setUp(self) -> None:
-        self.webhook_1.clear_main_queue()
-        self.webhook_1.clear_error_queue()
+        self.webhook_1.main_queue.clear()
+        self.webhook_1.error_queue.clear()
 
     def test_reset_failed_messages(self):
         message = "Test message"
@@ -685,7 +685,7 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
-        self.webhook_1.clear_main_queue()
+        self.webhook_1.main_queue.clear()
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")

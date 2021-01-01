@@ -37,7 +37,7 @@ class WebhookAdmin(admin.ModelAdmin):
         actions_count = 0
         killmails_deleted = 0
         for webhook in queryset:
-            killmails_deleted += webhook.clear_main_queue()
+            killmails_deleted += webhook.main_queue.clear()
             actions_count += 1
 
         self.message_user(

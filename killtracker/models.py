@@ -270,29 +270,6 @@ class Webhook(models.Model):
             else None
         )
 
-    def clear_main_queue(self) -> int:
-        """deletes all killmails from the queue. Return number of cleared messages."""
-        return self._clear_queue(self.main_queue)
-
-    def clear_error_queue(self) -> int:
-        """deletes all killmails from the queue. Return number of cleared messages."""
-        return self._clear_queue(self.error_queue)
-
-    @staticmethod
-    def _clear_queue(queue: SimpleMQ) -> int:
-        """deletes all messages from the given queue.
-        Returns number of cleared messages.
-        """
-        counter = 0
-        while True:
-            message = queue.dequeue()
-            if message is None:
-                break
-            else:
-                counter += 1
-
-        return counter
-
     def reset_failed_messages(self) -> int:
         """moves all messages from error queue into main queue.
         returns number of moved messages.

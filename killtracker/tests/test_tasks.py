@@ -49,8 +49,8 @@ class TestTrackerBase(LoadTestDataMixin, TestCase):
 @patch(MODULE_PATH + ".run_tracker")
 class TestRunKilltracker(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.clear_main_queue()
-        self.webhook_1.clear_error_queue()
+        self.webhook_1.main_queue.clear()
+        self.webhook_1.error_queue.clear()
 
     @staticmethod
     def my_fetch_from_zkb():
@@ -129,8 +129,8 @@ class TestRunTracker(TestTrackerBase):
 @patch(MODULE_PATH + ".logger")
 class TestSendKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.clear_main_queue()
-        self.webhook_1.clear_error_queue()
+        self.webhook_1.main_queue.clear()
+        self.webhook_1.error_queue.clear()
 
     def my_retry(self, *args, **kwargs):
         send_killmails_to_webhook(self.webhook_1.pk)
@@ -285,7 +285,7 @@ class TestStoreKillmail(TestTrackerBase):
 @patch(MODULE_PATH + ".logger")
 class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.clear_main_queue()
+        self.webhook_1.main_queue.clear()
 
     def test_log_warning_when_pk_is_invalid(self, mock_logger, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
