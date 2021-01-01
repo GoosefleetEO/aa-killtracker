@@ -29,7 +29,7 @@ class WebhookAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
     def _messages_in_queue(self, obj):
-        return obj.queue_size()
+        return obj.main_queue.size()
 
     actions = ["send_test_message", "purge_messages"]
 

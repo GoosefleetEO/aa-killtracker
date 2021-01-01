@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import dhooks_lite
+
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -67,14 +69,14 @@ class TestRunKilltracker(TestTrackerBase):
         mock_delete_stale_killmails,
     ):
         mock_create_from_zkb_redisq.side_effect = self.my_fetch_from_zkb()
-        self.webhook_1._error_queue.enqueue(load_killmail(10000004).asjson())
+        self.webhook_1.error_queue.enqueue(load_killmail(10000004).asjson())
 
         run_killtracker()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
         self.assertEqual(mock_store_killmail.si.call_count, 0)
         self.assertFalse(mock_delete_stale_killmails.delay.called)
-        self.assertEqual(self.webhook_1._main_queue.size(), 1)
-        self.assertEqual(self.webhook_1._error_queue.size(), 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        self.assertEqual(self.webhook_1.error_queue.size(), 0)
 
     @patch(MODULE_PATH + ".KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 30)
     @patch(MODULE_PATH + ".KILLTRACKER_STORING_KILLMAILS_ENABLED", True)
@@ -145,8 +147,8 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         send_killmails_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
-        self.assertEqual(self.webhook_1.queue_size(), 0)
-        self.assertEqual(self.webhook_1._error_queue.size(), 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
+        self.assertEqual(self.webhook_1.error_queue.size(), 0)
         self.assertFalse(mock_logger.error.called)
 
     def test_three_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
@@ -164,8 +166,8 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         send_killmails_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 3)
-        self.assertEqual(self.webhook_1.queue_size(), 0)
-        self.assertEqual(self.webhook_1._error_queue.size(), 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
+        self.assertEqual(self.webhook_1.error_queue.size(), 0)
 
     def test_no_messages(self, mock_logger, mock_send_message_to_webhook, mock_retry):
         """
@@ -179,8 +181,8 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         send_killmails_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
-        self.assertEqual(self.webhook_1.queue_size(), 0)
-        self.assertEqual(self.webhook_1._error_queue.size(), 1)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
+        self.assertEqual(self.webhook_1.error_queue.size(), 1)
         self.assertFalse(mock_logger.error.called)
 
     def test_failed_message(
@@ -198,7 +200,7 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
 
         self.assertEqual(result, 0)
         self.assertTrue(mock_send_message_to_webhook.called)
-        self.assertEqual(self.webhook_1.queue_size(), 1)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
         """
 
     def test_retry_on_rate_limit(
@@ -217,7 +219,7 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         self.assertTrue(mock_retry.called)
         self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
-        self.assertEqual(self.webhook_1.queue_size(), 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
 
     def test_retry_on_too_many_requests(
         self, mock_logger, mock_send_message_to_webhook, mock_retry
@@ -235,7 +237,7 @@ class TestSendKillmailsToWebhook(TestTrackerBase):
         self.assertTrue(mock_retry.called)
         self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
-        self.assertEqual(self.webhook_1.queue_size(), 1)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
     def test_log_warning_when_pk_is_invalid(
         self, mock_logger, mock_send_message_to_webhook, mock_retry
@@ -279,34 +281,26 @@ class TestStoreKillmail(TestTrackerBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODULE_PATH + ".Killmail.create_from_zkb_api")
-@patch(MODULE_PATH + ".Webhook.enqueue_killmail")
+@patch("killtracker.models.dhooks_lite.Webhook.execute")
 @patch(MODULE_PATH + ".logger")
 class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
         self.webhook_1.clear_main_queue()
 
-    @staticmethod
-    def my_create_from_zkb_api(killmail_id):
-        return load_killmail(killmail_id)
-
-    def test_log_warning_when_pk_is_invalid(
-        self, mock_logger, mock_enqueue_killmail, mock_create_from_zkb_api
-    ):
-        mock_create_from_zkb_api.side_effect = self.my_create_from_zkb_api
+    def test_log_warning_when_pk_is_invalid(self, mock_logger, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
 
         send_test_message_to_webhook(generate_invalid_pk(Webhook))
 
-        self.assertEqual(mock_enqueue_killmail.call_count, 0)
+        self.assertFalse(mock_execute.called)
         self.assertTrue(mock_logger.error.called)
 
-    def test_run_normal(
-        self, mock_logger, mock_enqueue_killmail, mock_create_from_zkb_api
-    ):
-        mock_create_from_zkb_api.side_effect = self.my_create_from_zkb_api
+    def test_run_normal(self, mock_logger, mock_execute):
+        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
 
-        send_test_message_to_webhook(self.webhook_1.pk, killmail_id=10000001)
-        self.assertEqual(mock_enqueue_killmail.call_count, 1)
+        send_test_message_to_webhook(self.webhook_1.pk)
+
+        self.assertTrue(mock_execute.called)
         self.assertFalse(mock_logger.error.called)
 
 

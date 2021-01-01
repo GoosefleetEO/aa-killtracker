@@ -243,8 +243,8 @@ class Webhook(models.Model):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._main_queue = self._create_queue("main")
-        self._error_queue = self._create_queue("error")
+        self.main_queue = self._create_queue("main")
+        self.error_queue = self._create_queue("error")
 
     def __str__(self) -> str:
         return self.name
@@ -258,8 +258,8 @@ class Webhook(models.Model):
         is_new = self.id is None
         super().save(*args, **kwargs)
         if is_new:
-            self._main_queue = self._create_queue("main")
-            self._error_queue = self._create_queue("error")
+            self.main_queue = self._create_queue("main")
+            self.error_queue = self._create_queue("error")
 
     def _create_queue(self, suffix: str) -> Optional[SimpleMQ]:
         return (
@@ -270,21 +270,19 @@ class Webhook(models.Model):
             else None
         )
 
-    def queue_size(self) -> int:
-        """returns current size of the queue"""
-        return self._main_queue.size()
-
     def clear_main_queue(self) -> int:
         """deletes all killmails from the queue. Return number of cleared messages."""
-        return self._clear_queue(self._main_queue)
+        return self._clear_queue(self.main_queue)
 
     def clear_error_queue(self) -> int:
         """deletes all killmails from the queue. Return number of cleared messages."""
-        return self._clear_queue(self._error_queue)
+        return self._clear_queue(self.error_queue)
 
     @staticmethod
-    def _clear_queue(queue) -> int:
-        """deletes all killmails from the queue. Return number of cleared messages."""
+    def _clear_queue(queue: SimpleMQ) -> int:
+        """deletes all messages from the given queue.
+        Returns number of cleared messages.
+        """
         counter = 0
         while True:
             message = queue.dequeue()
@@ -301,17 +299,41 @@ class Webhook(models.Model):
         """
         counter = 0
         while True:
-            message = self._error_queue.dequeue()
+            message = self.error_queue.dequeue()
             if message is None:
                 break
             else:
-                self._main_queue.enqueue(message)
+                self.main_queue.enqueue(message)
                 counter += 1
 
         return counter
 
+    def enqueue_discord_message(
+        self,
+        content: str = None,
+        embeds: List[dhooks_lite.Embed] = None,
+        tts: bool = None,
+        username: str = None,
+        avatar_url: str = None,
+    ) -> int:
+        username = (
+            self.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else username
+        )
+        avatar_url = (
+            self.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else avatar_url
+        )
+        return self.main_queue.enqueue(
+            self._discord_message_asjson(
+                content=content,
+                embeds=embeds,
+                tts=tts,
+                username=username,
+                avatar_url=avatar_url,
+            )
+        )
+
     @staticmethod
-    def discord_message_asjson(
+    def _discord_message_asjson(
         content: str = None,
         embeds: List[dhooks_lite.Embed] = None,
         tts: bool = None,
@@ -419,14 +441,7 @@ class Webhook(models.Model):
         """
         embed, tracker = self._create_embed(killmail)
         content = self._create_content(intro_text, tracker)
-        username = self.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
-        avatar_url = (
-            self.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else None
-        )
-        message = self.discord_message_asjson(
-            content=content, embeds=[embed], username=username, avatar_url=avatar_url
-        )
-        return self._main_queue.enqueue(message)
+        return self.enqueue_discord_message(content=content, embeds=[embed])
 
     def _create_embed(self, killmail: Killmail) -> Tuple[dhooks_lite.Embed, "Tracker"]:
         resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())

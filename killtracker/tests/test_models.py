@@ -62,30 +62,24 @@ class TestWebhookQueue(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.message = Webhook.discord_message_asjson(content="Test message")
 
     def setUp(self) -> None:
         self.webhook_1.clear_main_queue()
         self.webhook_1.clear_error_queue()
 
-    def test_queue_features(self):
-        self.webhook_1._main_queue.enqueue(self.message)
-        self.assertEqual(self.webhook_1.queue_size(), 1)
-        self.webhook_1.clear_main_queue()
-        self.assertEqual(self.webhook_1.queue_size(), 0)
-
     def test_reset_failed_messages(self):
-        self.webhook_1._error_queue.enqueue(self.message)
-        self.webhook_1._error_queue.enqueue(self.message)
-        self.assertEqual(self.webhook_1._error_queue.size(), 2)
-        self.assertEqual(self.webhook_1._main_queue.size(), 0)
+        message = "Test message"
+        self.webhook_1.error_queue.enqueue(message)
+        self.webhook_1.error_queue.enqueue(message)
+        self.assertEqual(self.webhook_1.error_queue.size(), 2)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.webhook_1.reset_failed_messages()
-        self.assertEqual(self.webhook_1._error_queue.size(), 0)
-        self.assertEqual(self.webhook_1._main_queue.size(), 2)
+        self.assertEqual(self.webhook_1.error_queue.size(), 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 2)
 
     def test_discord_message_asjson_normal(self):
         embed = dhooks_lite.Embed(description="my_description")
-        result = Webhook.discord_message_asjson(
+        result = Webhook._discord_message_asjson(
             content="my_content",
             username="my_username",
             avatar_url="my_avatar_url",
@@ -102,7 +96,7 @@ class TestWebhookQueue(LoadTestDataMixin, TestCase):
 
     def test_discord_message_asjson_empty(self):
         with self.assertRaises(ValueError):
-            Webhook.discord_message_asjson("")
+            Webhook._discord_message_asjson("")
 
 
 class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
@@ -117,7 +111,7 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
         self.assertIsInstance(eve_killmail, EveKillmail)
         self.assertEqual(eve_killmail.id, 10000001)
         self.assertEqual(eve_killmail.solar_system, EveEntity.objects.get(id=30004984))
-        self.assertAlmostEqual(eve_killmail.time, now(), delta=timedelta(seconds=30))
+        self.assertAlmostEqual(eve_killmail.time, now(), delta=timedelta(seconds=60))
 
         self.assertEqual(eve_killmail.victim.alliance, EveEntity.objects.get(id=3011))
         self.assertEqual(eve_killmail.victim.character, EveEntity.objects.get(id=1011))
@@ -688,7 +682,6 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
         self.assertIsNone(killmail.tracker_info.main_org)
 
 
-@patch(MODULE_PATH + ".Webhook.discord_message_asjson")
 class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
@@ -696,7 +689,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
     @patch("eveuniverse.models.esi")
-    def test_normal(self, mock_esi, mock_discord_message_asjson):
+    def test_normal(self, mock_esi):
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
             esi_get_route_origin_destination
         )
@@ -710,19 +703,20 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called, True)
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertEqual(kwargs["username"], "Killtracker")
-        self.assertIsNotNone(kwargs["avatar_url"])
-        self.assertIn("My Tracker", kwargs["content"])
-        embed = kwargs["embeds"][0]
-        self.assertIn("| Killmail", embed.title)
-        self.assertIn("Combat Battlecruiser", embed.description)
-        self.assertIn("Tracked ship types", embed.description)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+
+        self.assertEqual(message["username"], "Killtracker")
+        self.assertIsNotNone(message["avatar_url"])
+        self.assertIn("My Tracker", message["content"])
+        embed = message["embeds"][0]
+        self.assertIn("| Killmail", embed["title"])
+        self.assertIn("Combat Battlecruiser", embed["description"])
+        self.assertIn("Tracked ship types", embed["description"])
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", False)
     @patch("eveuniverse.models.esi")
-    def test_disabled_avatar(self, mock_esi, mock_discord_message_asjson):
+    def test_disabled_avatar(self, mock_esi):
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
             esi_get_route_origin_destination
         )
@@ -736,41 +730,40 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertIsNone(kwargs["username"])
-        self.assertIsNone(kwargs["avatar_url"])
-        self.assertIn("My Tracker", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertNotIn("username", message)
+        self.assertNotIn("avatar_url", message)
+        self.assertIn("My Tracker", message["content"])
 
-    def test_send_as_fleetkill(self, mock_discord_message_asjson):
+    def test_send_as_fleetkill(self):
         self.tracker.identify_fleets = True
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
-        _, kwargs = mock_discord_message_asjson.call_args
-        embed = kwargs["embeds"][0]
-        self.assertIn("| Fleetkill", embed.title)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertIn("| Fleetkill", message["embeds"][0]["title"])
 
-    def test_can_add_intro_text(self, mock_discord_message_asjson):
+    def test_can_add_intro_text(self):
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
         self.webhook_1.enqueue_killmail(killmail, intro_text="Intro Text")
 
-        self.assertTrue(mock_discord_message_asjson.called)
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertIn("Intro Text", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertIn("Intro Text", message["content"])
 
-    def test_without_tracker_info(self, mock_discord_message_asjson):
+    def test_without_tracker_info(self):
         killmail = load_killmail(10000001)
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
-    def test_can_ping_everybody(self, mock_discord_message_asjson):
+    def test_can_ping_everybody(self):
         tracker = Tracker.objects.create(
             name="Test",
             webhook=self.webhook_1,
@@ -781,10 +774,11 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertIn("@everybody", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertIn("@everybody", message["content"])
 
-    def test_can_ping_here(self, mock_discord_message_asjson):
+    def test_can_ping_here(self):
         self.tracker.ping_type = Tracker.ChannelPingType.HERE
         self.tracker.save()
 
@@ -792,74 +786,75 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertIn("@here", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertIn("@here", message["content"])
 
-    def test_can_ping_nobody(self, mock_discord_message_asjson):
+    def test_can_ping_nobody(self):
         self.tracker.ping_type = Tracker.ChannelPingType.NONE
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertNotIn("@everybody", kwargs["content"])
-        self.assertNotIn("@here", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertNotIn("@everybody", message["content"])
+        self.assertNotIn("@here", message["content"])
 
-    def test_can_disable_posting_name(self, mock_discord_message_asjson):
+    def test_can_disable_posting_name(self):
         self.tracker.s_posting_name = False
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        _, kwargs = mock_discord_message_asjson.call_args
-        self.assertNotIn("Ping Nobody", kwargs["content"])
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        message = json.loads(self.webhook_1.main_queue.dequeue())
+        self.assertNotIn("Ping Nobody", message["content"])
 
-    def test_can_send_npc_killmail(self, mock_discord_message_asjson):
+    def test_can_send_npc_killmail(self):
         killmail = self.tracker.process_killmail(load_killmail(10000301))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
-    def test_can_handle_victim_without_character(self, mock_discord_message_asjson):
+    def test_can_handle_victim_without_character(self):
         killmail = self.tracker.process_killmail(load_killmail(10000501))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
-    def test_can_handle_victim_without_corporation(self, mock_discord_message_asjson):
+    def test_can_handle_victim_without_corporation(self):
         killmail = self.tracker.process_killmail(load_killmail(10000502))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
-    def test_can_handle_final_attacker_with_no_character(
-        self, mock_discord_message_asjson
-    ):
+    def test_can_handle_final_attacker_with_no_character(self):
         killmail = self.tracker.process_killmail(load_killmail(10000503))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
-    def test_can_handle_matching_type_ids(self, mock_discord_message_asjson):
+    def test_can_handle_matching_type_ids(self):
         svipul = EveType.objects.get(id=34562)
         self.tracker.require_attackers_ship_types.add(svipul)
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
         self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
-        self.assertTrue(mock_discord_message_asjson.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
 
 @patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
 class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
-        self.message = Webhook.discord_message_asjson(content="Test message")
+        self.message = Webhook._discord_message_asjson(content="Test message")
 
     def test_when_send_ok_returns_true(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
@@ -954,7 +949,6 @@ class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
 
 if "discord" in app_labels():
 
-    @patch(MODULE_PATH + ".Webhook.discord_message_asjson")
     @patch(MODULE_PATH + ".DiscordUser", spec=True)
     class TestGroupPings(LoadTestDataMixin, TestCase):
         @classmethod
@@ -978,22 +972,19 @@ if "discord" in app_labels():
 
             return {"id": group.pk, "name": group.name}
 
-        def test_can_ping_one_group(
-            self, mock_DiscordUser, mock_discord_message_asjson
-        ):
+        def test_can_ping_one_group(self, mock_DiscordUser):
             mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
             self.tracker.ping_groups.add(self.group_1)
-
             killmail = self.tracker.process_killmail(load_killmail(10000101))
+
             self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            args, kwargs = mock_discord_message_asjson.call_args
-            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
+            self.assertEqual(self.webhook_1.main_queue.size(), 1)
+            message = json.loads(self.webhook_1.main_queue.dequeue())
+            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
 
-        def test_can_ping_multiple_groups(
-            self, mock_DiscordUser, mock_discord_message_asjson
-        ):
+        def test_can_ping_multiple_groups(self, mock_DiscordUser):
             mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
             self.tracker.ping_groups.add(self.group_1)
             self.tracker.ping_groups.add(self.group_2)
@@ -1002,13 +993,12 @@ if "discord" in app_labels():
             self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            args, kwargs = mock_discord_message_asjson.call_args
-            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
-            self.assertIn(f"<@&{self.group_2.pk}>", kwargs["content"])
+            self.assertEqual(self.webhook_1.main_queue.size(), 1)
+            message = json.loads(self.webhook_1.main_queue.dequeue())
+            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
+            self.assertIn(f"<@&{self.group_2.pk}>", message["content"])
 
-        def test_can_combine_with_channel_ping(
-            self, mock_DiscordUser, mock_discord_message_asjson
-        ):
+        def test_can_combine_with_channel_ping(self, mock_DiscordUser):
             mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
             self.tracker.ping_groups.add(self.group_1)
             self.tracker.ping_type = Tracker.ChannelPingType.HERE
@@ -1018,13 +1008,12 @@ if "discord" in app_labels():
             self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            args, kwargs = mock_discord_message_asjson.call_args
-            self.assertIn(f"<@&{self.group_1.pk}>", kwargs["content"])
-            self.assertIn("@here", kwargs["content"])
+            self.assertEqual(self.webhook_1.main_queue.size(), 1)
+            message = json.loads(self.webhook_1.main_queue.dequeue())
+            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
+            self.assertIn("@here", message["content"])
 
-        def test_can_handle_error_from_discord(
-            self, mock_DiscordUser, mock_discord_message_asjson
-        ):
+        def test_can_handle_error_from_discord(self, mock_DiscordUser):
             mock_DiscordUser.objects.group_to_role.side_effect = HTTPError
             self.tracker.ping_groups.add(self.group_1)
 
@@ -1032,8 +1021,9 @@ if "discord" in app_labels():
             self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            args, kwargs = mock_discord_message_asjson.call_args
-            self.assertNotIn(f"<@&{self.group_1.pk}>", kwargs["content"])
+            self.assertEqual(self.webhook_1.main_queue.size(), 1)
+            message = json.loads(self.webhook_1.main_queue.dequeue())
+            self.assertNotIn(f"<@&{self.group_1.pk}>", message["content"])
 
 
 class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):

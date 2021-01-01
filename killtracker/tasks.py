@@ -111,7 +111,7 @@ def run_tracker(
         if killmail_new:
             tracker.webhook.enqueue_killmail(killmail_new)
 
-        if killmail_new or tracker.webhook.queue_size():
+        if killmail_new or tracker.webhook.main_queue.size():
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 
         logger.info("Finished running tracker %s", tracker)
@@ -160,29 +160,27 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
         logger.info("Webhook %s disabled - aborting", webhook)
         return
 
-    message = webhook._main_queue.dequeue()
+    message = webhook.main_queue.dequeue()
     if message:
         logger.debug("Sending message to webhook %s", self)
         try:
             success = webhook.send_message_to_webhook(message)
         except WebhookTooManyRequests as ex:
-            webhook._main_queue.enqueue(message)
+            webhook.main_queue.enqueue(message)
             self.retry(countdown=ex.reset_after)
         except WebhookRateLimitReached as ex:
             self.retry(countdown=ex.reset_after)
         else:
             if not success:
-                webhook._error_queue.enqueue(message)
-            if webhook.queue_size():
+                webhook.error_queue.enqueue(message)
+            if webhook.main_queue.size():
                 self.retry(countdown=0)
     else:
         logger.info("No queued killmails for webhook %s", webhook)
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
-def send_test_message_to_webhook(
-    webhook_pk: int, count: int = 1, killmail_id: int = 82700336
-) -> None:
+def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
     """send a test message to given webhook.
     Optional inform user about result if user ok is given
     """
@@ -193,17 +191,7 @@ def send_test_message_to_webhook(
         return
 
     logger.info("Sending test message to webhook %s", webhook)
-    try:
-        killmail = Killmail.create_from_zkb_api(killmail_id)
-    except Exception as ex:
-        logger.warning(
-            "Failed to fetch killmail from ZKB for test message to webhook %s: %s",
-            webhook,
-            ex,
-            exc_info=True,
-        )
-    else:
-        for _ in range(count):
-            webhook.enqueue_killmail(killmail)
+    for _ in range(count):
+        webhook.enqueue_discord_message(content="Test message")
 
-        send_killmails_to_webhook.delay(webhook.pk)
+    send_killmails_to_webhook.delay(webhook.pk)
