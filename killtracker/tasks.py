@@ -109,7 +109,7 @@ def run_tracker(
             killmail=killmail, ignore_max_age=ignore_max_age
         )
         if killmail_new:
-            tracker.webhook.enqueue_killmail(killmail_new)
+            tracker.enqueue_killmail(killmail_new)
 
         if killmail_new or tracker.webhook.main_queue.size():
             send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
@@ -192,6 +192,6 @@ def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
 
     logger.info("Sending test message to webhook %s", webhook)
     for _ in range(count):
-        webhook.enqueue_discord_message(content="Test message")
+        webhook.enqueue_message(content=f"Test message from {__title__}.")
 
     send_killmails_to_webhook.delay(webhook.pk)

@@ -1,7 +1,7 @@
 from copy import deepcopy
 from datetime import timedelta
 import json
-from typing import Optional, List, Tuple
+from typing import Optional, List
 from urllib.parse import urljoin
 
 import dhooks_lite
@@ -207,9 +207,7 @@ class EveKillmailZkb(models.Model):
 
 
 class Webhook(models.Model):
-    """A destination for forwarding killmails"""
-
-    ICON_SIZE = 128
+    """A webhook to receive messages"""
 
     class WebhookType(models.IntegerChoices):
         DISCORD = 1, _("Discord Webhook")
@@ -285,7 +283,7 @@ class Webhook(models.Model):
 
         return counter
 
-    def enqueue_discord_message(
+    def enqueue_message(
         self,
         content: str = None,
         embeds: List[dhooks_lite.Embed] = None,
@@ -293,12 +291,13 @@ class Webhook(models.Model):
         username: str = None,
         avatar_url: str = None,
     ) -> int:
-        username = (
-            self.default_username() if KILLTRACKER_WEBHOOK_SET_AVATAR else username
+        """Enqueues a message to be send with this webhook"""
+        username = __title__ if KILLTRACKER_WEBHOOK_SET_AVATAR else username
+        brand_url = urljoin(
+            get_site_base_url(),
+            staticfiles_storage.url("killtracker/killtracker_logo.png"),
         )
-        avatar_url = (
-            self.default_avatar_url() if KILLTRACKER_WEBHOOK_SET_AVATAR else avatar_url
-        )
+        avatar_url = brand_url if KILLTRACKER_WEBHOOK_SET_AVATAR else avatar_url
         return self.main_queue.enqueue(
             self._discord_message_asjson(
                 content=content,
@@ -349,7 +348,7 @@ class Webhook(models.Model):
         Params
             message_json: Discord message encoded in JSON
         """
-        logger.info("Sending killmail to webhook %s", self)
+        logger.info("Sending message to webhook %s", self)
         message = json.loads(message_json, cls=JSONDateTimeDecoder)
         if message.get("embeds"):
             embeds = [
@@ -411,312 +410,15 @@ class Webhook(models.Model):
             )
             return False
 
-    def enqueue_killmail(self, killmail: Killmail, intro_text: str = None) -> int:
-        """send given killmail to webhook
-
-        returns True if successful, else False
-        """
-        embed, tracker = self._create_embed(killmail)
-        content = self._create_content(intro_text, tracker)
-        return self.enqueue_discord_message(content=content, embeds=[embed])
-
-    def _create_embed(self, killmail: Killmail) -> Tuple[dhooks_lite.Embed, "Tracker"]:
-        resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
-
-        # victim
-        if killmail.victim.alliance_id:
-            victim_organization = EveEntity.objects.get(id=killmail.victim.alliance_id)
-            victim_org_url = zkillboard.alliance_url(killmail.victim.alliance_id)
-        elif killmail.victim.corporation_id:
-            victim_organization = EveEntity.objects.get(
-                id=killmail.victim.corporation_id
-            )
-            victim_org_url = zkillboard.corporation_url(killmail.victim.corporation_id)
-        else:
-            victim_organization = None
-            victim_org_url = None
-
-        if killmail.victim.corporation_id:
-            victim_corporation_zkb_link = self._corporation_zkb_link(
-                killmail.victim.corporation_id, resolver
-            )
-        else:
-            victim_corporation_zkb_link = ""
-
-        if killmail.victim.character_id:
-            victim_character_zkb_link = self._character_zkb_link(
-                killmail.victim.character_id,
-                resolver,
-            )
-            victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link}) "
-        elif killmail.victim.corporation_id:
-            victim_str = victim_corporation_zkb_link
-        else:
-            victim_str = ""
-
-        # final attacker
-        for attacker in killmail.attackers:
-            if attacker.is_final_blow:
-                final_attacker = attacker
-                break
-        else:
-            final_attacker = None
-
-        if final_attacker:
-            if final_attacker.corporation_id:
-                final_attacker_corporation_zkb_link = self._corporation_zkb_link(
-                    final_attacker.corporation_id, resolver
-                )
-            else:
-                final_attacker_corporation_zkb_link = ""
-
-            if final_attacker.character_id and final_attacker.corporation_id:
-                final_attacker_character_zkb_link = self._character_zkb_link(
-                    final_attacker.character_id, resolver
-                )
-                final_attacker_str = (
-                    f"{final_attacker_character_zkb_link} "
-                    f"({final_attacker_corporation_zkb_link})"
-                )
-            elif final_attacker.corporation_id:
-                final_attacker_str = f"{final_attacker_corporation_zkb_link}"
-            elif final_attacker.faction_id:
-                final_attacker_str = (
-                    f"**{resolver.to_name(final_attacker.faction_id)}**"
-                )
-            else:
-                final_attacker_str = "(Unknown final_attacker)"
-
-            final_attacker_ship_type_name = resolver.to_name(
-                final_attacker.ship_type_id
-            )
-
-        else:
-            final_attacker_str = ""
-            final_attacker_ship_type_name = ""
-
-        if killmail.solar_system_id:
-            solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-                id=killmail.solar_system_id
-            )
-            solar_system_link = self._convert_to_discord_link(
-                name=solar_system.name, url=dotlan.solar_system_url(solar_system.name)
-            )
-            region_name = solar_system.eve_constellation.eve_region.name
-            solar_system_text = f"{solar_system_link} ({region_name})"
-        else:
-            solar_system_text = ""
-
-        # tracker info
-        tracker = None
-        show_as_fleetkill = False
-        distance_text = ""
-        main_org_text = ""
-        main_org_name = ""
-        main_org_icon_url = eveimageserver.alliance_logo_url(1, size=self.ICON_SIZE)
-        main_ship_group_text = ""
-        tracked_ship_types_text = ""
-        embed_color = None
-        if killmail.tracker_info:
-            tracker = Tracker.objects.get(pk=killmail.tracker_info.tracker_pk)
-            show_as_fleetkill = tracker.identify_fleets
-            embed_color = int(tracker.color[1:], 16) if tracker.color else None
-            if tracker.origin_solar_system:
-                origin_solar_system_link = self._convert_to_discord_link(
-                    name=tracker.origin_solar_system.name,
-                    url=dotlan.solar_system_url(tracker.origin_solar_system.name),
-                )
-                if killmail.tracker_info.distance is not None:
-                    distance_str = f"{killmail.tracker_info.distance:,.1f}"
-                else:
-                    distance_str = "?"
-
-                if killmail.tracker_info.jumps is not None:
-                    jumps_str = killmail.tracker_info.jumps
-                else:
-                    jumps_str = "?"
-
-                distance_text = (
-                    f"\nDistance from {origin_solar_system_link}: "
-                    f"{distance_str} LY | {jumps_str} jumps"
-                )
-
-            # main group
-            main_org = killmail.tracker_info.main_org
-            if main_org:
-                main_org_name = resolver.to_name(main_org.id)
-                if main_org.is_corporation:
-                    main_org_link = self._corporation_zkb_link(main_org.id, resolver)
-                    main_org_icon_url = eveimageserver.corporation_logo_url(
-                        main_org.id, size=self.ICON_SIZE
-                    )
-                else:
-                    main_org_link = self._alliance_zkb_link(main_org.id, resolver)
-                    main_org_icon_url = eveimageserver.alliance_logo_url(
-                        main_org.id, size=self.ICON_SIZE
-                    )
-
-                main_org_text = f" | Main group: {main_org_link} ({main_org.count})"
-
-            else:
-                show_as_fleetkill = False
-
-            # main ship group
-            main_ship_group = killmail.tracker_info.main_ship_group
-            if main_ship_group:
-                main_ship_group_text = f"\nMain ship class: **{main_ship_group.name}**"
-
-            # tracked attacker ships
-            matching_ship_type_ids = killmail.tracker_info.matching_ship_type_ids
-            if matching_ship_type_ids:
-                ship_types_text = "**, **".join(
-                    sorted(
-                        [
-                            resolver.to_name(type_id)
-                            for type_id in matching_ship_type_ids
-                        ]
-                    )
-                )
-                tracked_ship_types_text = (
-                    f"\nTracked ship types involved: **{ship_types_text}**"
-                )
-
-        victim_ship_type_name = resolver.to_name(killmail.victim.ship_type_id)
-
-        description = (
-            f"{victim_str} lost their **{victim_ship_type_name}** "
-            f"in {solar_system_text} "
-            f"worth **{humanize_value(killmail.zkb.total_value)}** ISK.\n"
-            f"Final blow by {final_attacker_str} "
-            f"in a **{final_attacker_ship_type_name}**.\n"
-            f"Attackers: **{len(killmail.attackers):,}**{main_org_text}"
-            f"{main_ship_group_text}"
-            f"{tracked_ship_types_text}"
-            f"{distance_text}"
-        )
-
-        solar_system_name = resolver.to_name(killmail.solar_system_id)
-        if show_as_fleetkill:
-            title = f"{solar_system_name} | {main_org_name} | Fleetkill"
-        else:
-            title = f"{solar_system_name} | {victim_ship_type_name} | Killmail"
-
-        if show_as_fleetkill:
-            thumbnail_url = main_org_icon_url
-        else:
-            thumbnail_url = eveimageserver.type_icon_url(
-                killmail.victim.ship_type_id, size=self.ICON_SIZE
-            )
-
-        zkb_killmail_url = f"{ZKB_KILLMAIL_BASEURL}{killmail.id}/"
-        author = (
-            dhooks_lite.Author(name=victim_organization.name, url=victim_org_url)
-            if victim_organization and victim_org_url
-            else None
-        )
-        embed = dhooks_lite.Embed(
-            author=author,
-            description=description,
-            title=title,
-            url=zkb_killmail_url,
-            thumbnail=dhooks_lite.Thumbnail(url=thumbnail_url),
-            footer=dhooks_lite.Footer(
-                text="zKillboard", icon_url=Webhook.zkb_icon_url()
-            ),
-            timestamp=killmail.time,
-            color=embed_color,
-        )
-        return embed, tracker
-
-    def _create_content(self, intro_text, tracker) -> str:
-        intro_parts = []
-        if tracker:
-            if tracker.ping_type == Tracker.ChannelPingType.EVERYBODY:
-                intro_parts.append("@everybody")
-            elif tracker.ping_type == Tracker.ChannelPingType.HERE:
-                intro_parts.append("@here")
-
-            if tracker.ping_groups.exists():
-                if "discord" in app_labels():
-                    for group in tracker.ping_groups.all():
-                        try:
-                            role = DiscordUser.objects.group_to_role(group)
-                        except HTTPError:
-                            logger.warning(
-                                "Failed to get Discord roles. Can not ping groups.",
-                                exc_info=True,
-                            )
-                        else:
-                            if role:
-                                intro_parts.append(f"<@&{role['id']}>")
-
-                else:
-                    logger.warning(
-                        "Discord service needs to be installed in order "
-                        "to use groups ping features."
-                    )
-
-            if tracker.is_posting_name:
-                intro_parts.append(f"Tracker **{tracker.name}**:")
-
-        intro_parts_2 = []
-        if intro_text:
-            intro_parts_2.append(intro_text)
-        if intro_parts:
-            intro_parts_2.append(" ".join(intro_parts))
-
-        return "\n".join(intro_parts_2)
-
-    @classmethod
-    def _character_zkb_link(
-        cls, entity_id: int, resolver: EveEntityNameResolver
-    ) -> str:
-        return cls._convert_to_discord_link(
-            name=resolver.to_name(entity_id), url=zkillboard.character_url(entity_id)
-        )
-
-    @classmethod
-    def _corporation_zkb_link(
-        cls, entity_id: int, resolver: EveEntityNameResolver
-    ) -> str:
-        return cls._convert_to_discord_link(
-            name=resolver.to_name(entity_id), url=zkillboard.corporation_url(entity_id)
-        )
-
-    @classmethod
-    def _alliance_zkb_link(cls, entity_id: int, resolver: EveEntityNameResolver) -> str:
-        return cls._convert_to_discord_link(
-            name=resolver.to_name(entity_id), url=zkillboard.alliance_url(entity_id)
-        )
-
-    @classmethod
-    def _convert_to_discord_link(cls, name: str, url: str) -> str:
+    @staticmethod
+    def create_message_link(name: str, url: str) -> str:
+        """Create link for a Discord message"""
         return f"[{str(name)}]({str(url)})"
-
-    @staticmethod
-    def default_avatar_url() -> str:
-        """avatar url for all messages"""
-        return urljoin(
-            get_site_base_url(),
-            staticfiles_storage.url("killtracker/killtracker_logo.png"),
-        )
-
-    @staticmethod
-    def zkb_icon_url() -> str:
-        """avatar url for all messages"""
-        return urljoin(
-            get_site_base_url(),
-            staticfiles_storage.url("killtracker/zkb_icon.png"),
-        )
-
-    @staticmethod
-    def default_username() -> str:
-        """avatar username for all messages"""
-        return __title__
 
 
 class Tracker(models.Model):
 
+    ICON_SIZE = 128
     MAIN_MINIMUM_COUNT = 2
     MAIN_MINIMUM_SHARE = 0.25
 
@@ -1291,3 +993,279 @@ class Tracker(models.Model):
                 return sorted(ship_groups_2, key=lambda x: x.count).pop()
 
         return None
+
+    def enqueue_killmail(self, killmail: Killmail, intro_text: str = None) -> int:
+        """enqueue a killmail for later sending into main queue.
+
+        returns new queue size
+        """
+        embed = self._create_embed(killmail)
+        content = self._create_content(intro_text)
+        return self.webhook.enqueue_message(content=content, embeds=[embed])
+
+    def _create_embed(self, killmail: Killmail) -> dhooks_lite.Embed:
+        resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
+
+        # victim
+        if killmail.victim.alliance_id:
+            victim_organization = EveEntity.objects.get(id=killmail.victim.alliance_id)
+            victim_org_url = zkillboard.alliance_url(killmail.victim.alliance_id)
+        elif killmail.victim.corporation_id:
+            victim_organization = EveEntity.objects.get(
+                id=killmail.victim.corporation_id
+            )
+            victim_org_url = zkillboard.corporation_url(killmail.victim.corporation_id)
+        else:
+            victim_organization = None
+            victim_org_url = None
+
+        if killmail.victim.corporation_id:
+            victim_corporation_zkb_link = self._corporation_zkb_link(
+                killmail.victim.corporation_id, resolver
+            )
+        else:
+            victim_corporation_zkb_link = ""
+
+        if killmail.victim.character_id:
+            victim_character_zkb_link = self._character_zkb_link(
+                killmail.victim.character_id,
+                resolver,
+            )
+            victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link}) "
+        elif killmail.victim.corporation_id:
+            victim_str = victim_corporation_zkb_link
+        else:
+            victim_str = ""
+
+        # final attacker
+        for attacker in killmail.attackers:
+            if attacker.is_final_blow:
+                final_attacker = attacker
+                break
+        else:
+            final_attacker = None
+
+        if final_attacker:
+            if final_attacker.corporation_id:
+                final_attacker_corporation_zkb_link = self._corporation_zkb_link(
+                    final_attacker.corporation_id, resolver
+                )
+            else:
+                final_attacker_corporation_zkb_link = ""
+
+            if final_attacker.character_id and final_attacker.corporation_id:
+                final_attacker_character_zkb_link = self._character_zkb_link(
+                    final_attacker.character_id, resolver
+                )
+                final_attacker_str = (
+                    f"{final_attacker_character_zkb_link} "
+                    f"({final_attacker_corporation_zkb_link})"
+                )
+            elif final_attacker.corporation_id:
+                final_attacker_str = f"{final_attacker_corporation_zkb_link}"
+            elif final_attacker.faction_id:
+                final_attacker_str = (
+                    f"**{resolver.to_name(final_attacker.faction_id)}**"
+                )
+            else:
+                final_attacker_str = "(Unknown final_attacker)"
+
+            final_attacker_ship_type_name = resolver.to_name(
+                final_attacker.ship_type_id
+            )
+
+        else:
+            final_attacker_str = ""
+            final_attacker_ship_type_name = ""
+
+        if killmail.solar_system_id:
+            solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+                id=killmail.solar_system_id
+            )
+            solar_system_link = self.webhook.create_message_link(
+                name=solar_system.name, url=dotlan.solar_system_url(solar_system.name)
+            )
+            region_name = solar_system.eve_constellation.eve_region.name
+            solar_system_text = f"{solar_system_link} ({region_name})"
+        else:
+            solar_system_text = ""
+
+        # self info
+        show_as_fleetkill = False
+        distance_text = ""
+        main_org_text = ""
+        main_org_name = ""
+        main_org_icon_url = eveimageserver.alliance_logo_url(1, size=self.ICON_SIZE)
+        main_ship_group_text = ""
+        tracked_ship_types_text = ""
+        embed_color = None
+        if killmail.tracker_info:
+            show_as_fleetkill = self.identify_fleets
+            embed_color = int(self.color[1:], 16) if self.color else None
+            if self.origin_solar_system:
+                origin_solar_system_link = self.webhook.create_message_link(
+                    name=self.origin_solar_system.name,
+                    url=dotlan.solar_system_url(self.origin_solar_system.name),
+                )
+                if killmail.tracker_info.distance is not None:
+                    distance_str = f"{killmail.tracker_info.distance:,.1f}"
+                else:
+                    distance_str = "?"
+
+                if killmail.tracker_info.jumps is not None:
+                    jumps_str = killmail.tracker_info.jumps
+                else:
+                    jumps_str = "?"
+
+                distance_text = (
+                    f"\nDistance from {origin_solar_system_link}: "
+                    f"{distance_str} LY | {jumps_str} jumps"
+                )
+
+            # main group
+            main_org = killmail.tracker_info.main_org
+            if main_org:
+                main_org_name = resolver.to_name(main_org.id)
+                if main_org.is_corporation:
+                    main_org_link = self._corporation_zkb_link(main_org.id, resolver)
+                    main_org_icon_url = eveimageserver.corporation_logo_url(
+                        main_org.id, size=self.ICON_SIZE
+                    )
+                else:
+                    main_org_link = self._alliance_zkb_link(main_org.id, resolver)
+                    main_org_icon_url = eveimageserver.alliance_logo_url(
+                        main_org.id, size=self.ICON_SIZE
+                    )
+
+                main_org_text = f" | Main group: {main_org_link} ({main_org.count})"
+
+            else:
+                show_as_fleetkill = False
+
+            # main ship group
+            main_ship_group = killmail.tracker_info.main_ship_group
+            if main_ship_group:
+                main_ship_group_text = f"\nMain ship class: **{main_ship_group.name}**"
+
+            # tracked attacker ships
+            matching_ship_type_ids = killmail.tracker_info.matching_ship_type_ids
+            if matching_ship_type_ids:
+                ship_types_text = "**, **".join(
+                    sorted(
+                        [
+                            resolver.to_name(type_id)
+                            for type_id in matching_ship_type_ids
+                        ]
+                    )
+                )
+                tracked_ship_types_text = (
+                    f"\nTracked ship types involved: **{ship_types_text}**"
+                )
+
+        victim_ship_type_name = resolver.to_name(killmail.victim.ship_type_id)
+
+        description = (
+            f"{victim_str} lost their **{victim_ship_type_name}** "
+            f"in {solar_system_text} "
+            f"worth **{humanize_value(killmail.zkb.total_value)}** ISK.\n"
+            f"Final blow by {final_attacker_str} "
+            f"in a **{final_attacker_ship_type_name}**.\n"
+            f"Attackers: **{len(killmail.attackers):,}**{main_org_text}"
+            f"{main_ship_group_text}"
+            f"{tracked_ship_types_text}"
+            f"{distance_text}"
+        )
+
+        solar_system_name = resolver.to_name(killmail.solar_system_id)
+        if show_as_fleetkill:
+            title = f"{solar_system_name} | {main_org_name} | Fleetkill"
+        else:
+            title = f"{solar_system_name} | {victim_ship_type_name} | Killmail"
+
+        if show_as_fleetkill:
+            thumbnail_url = main_org_icon_url
+        else:
+            thumbnail_url = eveimageserver.type_icon_url(
+                killmail.victim.ship_type_id, size=self.ICON_SIZE
+            )
+
+        zkb_killmail_url = f"{ZKB_KILLMAIL_BASEURL}{killmail.id}/"
+        author = (
+            dhooks_lite.Author(name=victim_organization.name, url=victim_org_url)
+            if victim_organization and victim_org_url
+            else None
+        )
+        zkb_icon_url = urljoin(
+            get_site_base_url(), staticfiles_storage.url("killtracker/zkb_icon.png")
+        )
+        embed = dhooks_lite.Embed(
+            author=author,
+            description=description,
+            title=title,
+            url=zkb_killmail_url,
+            thumbnail=dhooks_lite.Thumbnail(url=thumbnail_url),
+            footer=dhooks_lite.Footer(text="zKillboard", icon_url=zkb_icon_url),
+            timestamp=killmail.time,
+            color=embed_color,
+        )
+        return embed
+
+    def _create_content(self, intro_text) -> str:
+        intro_parts = []
+
+        if self.ping_type == Tracker.ChannelPingType.EVERYBODY:
+            intro_parts.append("@everybody")
+        elif self.ping_type == Tracker.ChannelPingType.HERE:
+            intro_parts.append("@here")
+
+        if self.ping_groups.exists():
+            if "discord" in app_labels():
+                for group in self.ping_groups.all():
+                    try:
+                        role = DiscordUser.objects.group_to_role(group)
+                    except HTTPError:
+                        logger.warning(
+                            "Failed to get Discord roles. Can not ping groups.",
+                            exc_info=True,
+                        )
+                    else:
+                        if role:
+                            intro_parts.append(f"<@&{role['id']}>")
+
+            else:
+                logger.warning(
+                    "Discord service needs to be installed in order "
+                    "to use groups ping features."
+                )
+
+        if self.is_posting_name:
+            intro_parts.append(f"Tracker **{self.name}**:")
+
+        intro_parts_2 = []
+        if intro_text:
+            intro_parts_2.append(intro_text)
+        if intro_parts:
+            intro_parts_2.append(" ".join(intro_parts))
+
+        return "\n".join(intro_parts_2)
+
+    def _character_zkb_link(
+        self, entity_id: int, resolver: EveEntityNameResolver
+    ) -> str:
+        return self.webhook.create_message_link(
+            name=resolver.to_name(entity_id), url=zkillboard.character_url(entity_id)
+        )
+
+    def _corporation_zkb_link(
+        self, entity_id: int, resolver: EveEntityNameResolver
+    ) -> str:
+        return self.webhook.create_message_link(
+            name=resolver.to_name(entity_id), url=zkillboard.corporation_url(entity_id)
+        )
+
+    def _alliance_zkb_link(
+        self, entity_id: int, resolver: EveEntityNameResolver
+    ) -> str:
+        return self.webhook.create_message_link(
+            name=resolver.to_name(entity_id), url=zkillboard.alliance_url(entity_id)
+        )

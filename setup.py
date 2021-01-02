@@ -45,7 +45,7 @@ setup(
         "dataclasses>='0.7';python_version<'3.7'",
         "dacite",
         "django-eveuniverse>=0.3",
-        "redis-simple-mq",
+        "redis-simple-mq>=0.4.0",
         "dhooks-lite>=0.4",
     ],
 )

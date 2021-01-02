@@ -682,7 +682,7 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
         self.assertIsNone(killmail.tracker_info.main_org)
 
 
-class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
+class TestTrackerEnqueueKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
         self.webhook_1.main_queue.clear()
@@ -701,7 +701,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.require_attackers_ship_types.add(gnosis)
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -728,7 +728,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.require_attackers_ship_types.add(gnosis)
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -741,7 +741,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -750,7 +750,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
     def test_can_add_intro_text(self):
         killmail = self.tracker.process_killmail(load_killmail(10000101))
 
-        self.webhook_1.enqueue_killmail(killmail, intro_text="Intro Text")
+        self.tracker.enqueue_killmail(killmail, intro_text="Intro Text")
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -759,7 +759,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
     def test_without_tracker_info(self):
         killmail = load_killmail(10000001)
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
@@ -772,7 +772,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         killmail = tracker.process_killmail(load_killmail(10000001))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -784,7 +784,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
 
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -795,7 +795,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -807,7 +807,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.save()
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         message = json.loads(self.webhook_1.main_queue.dequeue())
@@ -816,28 +816,28 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
     def test_can_send_npc_killmail(self):
         killmail = self.tracker.process_killmail(load_killmail(10000301))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
     def test_can_handle_victim_without_character(self):
         killmail = self.tracker.process_killmail(load_killmail(10000501))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
     def test_can_handle_victim_without_corporation(self):
         killmail = self.tracker.process_killmail(load_killmail(10000502))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
     def test_can_handle_final_attacker_with_no_character(self):
         killmail = self.tracker.process_killmail(load_killmail(10000503))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
@@ -846,7 +846,7 @@ class TestWebhookEnqueueKillmail(LoadTestDataMixin, TestCase):
         self.tracker.require_attackers_ship_types.add(svipul)
         killmail = self.tracker.process_killmail(load_killmail(10000001))
 
-        self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+        self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
@@ -977,7 +977,7 @@ if "discord" in app_labels():
             self.tracker.ping_groups.add(self.group_1)
             killmail = self.tracker.process_killmail(load_killmail(10000101))
 
-            self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+            self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
@@ -990,7 +990,7 @@ if "discord" in app_labels():
             self.tracker.ping_groups.add(self.group_2)
 
             killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+            self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
@@ -1005,7 +1005,7 @@ if "discord" in app_labels():
             self.tracker.save()
 
             killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+            self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
@@ -1018,7 +1018,7 @@ if "discord" in app_labels():
             self.tracker.ping_groups.add(self.group_1)
 
             killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.webhook_1.enqueue_killmail(Killmail.from_json(killmail.asjson()))
+            self.tracker.enqueue_killmail(Killmail.from_json(killmail.asjson()))
 
             self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
