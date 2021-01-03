@@ -11,7 +11,7 @@ from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMix
 from ..tasks import (
     delete_stale_killmails,
     run_tracker,
-    send_killmails_to_webhook,
+    send_messages_to_webhook,
     run_killtracker,
     store_killmail,
     send_test_message_to_webhook,
@@ -96,7 +96,7 @@ class TestRunKilltracker(TestTrackerBase):
 
 
 @patch("killtracker.models.Tracker.enqueue_killmail")
-@patch(MODULE_PATH + ".send_killmails_to_webhook")
+@patch(MODULE_PATH + ".send_messages_to_webhook")
 @patch(MODULE_PATH + ".logger")
 class TestRunTracker(TestTrackerBase):
     def test_log_warning_when_pk_is_invalid(
@@ -124,7 +124,7 @@ class TestRunTracker(TestTrackerBase):
         self.assertFalse(mock_logger.error.called)
 
 
-@patch(MODULE_PATH + ".send_killmails_to_webhook.retry")
+@patch(MODULE_PATH + ".send_messages_to_webhook.retry")
 @patch(MODULE_PATH + ".Webhook.send_message_to_webhook")
 @patch(MODULE_PATH + ".logger")
 class TestSendMessagesToWebhook(TestTrackerBase):
@@ -133,7 +133,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.webhook_1.error_queue.clear()
 
     def my_retry(self, *args, **kwargs):
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
     def test_one_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
         """
@@ -144,7 +144,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         mock_send_message_to_webhook.return_value = True
         self.webhook_1.enqueue_message(content="Test message")
 
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
@@ -163,7 +163,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.webhook_1.enqueue_message(content="Test message")
         self.webhook_1.enqueue_message(content="Test message")
 
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 3)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
@@ -180,7 +180,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         mock_send_message_to_webhook.return_value = False
         self.webhook_1.enqueue_message(content="Test message")
 
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
@@ -198,7 +198,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         mock_send_message_to_webhook.side_effect = WebhookRateLimitReached(10)
         self.webhook_1.enqueue_message(content="Test message")
 
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
         self.assertTrue(mock_retry.called)
         self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
@@ -216,7 +216,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         mock_send_message_to_webhook.side_effect = WebhookTooManyRequests(10)
         self.webhook_1.enqueue_message(content="Test message")
 
-        send_killmails_to_webhook(self.webhook_1.pk)
+        send_messages_to_webhook(self.webhook_1.pk)
 
         self.assertTrue(mock_retry.called)
         self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
@@ -228,7 +228,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
     ):
         mock_retry.side_effect = self.my_retry
 
-        send_killmails_to_webhook(generate_invalid_pk(Webhook))
+        send_messages_to_webhook(generate_invalid_pk(Webhook))
 
         self.assertFalse(mock_send_message_to_webhook.called)
         self.assertTrue(mock_logger.error.called)
@@ -239,7 +239,7 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         my_webhook = Webhook.objects.create(
             name="disabled", url="dummy-url-2", is_enabled=False
         )
-        send_killmails_to_webhook(my_webhook.pk)
+        send_messages_to_webhook(my_webhook.pk)
 
         self.assertFalse(mock_send_message_to_webhook.called)
         self.assertTrue(mock_logger.info.called)

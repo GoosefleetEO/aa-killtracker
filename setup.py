@@ -1,7 +1,7 @@
 import os
 from setuptools import find_packages, setup
 
-from killtracker import __version__
+from killtracker import __version__, APP_NAME, HOMEPAGE_URL
 
 
 # read the contents of your README file
@@ -13,7 +13,7 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
-    name="aa-killtracker",
+    name=APP_NAME,
     version=__version__,
     packages=find_packages(),
     include_package_data=True,
@@ -21,7 +21,7 @@ setup(
     description="An app for running killmail trackers with Alliance Auth and Discord",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/ErikKalkoken/aa-killtracker",
+    url=HOMEPAGE_URL,
     author="Erik Kalkoken",
     author_email="kalkoken87@gmail.com",
     classifiers=[
@@ -45,7 +45,7 @@ setup(
         "dataclasses>='0.7';python_version<'3.7'",
         "dacite",
         "django-eveuniverse>=0.3",
-        "redis-simple-mq>=0.4.0",
-        "dhooks-lite>=0.4",
+        "redis-simple-mq>=0.4",
+        "dhooks-lite>=0.6",
     ],
 )

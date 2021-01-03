@@ -112,7 +112,7 @@ def run_tracker(
             tracker.enqueue_killmail(killmail_new)
 
         if killmail_new or tracker.webhook.main_queue.size():
-            send_killmails_to_webhook.delay(webhook_pk=tracker.webhook.pk)
+            send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 
         logger.info("Finished running tracker %s", tracker)
 
@@ -148,8 +148,8 @@ def delete_stale_killmails() -> None:
     retry_backoff=False,
     max_retries=None,
 )
-def send_killmails_to_webhook(self, webhook_pk: int) -> None:
-    """send all currently queued killmails in given webhook object to Discord"""
+def send_messages_to_webhook(self, webhook_pk: int) -> None:
+    """send all queued messages to given Webhook"""
     try:
         webhook = Webhook.objects.get(pk=webhook_pk)
     except Webhook.DoesNotExist:
@@ -179,8 +179,8 @@ def send_killmails_to_webhook(self, webhook_pk: int) -> None:
         logger.info("No queued killmails for webhook %s", webhook)
 
 
-@shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
-def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
+@shared_task(bind=True, timeout=KILLTRACKER_TASKS_TIMEOUT)
+def send_test_message_to_webhook(self, webhook_pk: int, count: int = 1) -> None:
     """send a test message to given webhook.
     Optional inform user about result if user ok is given
     """
@@ -190,8 +190,9 @@ def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
         logger.error("Webhook with pk = %s does not exist", webhook_pk)
         return
 
-    logger.info("Sending test message to webhook %s", webhook)
-    for _ in range(count):
-        webhook.enqueue_message(content=f"Test message from {__title__}.")
+    logger.info("Sending %s test messages to webhook %s", count, webhook)
+    for n in range(count):
+        num_str = f"{n+1}/{count} " if count > 1 else ""
+        webhook.enqueue_message(content=f"Test message {num_str}from {__title__}.")
 
-    send_killmails_to_webhook.delay(webhook.pk)
+    send_messages_to_webhook.delay(webhook.pk)

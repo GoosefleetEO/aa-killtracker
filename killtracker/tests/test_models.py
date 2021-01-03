@@ -882,7 +882,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
             self.webhook_1.send_message_to_webhook(self.message)
         except Exception as ex:
             self.assertIsInstance(ex, WebhookRateLimitReached)
-            self.assertEqual(ex.reset_after, 61)
+            self.assertEqual(ex.reset_after, 62.0)
         else:
             self.fail("Did not raise excepted exception")
 
@@ -899,7 +899,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
             self.webhook_1.send_message_to_webhook(self.message)
         except Exception as ex:
             self.assertIsInstance(ex, WebhookRateLimitReached)
-            self.assertEqual(ex.reset_after, 5)
+            self.assertEqual(ex.reset_after, 10.0)
         else:
             self.fail("Did not raise excepted exception")
 
@@ -907,7 +907,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
 
     def test_will_raise_when_too_many_requests_reached(self, mock_execute):
         mock_execute.return_value = dhooks_lite.WebhookResponse(
-            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "60"},
+            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "61.0"},
             status_code=429,
             content={
                 "global": False,
@@ -920,7 +920,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, NoSocketsTestCase):
             self.webhook_1.send_message_to_webhook(self.message)
         except Exception as ex:
             self.assertIsInstance(ex, WebhookTooManyRequests)
-            self.assertEqual(ex.reset_after, 2001)
+            self.assertEqual(ex.reset_after, 2002.0)
         else:
             self.fail("Did not raise excepted exception")
 

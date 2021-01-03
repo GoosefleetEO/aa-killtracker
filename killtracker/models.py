@@ -30,7 +30,7 @@ from eveuniverse.models import (
     EveType,
 )
 
-from . import __title__
+from . import __title__, APP_NAME, HOMEPAGE_URL, __version__
 from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
@@ -357,7 +357,12 @@ class Webhook(models.Model):
             ]
         else:
             embeds = None
-        hook = dhooks_lite.Webhook(url=self.url)
+        hook = dhooks_lite.Webhook(
+            url=self.url,
+            user_agent=dhooks_lite.UserAgent(
+                name=APP_NAME, url=HOMEPAGE_URL, version=__version__
+            ),
+        )
         response = hook.execute(
             content=message.get("content"),
             embeds=embeds,
@@ -370,7 +375,7 @@ class Webhook(models.Model):
         logger.debug("content: %s", response.content)
         if response.status_code == 429:
             try:
-                timeout = int(response.content.get("retry_after")) + 1
+                timeout = float(response.content.get("retry_after")) + 2.0
             except (ValueError, TypeError):
                 timeout = None
             logger.warning(
@@ -389,12 +394,12 @@ class Webhook(models.Model):
             if remaining == 0:
                 try:
                     timeout = (
-                        int(response.headers.get("x-ratelimit-reset-after", 4)) + 1
+                        float(response.headers.get("x-ratelimit-reset-after", 8)) + 2.0
                     )
                 except (ValueError, TypeError):
                     timeout = None
                 logger.info(
-                    "Rate limit reached for webhook %s. Blocked for %s seconds",
+                    "Rate limit exhausted for webhook %s. Blocked for %s seconds",
                     self,
                     timeout,
                 )
