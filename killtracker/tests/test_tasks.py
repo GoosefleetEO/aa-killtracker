@@ -15,6 +15,7 @@ from ..tasks import (
     run_killtracker,
     store_killmail,
     send_test_message_to_webhook,
+    generate_killmail_message,
 )
 from ..utils import generate_invalid_pk
 
@@ -95,33 +96,83 @@ class TestRunKilltracker(TestTrackerBase):
         self.assertTrue(mock_delete_stale_killmails.delay.called)
 
 
-@patch("killtracker.models.Tracker.enqueue_killmail_message")
 @patch(MODULE_PATH + ".send_messages_to_webhook")
-@patch(MODULE_PATH + ".logger")
+@patch(MODULE_PATH + ".generate_killmail_message")
 class TestRunTracker(TestTrackerBase):
-    def test_log_warning_when_pk_is_invalid(
-        self, mock_logger, mock_send_killmails_to_webhook, mock_add_killmail_to_queue
+    def setUp(self) -> None:
+        self.webhook_1.main_queue.clear()
+
+    def test_call_enqueue_for_matching_killmail(
+        self, mock_enqueue_killmail_message, mock_send_messages_to_webhook
     ):
-        run_tracker(generate_invalid_pk(Tracker), "dummy")
-
-        self.assertFalse(mock_send_killmails_to_webhook.delay.called)
-        self.assertTrue(mock_logger.error.called)
-        self.assertFalse(mock_add_killmail_to_queue.called)
-
-    def test_run_normal(
-        self,
-        mock_logger,
-        mock_send_killmails_to_webhook,
-        mock_add_killmail_to_queue,
-    ):
-        killmail = load_killmail(10000001)
-        killmail_json = killmail.asjson()
-
+        """when killmail is matching, then generate new message from it"""
+        killmail_json = load_killmail(10000001).asjson()
         run_tracker(self.tracker_1.pk, killmail_json)
+        self.assertTrue(mock_enqueue_killmail_message.delay.called)
+        self.assertFalse(mock_send_messages_to_webhook.delay.called)
 
-        self.assertEqual(mock_add_killmail_to_queue.call_count, 1)
-        self.assertEqual(mock_send_killmails_to_webhook.delay.call_count, 1)
-        self.assertFalse(mock_logger.error.called)
+    def test_do_nothing_when_no_matching_killmail(
+        self, mock_enqueue_killmail_message, mock_send_messages_to_webhook
+    ):
+        """when killmail is not matching and webhook queue is empty,
+        then do nothing
+        """
+        killmail_json = load_killmail(10000003).asjson()
+        run_tracker(self.tracker_1.pk, killmail_json)
+        self.assertFalse(mock_enqueue_killmail_message.delay.called)
+        self.assertFalse(mock_send_messages_to_webhook.delay.called)
+
+    def test_start_message_sending_when_queue_non_empty(
+        self, mock_enqueue_killmail_message, mock_send_messages_to_webhook
+    ):
+        """when killmail is not matching and webhook queue is not empty,
+        then start sending anyway
+        """
+        killmail_json = load_killmail(10000003).asjson()
+        self.webhook_1.enqueue_message(content="test")
+        run_tracker(self.tracker_1.pk, killmail_json)
+        self.assertFalse(mock_enqueue_killmail_message.delay.called)
+        self.assertTrue(mock_send_messages_to_webhook.delay.called)
+
+
+@patch(MODULE_PATH + ".generate_killmail_message.retry")
+@patch(MODULE_PATH + ".send_messages_to_webhook")
+class TestGenerateKillmailMessage(TestTrackerBase):
+    def setUp(self) -> None:
+        self.webhook_1.main_queue.clear()
+        self.retries = 0
+        self.killmail_json = load_killmail(10000001).asjson()
+
+    def my_retry(self, *args, **kwargs):
+        self.retries += 1
+        if self.retries > kwargs["max_retries"]:
+            raise kwargs["exc"]
+        generate_killmail_message(self.tracker_1.pk, self.killmail_json)
+
+    def test_normal(self, mock_send_messages_to_webhook, mock_retry):
+        """enqueue generated killmail and start sending"""
+        mock_retry.side_effect = self.my_retry
+
+        generate_killmail_message(self.tracker_1.pk, self.killmail_json)
+
+        self.assertTrue(mock_send_messages_to_webhook.delay.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        self.assertFalse(mock_retry.called)
+
+    @patch(MODULE_PATH + ".Tracker.generate_killmail_message")
+    def test_retry(
+        self, mock_generate_killmail_message, mock_send_messages_to_webhook, mock_retry
+    ):
+        """when message generation fails, then retry"""
+        mock_retry.side_effect = self.my_retry
+        mock_generate_killmail_message.side_effect = RuntimeError
+
+        with self.assertRaises(RuntimeError):
+            generate_killmail_message(self.tracker_1.pk, self.killmail_json)
+
+        self.assertFalse(mock_send_messages_to_webhook.delay.called)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
+        self.assertEqual(mock_retry.call_count, 4)
 
 
 @patch(MODULE_PATH + ".send_messages_to_webhook.retry")

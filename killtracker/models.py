@@ -976,10 +976,10 @@ class Tracker(models.Model):
 
         return None
 
-    def enqueue_killmail_message(
+    def generate_killmail_message(
         self, killmail: Killmail, intro_text: str = None
     ) -> int:
-        """enqueue a killmail for later sending into main queue.
+        """generate a message from given killmail and enqueue for later sending
 
         returns new queue size
         """
