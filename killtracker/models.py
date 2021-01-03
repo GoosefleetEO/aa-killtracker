@@ -229,7 +229,6 @@ class Webhook(models.Model):
         ),
     )
     notes = models.TextField(
-        default="",
         blank=True,
         help_text="you can add notes about this webhook here if you want",
     )
@@ -415,7 +414,6 @@ class Tracker(models.Model):
         unique=True,
     )
     description = models.TextField(
-        default="",
         blank=True,
         help_text=(
             "Brief description what this tracker is for. Will not be shown on alerts."
