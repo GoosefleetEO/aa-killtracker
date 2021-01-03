@@ -5,7 +5,7 @@ import dhooks_lite
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from ..exceptions import WebhookRateLimitReached, WebhookTooManyRequests
+from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..tasks import (
@@ -95,7 +95,7 @@ class TestRunKilltracker(TestTrackerBase):
         self.assertTrue(mock_delete_stale_killmails.delay.called)
 
 
-@patch("killtracker.models.Tracker.enqueue_killmail")
+@patch("killtracker.models.Tracker.enqueue_killmail_message")
 @patch(MODULE_PATH + ".send_messages_to_webhook")
 @patch(MODULE_PATH + ".logger")
 class TestRunTracker(TestTrackerBase):
@@ -136,12 +136,11 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         send_messages_to_webhook(self.webhook_1.pk)
 
     def test_one_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
-        """
-        when one mesage in queue
-        then send it and returns 1
-        """
+        """when one mesage in queue, then send it and retry with delay"""
         mock_retry.side_effect = self.my_retry
-        mock_send_message_to_webhook.return_value = True
+        mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
+            {}, status_code=200
+        )
         self.webhook_1.enqueue_message(content="Test message")
 
         send_messages_to_webhook(self.webhook_1.pk)
@@ -149,16 +148,18 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
+        self.assertEqual(mock_retry.call_count, 1)
+        _, kwargs = mock_retry.call_args
+        self.assertEqual(kwargs["countdown"], 2)
         self.assertFalse(mock_logger.error.called)
+        self.assertFalse(mock_logger.warning.called)
 
     def test_three_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
-        """
-        when three mesages in queue
-        then sends them and returns 3
-        """
-
+        """when three mesages in queue, then sends them and returns 3"""
         mock_retry.side_effect = self.my_retry
-        mock_send_message_to_webhook.return_value = True
+        mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
+            {}, status_code=200
+        )
         self.webhook_1.enqueue_message(content="Test message")
         self.webhook_1.enqueue_message(content="Test message")
         self.webhook_1.enqueue_message(content="Test message")
@@ -168,16 +169,34 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.assertEqual(mock_send_message_to_webhook.call_count, 3)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
+        self.assertTrue(mock_retry.call_count, 4)
+
+    def test_no_messages(self, mock_logger, mock_send_message_to_webhook, mock_retry):
+        """when no mesages in queue, then do nothing"""
+        mock_retry.side_effect = self.my_retry
+        mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
+            {}, status_code=200
+        )
+
+        send_messages_to_webhook(self.webhook_1.pk)
+
+        self.assertEqual(mock_send_message_to_webhook.call_count, 0)
+        self.assertEqual(self.webhook_1.main_queue.size(), 0)
+        self.assertEqual(self.webhook_1.error_queue.size(), 0)
+        self.assertEqual(mock_retry.call_count, 0)
+        self.assertFalse(mock_logger.error.called)
+        self.assertFalse(mock_logger.warning.called)
 
     def test_failed_message(
         self, mock_logger, mock_send_message_to_webhook, mock_retry
     ):
-        """
-        when no message in queue
-        then do nothing and return 0
+        """when message sending failed,
+        then put message in error queue and log warning
         """
         mock_retry.side_effect = self.my_retry
-        mock_send_message_to_webhook.return_value = False
+        mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
+            {}, status_code=404
+        )
         self.webhook_1.enqueue_message(content="Test message")
 
         send_messages_to_webhook(self.webhook_1.pk)
@@ -185,43 +204,24 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 1)
-        self.assertFalse(mock_logger.error.called)
+        self.assertTrue(mock_logger.warning.called)
 
-    def test_retry_on_rate_limit(
-        self, mock_logger, mock_send_message_to_webhook, mock_retry
-    ):
-        """
-        when WebhookRateLimitReached exception is raised
-        then message was send and retry once
-        """
-        mock_retry.side_effect = lambda countdown: None
-        mock_send_message_to_webhook.side_effect = WebhookRateLimitReached(10)
-        self.webhook_1.enqueue_message(content="Test message")
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
-        self.assertTrue(mock_retry.called)
-        self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
-        self.assertEqual(mock_send_message_to_webhook.call_count, 1)
-        self.assertEqual(self.webhook_1.main_queue.size(), 0)
-
-    def test_retry_on_too_many_requests(
+    def test_abort_on_too_many_requests(
         self, mock_logger, mock_send_message_to_webhook, mock_retry
     ):
         """
         when WebhookTooManyRequests exception is raised
         then message is re-queued and retry once
         """
-        mock_retry.side_effect = lambda countdown: None
+        mock_retry.side_effect = self.my_retry
         mock_send_message_to_webhook.side_effect = WebhookTooManyRequests(10)
         self.webhook_1.enqueue_message(content="Test message")
 
         send_messages_to_webhook(self.webhook_1.pk)
 
-        self.assertTrue(mock_retry.called)
-        self.assertEqual(mock_retry.call_args[1]["countdown"], 10)
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
+        self.assertFalse(mock_retry.called)
 
     def test_log_warning_when_pk_is_invalid(
         self, mock_logger, mock_send_message_to_webhook, mock_retry

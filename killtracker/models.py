@@ -36,7 +36,7 @@ from .app_settings import (
     KILLTRACKER_WEBHOOK_SET_AVATAR,
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
-from .exceptions import WebhookRateLimitReached, WebhookTooManyRequests
+from .exceptions import WebhookTooManyRequests
 from .managers import EveKillmailManager
 from .utils import (
     app_labels,
@@ -348,7 +348,10 @@ class Webhook(models.Model):
         Params
             message_json: Discord message encoded in JSON
         """
-        logger.info("Sending message to webhook %s", self)
+        timeout = cache.ttl(self._blocked_cache_key())
+        if timeout:
+            raise WebhookTooManyRequests(timeout)
+
         message = json.loads(message_json, cls=JSONDateTimeDecoder)
         if message.get("embeds"):
             embeds = [
@@ -369,51 +372,25 @@ class Webhook(models.Model):
             username=message.get("username"),
             avatar_url=message.get("avatar_url"),
             wait_for_response=True,
+            max_retries=0,  # we will handle retries ourselves
         )
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)
         if response.status_code == 429:
             try:
-                timeout = float(response.content.get("retry_after")) + 2.0
+                retry_after = int(response.content.get("retry_after")) + 2
             except (ValueError, TypeError):
-                timeout = None
-            logger.warning(
-                "Too many requests for webhook %s. Blocked for %s seconds",
-                self,
-                timeout,
+                retry_after = WebhookTooManyRequests.DEFAULT_RESET_AFTER
+            cache.set(
+                key=self._blocked_cache_key(), value="BLOCKED", timeout=retry_after
             )
-            raise WebhookTooManyRequests(timeout)
+            raise WebhookTooManyRequests(retry_after)
 
-        else:
-            try:
-                remaining = int(response.headers.get("x-ratelimit-remaining"))
-            except (ValueError, TypeError):
-                remaining = None
-            logger.debug("Remaining requests: %s", remaining)
-            if remaining == 0:
-                try:
-                    timeout = (
-                        float(response.headers.get("x-ratelimit-reset-after", 8)) + 2.0
-                    )
-                except (ValueError, TypeError):
-                    timeout = None
-                logger.info(
-                    "Rate limit exhausted for webhook %s. Blocked for %s seconds",
-                    self,
-                    timeout,
-                )
-                raise WebhookRateLimitReached(timeout)
+        return response
 
-        if response.status_ok:
-            return True
-        else:
-            logger.warning(
-                "Failed to send message to Discord. HTTP status code: %d, response: %s",
-                response.status_code,
-                response.content,
-            )
-            return False
+    def _blocked_cache_key(self) -> str:
+        return f"{__title__}_webhook_{self.pk}_blocked"
 
     @staticmethod
     def create_message_link(name: str, url: str) -> str:
@@ -999,7 +976,9 @@ class Tracker(models.Model):
 
         return None
 
-    def enqueue_killmail(self, killmail: Killmail, intro_text: str = None) -> int:
+    def enqueue_killmail_message(
+        self, killmail: Killmail, intro_text: str = None
+    ) -> int:
         """enqueue a killmail for later sending into main queue.
 
         returns new queue size
@@ -1196,7 +1175,11 @@ class Tracker(models.Model):
 
         zkb_killmail_url = f"{ZKB_KILLMAIL_BASEURL}{killmail.id}/"
         author = (
-            dhooks_lite.Author(name=victim_organization.name, url=victim_org_url)
+            dhooks_lite.Author(
+                name=victim_organization.name,
+                url=victim_org_url,
+                icon_url=victim_organization.icon_url(),
+            )
             if victim_organization and victim_org_url
             else None
         )

@@ -16,9 +16,10 @@ from .app_settings import (
     KILLTRACKER_STORING_KILLMAILS_ENABLED,
     KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
     KILLTRACKER_TASKS_TIMEOUT,
+    KILLTRACKER_DISCORD_SEND_DELAY,
 )
 from .core.killmails import Killmail
-from .exceptions import WebhookRateLimitReached, WebhookTooManyRequests
+from .exceptions import WebhookTooManyRequests
 from .models import (
     EveKillmail,
     Tracker,
@@ -79,18 +80,19 @@ def run_killtracker(
             killmails_count=killmails_count,
             started_str=started.isoformat(),
         )
-    else:
-        if (
-            KILLTRACKER_STORING_KILLMAILS_ENABLED
-            and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
-        ):
-            delete_stale_killmails.delay()
+        return
 
-        logger.info(
-            "Killtracker completed. %d killmails received from ZKB in %d seconds",
-            killmails_count,
-            duration,
-        )
+    if (
+        KILLTRACKER_STORING_KILLMAILS_ENABLED
+        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
+    ):
+        delete_stale_killmails.delay()
+
+    logger.info(
+        "Killtracker completed. %d killmails received from ZKB in %d seconds",
+        killmails_count,
+        duration,
+    )
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
@@ -102,19 +104,20 @@ def run_tracker(
         tracker = Tracker.objects.get(pk=tracker_pk)
     except Tracker.DoesNotExist:
         logger.error("Tracker with pk = %s does not exist", tracker_pk)
-    else:
-        logger.info("Started running tracker %s", tracker)
-        killmail = Killmail.from_json(killmail_json)
-        killmail_new = tracker.process_killmail(
-            killmail=killmail, ignore_max_age=ignore_max_age
-        )
-        if killmail_new:
-            tracker.enqueue_killmail(killmail_new)
+        return
 
-        if killmail_new or tracker.webhook.main_queue.size():
-            send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
+    logger.info("Started running tracker %s", tracker)
+    killmail = Killmail.from_json(killmail_json)
+    killmail_new = tracker.process_killmail(
+        killmail=killmail, ignore_max_age=ignore_max_age
+    )
+    if killmail_new:
+        tracker.enqueue_killmail_message(killmail_new)
 
-        logger.info("Finished running tracker %s", tracker)
+    if killmail_new or tracker.webhook.main_queue.size():
+        send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
+
+    logger.info("Finished running tracker %s", tracker)
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
@@ -143,7 +146,6 @@ def delete_stale_killmails() -> None:
 @shared_task(
     bind=True,
     base=QueueOnce,  # celery_once locks stay intact during retries
-    once={"timeout": 60 * 60 * 6},  # too many requests delays can be huge
     timeout=KILLTRACKER_TASKS_TIMEOUT,
     retry_backoff=False,
     max_retries=None,
@@ -162,21 +164,31 @@ def send_messages_to_webhook(self, webhook_pk: int) -> None:
 
     message = webhook.main_queue.dequeue()
     if message:
-        logger.debug("Sending message to webhook %s", self)
+        logger.info("Sending message to webhook %s", self)
         try:
-            success = webhook.send_message_to_webhook(message)
+            response = webhook.send_message_to_webhook(message)
         except WebhookTooManyRequests as ex:
             webhook.main_queue.enqueue(message)
-            self.retry(countdown=ex.reset_after)
-        except WebhookRateLimitReached as ex:
-            self.retry(countdown=ex.reset_after)
-        else:
-            if not success:
-                webhook.error_queue.enqueue(message)
-            if webhook.main_queue.size():
-                self.retry(countdown=0)
+            logger.warning(
+                "Too many requests for webhook %s. Blocked for %s seconds. Aborting.",
+                self,
+                ex.reset_after,
+            )
+            return
+
+        if not response.status_ok:
+            webhook.error_queue.enqueue(message)
+            logger.warning(
+                "Failed to send message to webhook %s, will retry. "
+                "HTTP status code: %d, response: %s",
+                webhook,
+                response.status_code,
+                response.content,
+            )
+
+        self.retry(countdown=KILLTRACKER_DISCORD_SEND_DELAY)
     else:
-        logger.info("No queued killmails for webhook %s", webhook)
+        logger.debug("No more messages to send for webhook %s", webhook)
 
 
 @shared_task(bind=True, timeout=KILLTRACKER_TASKS_TIMEOUT)

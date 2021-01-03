@@ -16,6 +16,7 @@ PACKAGE_PATH = "killtracker"
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(PACKAGE_PATH + ".tasks.send_messages_to_webhook.retry")
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @requests_mock.Mocker()
 class TestIntegration(LoadTestDataMixin, TestCase):
@@ -30,8 +31,12 @@ class TestIntegration(LoadTestDataMixin, TestCase):
             webhook=cls.webhook_1,
         )
 
-    def test_normal_case(self, mock_execute, requests_mocker):
+    def my_retry(self, *args, **kwargs):
+        tasks.send_messages_to_webhook.delay(self.webhook_1.pk)
+
+    def test_normal_case(self, mock_execute, mock_retry, requests_mocker):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
+        mock_retry.side_effect = self.my_retry
         requests_mocker.register_uri(
             "GET",
             ZKB_REDISQ_URL,
@@ -44,7 +49,7 @@ class TestIntegration(LoadTestDataMixin, TestCase):
         )
 
         tasks.run_killtracker.delay()
-        self.assertTrue(mock_execute.call_count, 2)
+        self.assertEqual(mock_execute.call_count, 2)
 
         _, kwargs = mock_execute.call_args_list[0]
         self.assertIn("My Tracker", kwargs["content"])
