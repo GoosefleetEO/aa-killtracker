@@ -4,6 +4,17 @@ DROP TABLE IF EXISTS killtracker_evekillmailattacker;
 DROP TABLE IF EXISTS killtracker_evekillmailposition;
 DROP TABLE IF EXISTS killtracker_evekillmailvictim;
 DROP TABLE IF EXISTS killtracker_evekillmailzkb;
+
+DROP TABLE IF EXISTS killtracker_killmail;
+DROP TABLE IF EXISTS killtracker_killmailattacker;
+DROP TABLE IF EXISTS killtracker_killmailposition;
+DROP TABLE IF EXISTS killtracker_killmailvictim;
+DROP TABLE IF EXISTS killtracker_killmailzkb;
+DROP TABLE IF EXISTS killtracker_trackedkillmail;
+DROP TABLE IF EXISTS killtracker_trackedkillmail_attackers_ship_types;
+DROP TABLE IF EXISTS killtracker_tracker_ping_groups;
+DROP TABLE IF EXISTS killtracker_tracker_require_victim_ship_types;
+
 DROP TABLE IF EXISTS killtracker_tracker;
 DROP TABLE IF EXISTS killtracker_tracker_exclude_attacker_alliances;
 DROP TABLE IF EXISTS killtracker_tracker_exclude_attacker_corporations;
