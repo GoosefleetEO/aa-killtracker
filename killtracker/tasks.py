@@ -185,7 +185,7 @@ def send_messages_to_webhook(self, webhook_pk: int) -> None:
             logger.warning(
                 "%s: Too many requests for webhook. Blocked for %s seconds. Aborting.",
                 webhook,
-                ex.reset_after,
+                ex.retry_after,
             )
             return
 
@@ -204,8 +204,8 @@ def send_messages_to_webhook(self, webhook_pk: int) -> None:
         logger.debug("%s: No more messages to send for webhook", webhook)
 
 
-@shared_task(bind=True, timeout=KILLTRACKER_TASKS_TIMEOUT)
-def send_test_message_to_webhook(self, webhook_pk: int, count: int = 1) -> None:
+@shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
+def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
     """send a test message to given webhook.
     Optional inform user about result if user ok is given
     """

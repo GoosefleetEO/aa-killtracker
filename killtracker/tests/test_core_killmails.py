@@ -99,9 +99,19 @@ class TestKillmailSerialization(NoSocketsTestCase):
 
 
 class TestKillmailBasics(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.killmail = load_killmail(10000001)
+
+    def test_str(self):
+        self.assertEqual(str(self.killmail), "Killmail(id=10000001)")
+
+    def test_repr(self):
+        self.assertEqual(repr(self.killmail), "Killmail(id=10000001)")
+
     def test_entity_ids(self):
-        killmail = load_killmail(10000001)
-        result = killmail.entity_ids()
+        result = self.killmail.entity_ids()
         expected = {
             1011,
             2011,
@@ -123,12 +133,14 @@ class TestKillmailBasics(NoSocketsTestCase):
         self.assertSetEqual(result, expected)
 
     def test_attackers_ships_types(self):
-        killmail = load_killmail(10000001)
-        self.assertListEqual(killmail.attackers_ship_type_ids(), [34562, 3756, 3756])
+        self.assertListEqual(
+            self.killmail.attackers_ship_type_ids(), [34562, 3756, 3756]
+        )
 
     def test_ships_types(self):
-        killmail = load_killmail(10000001)
-        self.assertSetEqual(set(killmail.ship_type_ids()), {603, 34562, 3756, 3756})
+        self.assertSetEqual(
+            set(self.killmail.ship_type_ids()), {603, 34562, 3756, 3756}
+        )
 
 
 class TestEntityCount(NoSocketsTestCase):

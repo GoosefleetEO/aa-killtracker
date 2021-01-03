@@ -2,29 +2,21 @@ class KilltrackerException(Exception):
     """Exception from Killtracker"""
 
 
-class WebhookBlocked(KilltrackerException):
+class WebhookTooManyRequests(KilltrackerException):
     """Webhook is temporarily blocked"""
 
-    DEFAULT_RESET_AFTER = 0
+    DEFAULT_RESET_AFTER = 600
 
-    def __init__(self, reset_after: float = None, *args, **kwargs) -> None:
+    def __init__(self, retry_after: int = None) -> None:
         """
         Parameters:
-        - reset_after: time in seconds until this blockage will be reset
+        - retry_after: time in seconds until this blockage will be reset
         """
-        super().__init__(*args, **kwargs)
-        if reset_after is None:
-            reset_after = self.DEFAULT_RESET_AFTER
-        self._reset_after = float(reset_after)
+        super().__init__()
+        if retry_after is None:
+            retry_after = self.DEFAULT_RESET_AFTER
+        self._reset_after = int(retry_after)
 
     @property
-    def reset_after(self) -> float:
+    def retry_after(self) -> int:
         return self._reset_after
-
-
-class WebhookRateLimitReached(WebhookBlocked):
-    DEFAULT_RESET_AFTER = 5.0
-
-
-class WebhookTooManyRequests(WebhookBlocked):
-    DEFAULT_RESET_AFTER = 600.0

@@ -25,7 +25,7 @@ Please re-run **killtracker_load_eve** to get all the newly added types.
 
 ### Changed
 
-- Improve celery performance of main task [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
+- Restructured tasks to improve scalability, performance and resilience [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
 - Remove support for Django 2.1 & 3.0 [#17](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/17)
 
 ## [0.2.6] - 2020-12-09

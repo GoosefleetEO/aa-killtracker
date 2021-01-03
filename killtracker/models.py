@@ -65,7 +65,7 @@ class EveKillmail(models.Model):
         return f"ID:{self.id}"
 
     def __repr__(self):
-        return f"EveKillmail(id={self.id})"
+        return f"{type(self).__name__}(id={self.id})"
 
     def load_entities(self):
         """loads unknown entities for this killmail"""

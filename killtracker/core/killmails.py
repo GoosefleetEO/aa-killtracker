@@ -124,6 +124,9 @@ class Killmail(_KillmailBase):
     solar_system_id: Optional[int] = None
     tracker_info: Optional[TrackerInfo] = None
 
+    def __repr__(self):
+        return f"{type(self).__name__}(id={self.id})"
+
     def attackers_alliance_ids(self) -> List[int]:
         """returns alliance IDs of all attackers"""
         return [

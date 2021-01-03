@@ -890,7 +890,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, TestCase):
             self.webhook_1.send_message_to_webhook(self.message)
         except Exception as ex:
             self.assertIsInstance(ex, WebhookTooManyRequests)
-            self.assertEqual(ex.reset_after, 2002)
+            self.assertEqual(ex.retry_after, 2002)
         else:
             self.fail("Did not raise excepted exception")
 
@@ -914,7 +914,7 @@ class TestWebhookSendMessage(LoadTestDataMixin, TestCase):
             self.webhook_1.send_message_to_webhook(self.message)
         except Exception as ex:
             self.assertIsInstance(ex, WebhookTooManyRequests)
-            self.assertEqual(ex.reset_after, 600)
+            self.assertEqual(ex.retry_after, 600)
         else:
             self.fail("Did not raise excepted exception")
 
@@ -1006,6 +1006,20 @@ if "discord" in app_labels():
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
             message = json.loads(self.webhook_1.main_queue.dequeue())
             self.assertNotIn(f"<@&{self.group_1.pk}>", message["content"])
+
+
+class TestEveKillmail(LoadTestDataMixin, NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        killmail = load_killmail(10000001)
+        cls.eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
+
+    def test_str(self):
+        self.assertEqual(str(self.eve_killmail), "ID:10000001")
+
+    def test_repr(self):
+        self.assertEqual(repr(self.eve_killmail), "EveKillmail(id=10000001)")
 
 
 class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
