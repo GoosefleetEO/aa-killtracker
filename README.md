@@ -50,7 +50,7 @@ Here is an example for settings up a new tracker:
 
 And here is how posted killmails look on Discord:
 
-![Discord](https://i.imgur.com/0ZDrLyC.png)
+![Discord](https://i.imgur.com/zCCzEpU.png)
 
 ## Installation
 

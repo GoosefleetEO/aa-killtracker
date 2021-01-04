@@ -1,6 +1,6 @@
 default_app_config = "killtracker.apps.KillmailsConfig"
 
-__version__ = "0.3.0a3"
+__version__ = "0.3.0b1"
 __title__ = "Killtracker"
 
 APP_NAME = "aa-killtracker"
