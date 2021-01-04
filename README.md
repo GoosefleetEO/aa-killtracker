@@ -2,14 +2,15 @@
 
 An app for running killmail trackers with Alliance Auth and Discord
 
-![release](https://img.shields.io/pypi/v/aa-killtracker?label=release)
-![python](https://img.shields.io/pypi/pyversions/aa-killtracker)
-![django](https://img.shields.io/pypi/djversions/aa-killtracker?label=django)
-![pipeline](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/pipeline.svg)
-![coverage](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/coverage.svg)
-![license](https://img.shields.io/badge/license-MIT-green)
-![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)
-![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+[![release](https://img.shields.io/pypi/v/aa-killtracker?label=release)](https://pypi.org/project/aa-killtracker/)
+[![python](https://img.shields.io/pypi/pyversions/aa-killtracker)](https://pypi.org/project/aa-killtracker/)
+[![django](https://img.shields.io/pypi/djversions/aa-killtracker?label=django)](https://pypi.org/project/aa-killtracker/)
+[![pipeline](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/pipelines)
+[![coverage](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/coverage.svg)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/pipelines)
+[![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/blob/master/LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![chat](https://img.shields.io/discord/790364535294132234)](https://discord.gg/mevDXbxp4R)
 
 ## Contents
 
@@ -46,7 +47,7 @@ Or you maybe want to be informed about any capitals being active within your jum
 
 Here is an example for settings up a new tracker:
 
-![Tracker1](https://i.imgur.com/tODsBhr.png)
+![Tracker1](https://i.imgur.com/fkCOmGM.png)
 
 And here is how posted killmails look on Discord:
 
