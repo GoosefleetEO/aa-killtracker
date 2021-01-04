@@ -16,6 +16,7 @@ PACKAGE_PATH = "killtracker"
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(PACKAGE_PATH + ".tasks.is_esi_online", lambda: True)
 @patch(PACKAGE_PATH + ".tasks.send_messages_to_webhook.retry")
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @requests_mock.Mocker()

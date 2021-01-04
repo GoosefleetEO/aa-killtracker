@@ -4,6 +4,7 @@ from django.db import IntegrityError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
+from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.services.hooks import get_extension_logger
@@ -17,6 +18,8 @@ from .app_settings import (
     KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
     KILLTRACKER_TASKS_TIMEOUT,
     KILLTRACKER_DISCORD_SEND_DELAY,
+    KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
+    KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
 )
 from .core.killmails import Killmail
 from .exceptions import WebhookTooManyRequests
@@ -45,6 +48,10 @@ def run_killtracker(
     - killmails_count: internal parameter
     - started_str: internal parameter
     """
+    if not is_esi_online():
+        logger.warning("ESI is currently offline. Aborting")
+        return
+
     if killmails_count == 0:
         logger.info("Killtracker run started...")
         for webhook in Webhook.objects.filter(is_enabled=True):
@@ -123,13 +130,19 @@ def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None
     try:
         tracker.generate_killmail_message(killmail_new)
     except Exception as ex:
+        will_retry = self.request.retries < KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES
         logger.warning(
-            "%s: Failed to generate killmail %s",
+            "%s: Failed to generate killmail %s.%s",
             tracker,
             killmail_new.id,
+            " Will retry." if will_retry else "",
             exc_info=True,
         )
-        self.retry(max_retries=3, countdown=10, exc=ex)
+        self.retry(
+            max_retries=KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
+            countdown=KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
+            exc=ex,
+        )
     else:
         send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 

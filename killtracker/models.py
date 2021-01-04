@@ -209,6 +209,8 @@ class EveKillmailZkb(models.Model):
 class Webhook(models.Model):
     """A webhook to receive messages"""
 
+    HTTP_TOO_MANY_REQUESTS = 429
+
     class WebhookType(models.IntegerChoices):
         DISCORD = 1, _("Discord Webhook")
 
@@ -376,7 +378,12 @@ class Webhook(models.Model):
         logger.debug("headers: %s", response.headers)
         logger.debug("status_code: %s", response.status_code)
         logger.debug("content: %s", response.content)
-        if response.status_code == 429:
+        if response.status_code == self.HTTP_TOO_MANY_REQUESTS:
+            logger.error(
+                "%s: Received too many requests error from API: %s",
+                self,
+                response.content,
+            )
             try:
                 retry_after = int(response.content.get("retry_after")) + 2
             except (ValueError, TypeError):

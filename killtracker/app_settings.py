@@ -47,3 +47,13 @@ KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1800)
 KILLTRACKER_DISCORD_SEND_DELAY = clean_setting(
     "KILLTRACKER_DISCORD_SEND_DELAY", default_value=2, min_value=1, max_value=900
 )
+
+# Maximum retries when generating a message from a killmail
+KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES = clean_setting(
+    "KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES", 3
+)
+
+# Delay when retrying to generate a message in seconds
+KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN = clean_setting(
+    "KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN", 10
+)

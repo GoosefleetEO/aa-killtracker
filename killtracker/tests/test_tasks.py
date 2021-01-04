@@ -44,6 +44,7 @@ class TestTrackerBase(LoadTestDataMixin, TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODULE_PATH + ".is_esi_online")
 @patch(MODULE_PATH + ".delete_stale_killmails")
 @patch(MODULE_PATH + ".store_killmail")
 @patch(MODULE_PATH + ".Killmail.create_from_zkb_redisq")
@@ -68,16 +69,35 @@ class TestRunKilltracker(TestTrackerBase):
         mock_create_from_zkb_redisq,
         mock_store_killmail,
         mock_delete_stale_killmails,
+        mock_is_esi_online,
     ):
         mock_create_from_zkb_redisq.side_effect = self.my_fetch_from_zkb()
+        mock_is_esi_online.return_value = True
         self.webhook_1.error_queue.enqueue(load_killmail(10000004).asjson())
 
-        run_killtracker()
+        run_killtracker.delay()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
         self.assertEqual(mock_store_killmail.si.call_count, 0)
         self.assertFalse(mock_delete_stale_killmails.delay.called)
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
+
+    @patch(MODULE_PATH + ".KILLTRACKER_STORING_KILLMAILS_ENABLED", False)
+    def test_stop_when_esi_is_offline(
+        self,
+        mock_run_tracker,
+        mock_create_from_zkb_redisq,
+        mock_store_killmail,
+        mock_delete_stale_killmails,
+        mock_is_esi_online,
+    ):
+        mock_create_from_zkb_redisq.side_effect = self.my_fetch_from_zkb()
+        mock_is_esi_online.return_value = False
+
+        run_killtracker.delay()
+        self.assertEqual(mock_run_tracker.delay.call_count, 0)
+        self.assertEqual(mock_store_killmail.si.call_count, 0)
+        self.assertFalse(mock_delete_stale_killmails.delay.called)
 
     @patch(MODULE_PATH + ".KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS", 30)
     @patch(MODULE_PATH + ".KILLTRACKER_STORING_KILLMAILS_ENABLED", True)
@@ -87,10 +107,12 @@ class TestRunKilltracker(TestTrackerBase):
         mock_create_from_zkb_redisq,
         mock_store_killmail,
         mock_delete_stale_killmails,
+        mock_is_esi_online,
     ):
         mock_create_from_zkb_redisq.side_effect = self.my_fetch_from_zkb()
+        mock_is_esi_online.return_value = True
 
-        run_killtracker()
+        run_killtracker.delay()
         self.assertEqual(mock_run_tracker.delay.call_count, 6)
         self.assertEqual(mock_store_killmail.si.call_count, 3)
         self.assertTrue(mock_delete_stale_killmails.delay.called)
@@ -159,11 +181,12 @@ class TestGenerateKillmailMessage(TestTrackerBase):
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         self.assertFalse(mock_retry.called)
 
+    @patch(MODULE_PATH + ".KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES", 3)
     @patch(MODULE_PATH + ".Tracker.generate_killmail_message")
-    def test_retry(
+    def test_retry_until_maximum(
         self, mock_generate_killmail_message, mock_send_messages_to_webhook, mock_retry
     ):
-        """when message generation fails, then retry"""
+        """when message generation fails,then retry until max retries is reached"""
         mock_retry.side_effect = self.my_retry
         mock_generate_killmail_message.side_effect = RuntimeError
 
