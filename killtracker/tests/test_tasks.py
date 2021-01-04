@@ -297,16 +297,6 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         self.assertFalse(mock_retry.called)
 
-    def test_log_warning_when_pk_is_invalid(
-        self, mock_logger, mock_send_message_to_webhook, mock_retry
-    ):
-        mock_retry.side_effect = self.my_retry
-
-        send_messages_to_webhook(generate_invalid_pk(Webhook))
-
-        self.assertFalse(mock_send_message_to_webhook.called)
-        self.assertTrue(mock_logger.error.called)
-
     def test_log_info_if_not_enabled(
         self, mock_logger, mock_send_message_to_webhook, mock_retry
     ):

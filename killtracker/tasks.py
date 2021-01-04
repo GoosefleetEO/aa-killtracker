@@ -1,5 +1,6 @@
 from celery import shared_task, chain
 
+from django.core.cache import cache
 from django.db import IntegrityError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
@@ -20,6 +21,7 @@ from .app_settings import (
     KILLTRACKER_DISCORD_SEND_DELAY,
     KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
     KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
+    KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
 )
 from .core.killmails import Killmail
 from .exceptions import WebhookTooManyRequests
@@ -107,7 +109,15 @@ def run_tracker(
     tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
 ) -> None:
     """run tracker for given killmail and trigger sending if needed"""
-    tracker = Tracker.objects.get(pk=tracker_pk)
+
+    def fetch_object():
+        return Tracker.objects.select_related("webhook").get(pk=tracker_pk)
+
+    tracker = cache.get_or_set(
+        key=f"{__title__}_tracker_{tracker_pk}",
+        func=fetch_object,
+        timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+    )
     logger.info("%s: Started running tracker", tracker)
     killmail = Killmail.from_json(killmail_json)
     killmail_new = tracker.process_killmail(
@@ -124,7 +134,15 @@ def run_tracker(
 @shared_task(bind=True, timeout=KILLTRACKER_TASKS_TIMEOUT)
 def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None:
     """generate and enqueue message from given killmail and start sending"""
-    tracker = Tracker.objects.get(pk=tracker_pk)
+
+    def fetch_object():
+        return Tracker.objects.select_related("webhook").get(pk=tracker_pk)
+
+    tracker = cache.get_or_set(
+        key=f"{__title__}_tracker_{tracker_pk}",
+        func=fetch_object,
+        timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+    )
     killmail_new = Killmail.from_json(killmail_json)
     logger.info("%s: Generating message from killmail %s", tracker, killmail_new.id)
     try:
@@ -178,12 +196,15 @@ def delete_stale_killmails() -> None:
 )
 def send_messages_to_webhook(self, webhook_pk: int) -> None:
     """send all queued messages to given Webhook"""
-    try:
-        webhook = Webhook.objects.get(pk=webhook_pk)
-    except Webhook.DoesNotExist:
-        logger.error("Webhook with pk = %s does not exist", webhook_pk)
-        return
 
+    def fetch_object():
+        return Webhook.objects.get(pk=webhook_pk)
+
+    webhook = cache.get_or_set(
+        key=f"{__title__}_webhook_{webhook_pk}",
+        func=fetch_object,
+        timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+    )
     if not webhook.is_enabled:
         logger.info("%s: Webhook is disabled - aborting", webhook)
         return

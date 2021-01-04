@@ -253,6 +253,24 @@ class Webhook(models.Model):
             self.__class__.__name__, self.id, self.name
         )
 
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes. Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        del state["main_queue"]
+        del state["error_queue"]
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes (i.e., filename and lineno).
+        self.__dict__.update(state)
+        # Restore the previously opened file's state. To do so, we need to
+        # reopen it and read from it until the line count is restored.
+        self.main_queue = self._create_queue("main")
+        self.error_queue = self._create_queue("error")
+
     def save(self, *args, **kwargs):
         is_new = self.id is None
         super().save(*args, **kwargs)
@@ -1179,9 +1197,10 @@ class Tracker(models.Model):
             )
 
         zkb_killmail_url = f"{ZKB_KILLMAIL_BASEURL}{killmail.id}/"
+        # TODO This is a workaround for Embed.Author.name. Address in dhooks_lite
         author = (
             dhooks_lite.Author(
-                name=victim_organization.name,
+                name=victim_organization.name if victim_organization.name else "?",
                 url=victim_org_url,
                 icon_url=victim_organization.icon_url(),
             )
