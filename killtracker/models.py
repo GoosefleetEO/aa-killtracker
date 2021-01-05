@@ -37,7 +37,7 @@ from .app_settings import (
 )
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
 from .exceptions import WebhookTooManyRequests
-from .managers import EveKillmailManager
+from .managers import EveKillmailManager, TrackerManager, WebhookManager
 from .utils import (
     app_labels,
     LoggerAddTag,
@@ -239,6 +239,7 @@ class Webhook(models.Model):
         db_index=True,
         help_text="whether notifications are currently sent to this webhook",
     )
+    objects = WebhookManager()
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -669,6 +670,8 @@ class Tracker(models.Model):
         db_index=True,
         help_text="toogle for activating or deactivating a tracker",
     )
+
+    objects = TrackerManager()
 
     def __str__(self) -> str:
         return self.name

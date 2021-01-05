@@ -1,6 +1,8 @@
 from datetime import timedelta
 from typing import Dict, Tuple
+import functools
 
+from django.core.cache import cache
 from django.db import models, transaction
 from django.utils.timezone import now
 
@@ -127,3 +129,31 @@ class EveKillmailManager(models.Manager):
             obj = self.create_from_killmail(killmail)
 
         return obj, created
+
+
+class ObjectCacheMixin:
+    def get_cached(self, pk, timeout=None, select_related: str = None) -> models.Model:
+
+        func = functools.partial(
+            self._fetch_object_for_cache, pk=pk, select_related=select_related
+        )
+        return cache.get_or_set(
+            key=self._create_object_cache_key(pk), func=func, timeout=timeout
+        )
+
+    def _create_object_cache_key(self, pk) -> str:
+        return "{}_{}_{}".format(
+            self.model._meta.app_label, self.model._meta.model_name, pk
+        )
+
+    def _fetch_object_for_cache(self, pk, select_related: str = None):
+        qs = self.select_related(select_related) if select_related else self
+        return qs.get(pk=pk)
+
+
+class TrackerManager(ObjectCacheMixin, models.Manager):
+    pass
+
+
+class WebhookManager(ObjectCacheMixin, models.Manager):
+    pass

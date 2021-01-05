@@ -1,6 +1,5 @@
 from celery import shared_task, chain
 
-from django.core.cache import cache
 from django.db import IntegrityError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
@@ -110,12 +109,9 @@ def run_tracker(
 ) -> None:
     """run tracker for given killmail and trigger sending if needed"""
 
-    def fetch_object():
-        return Tracker.objects.select_related("webhook").get(pk=tracker_pk)
-
-    tracker = cache.get_or_set(
-        key=f"{__title__}_tracker_{tracker_pk}",
-        func=fetch_object,
+    tracker = Tracker.objects.get_cached(
+        pk=tracker_pk,
+        select_related="webhook",
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
     logger.info("%s: Started running tracker", tracker)
@@ -135,12 +131,9 @@ def run_tracker(
 def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None:
     """generate and enqueue message from given killmail and start sending"""
 
-    def fetch_object():
-        return Tracker.objects.select_related("webhook").get(pk=tracker_pk)
-
-    tracker = cache.get_or_set(
-        key=f"{__title__}_tracker_{tracker_pk}",
-        func=fetch_object,
+    tracker = Tracker.objects.get_cached(
+        pk=tracker_pk,
+        select_related="webhook",
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
     killmail_new = Killmail.from_json(killmail_json)
@@ -197,12 +190,8 @@ def delete_stale_killmails() -> None:
 def send_messages_to_webhook(self, webhook_pk: int) -> None:
     """send all queued messages to given Webhook"""
 
-    def fetch_object():
-        return Webhook.objects.get(pk=webhook_pk)
-
-    webhook = cache.get_or_set(
-        key=f"{__title__}_webhook_{webhook_pk}",
-        func=fetch_object,
+    webhook = Webhook.objects.get_cached(
+        pk=webhook_pk,
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
     if not webhook.is_enabled:
