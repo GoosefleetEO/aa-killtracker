@@ -10,7 +10,7 @@ from eveuniverse.tasks import update_unresolved_eve_entities
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
-from . import __title__
+from . import __title__, APP_NAME
 from .app_settings import (
     KILLTRACKER_MAX_KILLMAILS_PER_RUN,
     KILLTRACKER_MAX_DURATION_PER_RUN,
@@ -29,7 +29,7 @@ from .models import (
     Tracker,
     Webhook,
 )
-from .utils import LoggerAddTag
+from .utils import LoggerAddTag, cached_queryset
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -55,7 +55,12 @@ def run_killtracker(
 
     if killmails_count == 0:
         logger.info("Killtracker run started...")
-        for webhook in Webhook.objects.filter(is_enabled=True):
+        qs = cached_queryset(
+            Webhook.objects.filter(is_enabled=True),
+            key=f"{APP_NAME}_enabled_webhooks",
+            timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+        )
+        for webhook in qs:
             webhook.reset_failed_messages()
 
     started = now() if not started_str else parse_datetime(started_str)
@@ -70,7 +75,12 @@ def run_killtracker(
     if killmail:
         killmails_count += 1
         killmail_json = killmail.asjson()
-        for tracker in Tracker.objects.filter(is_enabled=True):
+        qs = cached_queryset(
+            Tracker.objects.filter(is_enabled=True),
+            key=f"{APP_NAME}_enabled_trackers",
+            timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+        )
+        for tracker in qs:
             run_tracker.delay(
                 tracker_pk=tracker.pk,
                 killmail_json=killmail_json,

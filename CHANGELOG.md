@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Significantly improved task performance with added caching
+
 ## [0.3.0b1] - 2021-01-04
 
 ### Update notes

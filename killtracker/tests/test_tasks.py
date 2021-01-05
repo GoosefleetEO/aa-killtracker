@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import dhooks_lite
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -53,6 +54,7 @@ class TestRunKilltracker(TestTrackerBase):
     def setUp(self) -> None:
         self.webhook_1.main_queue.clear()
         self.webhook_1.error_queue.clear()
+        cache.clear()
 
     @staticmethod
     def my_fetch_from_zkb():
@@ -122,7 +124,7 @@ class TestRunKilltracker(TestTrackerBase):
 @patch(MODULE_PATH + ".generate_killmail_message")
 class TestRunTracker(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.main_queue.clear()
+        cache.clear()
 
     def test_call_enqueue_for_matching_killmail(
         self, mock_enqueue_killmail_message, mock_send_messages_to_webhook
@@ -161,7 +163,7 @@ class TestRunTracker(TestTrackerBase):
 @patch(MODULE_PATH + ".send_messages_to_webhook")
 class TestGenerateKillmailMessage(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.main_queue.clear()
+        cache.clear()
         self.retries = 0
         self.killmail_json = load_killmail(10000001).asjson()
 
@@ -203,8 +205,7 @@ class TestGenerateKillmailMessage(TestTrackerBase):
 @patch(MODULE_PATH + ".logger")
 class TestSendMessagesToWebhook(TestTrackerBase):
     def setUp(self) -> None:
-        self.webhook_1.main_queue.clear()
-        self.webhook_1.error_queue.clear()
+        cache.clear()
 
     def my_retry(self, *args, **kwargs):
         send_messages_to_webhook(self.webhook_1.pk)

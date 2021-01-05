@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.http import HttpRequest
 from django.test import TestCase
 from django.utils import translation
@@ -31,6 +32,7 @@ from ..utils import (
     generate_invalid_pk,
     datetime_round_hour,
     humanize_value,
+    ObjectCacheMixin,
 )
 from ..utils import set_test_logger
 
@@ -380,3 +382,61 @@ class TestFormatIskValue(NoSocketsTestCase):
 
     def test_precision(self):
         self.assertEqual(humanize_value(12340000000, 1), "12.3b")
+
+
+fake_objects = dict()
+
+
+class FakeManager(ObjectCacheMixin):
+    def create(self, name):
+        pk = len(fake_objects) + 1
+        fake_objects[pk] = self.model(pk, name)
+        return fake_objects[pk]
+
+    def get(self, pk):
+        return fake_objects[pk]
+
+    @property
+    def model(self):
+        return FakeModel
+
+
+class _FakeMeta:
+    def __init__(self, app_label, model_name) -> None:
+        self.app_label = app_label
+        self.model_name = model_name
+
+
+class FakeModel:
+    def __init__(self, pk, name) -> None:
+        self.pk = pk
+        self.name = name
+
+    _meta = _FakeMeta("dummy", "fakemodel")
+    objects = FakeManager()
+
+
+@patch(
+    "killtracker.tests.test_utils.FakeManager._fetch_object_for_cache",
+    wraps=FakeModel.objects._fetch_object_for_cache,
+)
+class TestMyGroupManager(TestCase):
+    def setUp(self) -> None:
+        self.obj = FakeModel.objects.create(name="My Fake Model")
+        cache.clear()
+
+    def test_get_cached_1(self, mock_fetch_object_for_cache):
+        """when cache is empty, load from DB"""
+        obj = FakeModel.objects.get_cached(pk=self.obj.pk)
+
+        self.assertEqual(obj.name, "My Fake Model")
+        self.assertEqual(mock_fetch_object_for_cache.call_count, 1)
+
+    def test_get_cached_2(self, mock_fetch_object_for_cache):
+        """when cache is not empty, load from cache"""
+        obj = FakeModel.objects.get_cached(pk=self.obj.pk)
+
+        obj = FakeModel.objects.get_cached(pk=self.obj.pk)
+
+        self.assertEqual(obj.name, "My Fake Model")
+        self.assertEqual(mock_fetch_object_for_cache.call_count, 1)

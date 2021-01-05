@@ -683,31 +683,6 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
         self.assertIsNone(killmail.tracker_info.main_org)
 
 
-@patch(
-    "killtracker.managers.TrackerManager._fetch_object_for_cache",
-    wraps=Tracker.objects._fetch_object_for_cache,
-)
-class TestTrackerCacheMixin(LoadTestDataMixin, TestCase):
-    def setUp(self) -> None:
-        self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
-
-    def test_get_cached_1(self, mock_fetch_object_for_cache):
-        """when cache is empty, load from DB"""
-        obj = Tracker.objects.get_cached(pk=self.tracker.pk)
-
-        self.assertEqual(obj.name, "My Tracker")
-        self.assertEqual(mock_fetch_object_for_cache.call_count, 1)
-
-    def test_get_cached_2(self, mock_fetch_object_for_cache):
-        """when cache is not empty, load from cache"""
-        obj = Tracker.objects.get_cached(pk=self.tracker.pk)
-
-        obj = Tracker.objects.get_cached(pk=self.tracker.pk)
-
-        self.assertEqual(obj.name, "My Tracker")
-        self.assertEqual(mock_fetch_object_for_cache.call_count, 1)
-
-
 class TestTrackerEnqueueKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)

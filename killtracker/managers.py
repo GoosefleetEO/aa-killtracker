@@ -1,8 +1,7 @@
 from datetime import timedelta
-from typing import Dict, Tuple
-import functools
 
-from django.core.cache import cache
+from typing import Dict, Tuple
+
 from django.db import models, transaction
 from django.utils.timezone import now
 
@@ -13,7 +12,7 @@ from eveuniverse.models import EveEntity
 from . import __title__
 from .app_settings import KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS
 from .core.killmails import Killmail, _KillmailCharacter
-from .utils import LoggerAddTag
+from .utils import LoggerAddTag, ObjectCacheMixin
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -129,26 +128,6 @@ class EveKillmailManager(models.Manager):
             obj = self.create_from_killmail(killmail)
 
         return obj, created
-
-
-class ObjectCacheMixin:
-    def get_cached(self, pk, timeout=None, select_related: str = None) -> models.Model:
-
-        func = functools.partial(
-            self._fetch_object_for_cache, pk=pk, select_related=select_related
-        )
-        return cache.get_or_set(
-            key=self._create_object_cache_key(pk), func=func, timeout=timeout
-        )
-
-    def _create_object_cache_key(self, pk) -> str:
-        return "{}_{}_{}".format(
-            self.model._meta.app_label, self.model._meta.model_name, pk
-        )
-
-    def _fetch_object_for_cache(self, pk, select_related: str = None):
-        qs = self.select_related(select_related) if select_related else self
-        return qs.get(pk=pk)
 
 
 class TrackerManager(ObjectCacheMixin, models.Manager):
