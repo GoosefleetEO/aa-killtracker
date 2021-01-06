@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Significantly improved task performance with added caching
+- Reduced default for KILLTRACKER_MAX_KILLMAILS_PER_RUN to 200
 
 ## [0.3.0b1] - 2021-01-04
 

@@ -1,3 +1,4 @@
+import functools
 from unittest.mock import patch
 
 import dhooks_lite
@@ -18,6 +19,7 @@ PACKAGE_PATH = "killtracker"
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(PACKAGE_PATH + ".tasks.is_esi_online", lambda: True)
 @patch(PACKAGE_PATH + ".tasks.send_messages_to_webhook.retry")
+@patch(PACKAGE_PATH + ".tasks.run_killtracker.retry")
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @requests_mock.Mocker()
 class TestIntegration(LoadTestDataMixin, TestCase):
@@ -33,11 +35,28 @@ class TestIntegration(LoadTestDataMixin, TestCase):
         )
 
     def my_retry(self, *args, **kwargs):
-        tasks.send_messages_to_webhook.delay(self.webhook_1.pk)
+        """generic retry that will call the function given in task
+        and ignore other parameters
+        """
+        kwargs["task"]()
 
-    def test_normal_case(self, mock_execute, mock_retry, requests_mocker):
+    def test_normal_case(
+        self,
+        mock_execute,
+        run_killtracker_retry,
+        send_messages_to_webhook_retry,
+        requests_mocker,
+    ):
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-        mock_retry.side_effect = self.my_retry
+        run_killtracker_retry.side_effect = functools.partial(
+            self.my_retry, task=tasks.run_killtracker
+        )
+        send_messages_to_webhook_retry.side_effect = functools.partial(
+            self.my_retry,
+            task=functools.partial(
+                tasks.send_messages_to_webhook, webhook_pk=self.webhook_1.pk
+            ),
+        )
         requests_mocker.register_uri(
             "GET",
             ZKB_REDISQ_URL,

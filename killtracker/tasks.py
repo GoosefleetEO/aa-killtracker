@@ -1,8 +1,6 @@
 from celery import shared_task, chain
 
 from django.db import IntegrityError
-from django.utils.dateparse import parse_datetime
-from django.utils.timezone import now
 
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.tasks import update_unresolved_eve_entities
@@ -13,7 +11,6 @@ from allianceauth.services.tasks import QueueOnce
 from . import __title__, APP_NAME
 from .app_settings import (
     KILLTRACKER_MAX_KILLMAILS_PER_RUN,
-    KILLTRACKER_MAX_DURATION_PER_RUN,
     KILLTRACKER_STORING_KILLMAILS_ENABLED,
     KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
     KILLTRACKER_TASKS_TIMEOUT,
@@ -21,6 +18,7 @@ from .app_settings import (
     KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
     KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
     KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+    KILLTRACKER_TASK_MINIMUM_RETRY_DELAY,
 )
 from .core.killmails import Killmail
 from .exceptions import WebhookTooManyRequests
@@ -34,26 +32,22 @@ from .utils import LoggerAddTag, cached_queryset
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-@shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
-def run_killtracker(
-    killmails_max: int = KILLTRACKER_MAX_KILLMAILS_PER_RUN,
-    killmails_count: int = 0,
-    started_str: str = None,
-) -> None:
+@shared_task(
+    bind=True,
+    base=QueueOnce,
+    timeout=KILLTRACKER_TASKS_TIMEOUT,
+    retry_backoff=False,
+    max_retries=None,
+)
+def run_killtracker(self) -> None:
     """Main task for running the Killtracker.
     Will fetch new killmails from ZKB and start running trackers for them
-
-    Params:
-    - killmails_max: override the default number of max killmails
-    received per run
-    - killmails_count: internal parameter
-    - started_str: internal parameter
     """
     if not is_esi_online():
         logger.warning("ESI is currently offline. Aborting")
         return
 
-    if killmails_count == 0:
+    if self.request.retries == 0:
         logger.info("Killtracker run started...")
         qs = cached_queryset(
             Webhook.objects.filter(is_enabled=True),
@@ -63,17 +57,9 @@ def run_killtracker(
         for webhook in qs:
             webhook.reset_failed_messages()
 
-    started = now() if not started_str else parse_datetime(started_str)
-    duration = (now() - started).total_seconds()
-    if duration > KILLTRACKER_MAX_DURATION_PER_RUN:
-        # need to ensure this run finishes before CRON starts the next
-        logger.info("Soft timeout reached. Aborting run.")
-        killmail = None
-    else:
-        killmail = Killmail.create_from_zkb_redisq()
+    killmail = Killmail.create_from_zkb_redisq()
 
     if killmail:
-        killmails_count += 1
         killmail_json = killmail.asjson()
         qs = cached_queryset(
             Tracker.objects.filter(is_enabled=True),
@@ -92,25 +78,19 @@ def run_killtracker(
                 update_unresolved_eve_entities.si(),
             ).delay()
 
-    if killmail and killmails_count < killmails_max:
-        run_killtracker.delay(
-            killmails_max=killmails_max,
-            killmails_count=killmails_count,
-            started_str=started.isoformat(),
+    total_killmails = self.request.retries + (1 if killmail else 0)
+    if killmail and total_killmails < KILLTRACKER_MAX_KILLMAILS_PER_RUN:
+        self.retry(countdown=KILLTRACKER_TASK_MINIMUM_RETRY_DELAY)
+    else:
+        if (
+            KILLTRACKER_STORING_KILLMAILS_ENABLED
+            and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
+        ):
+            delete_stale_killmails.delay()
+
+        logger.info(
+            "Killtracker run completed. %d killmails received from ZKB", total_killmails
         )
-        return
-
-    if (
-        KILLTRACKER_STORING_KILLMAILS_ENABLED
-        and KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0
-    ):
-        delete_stale_killmails.delay()
-
-    logger.info(
-        "Killtracker completed. %d killmails received from ZKB in %d seconds",
-        killmails_count,
-        duration,
-    )
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)

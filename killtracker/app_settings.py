@@ -10,7 +10,7 @@ KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER = clean_setting(
 
 # Maximum number of killmails retrieved from ZKB by task run
 KILLTRACKER_MAX_KILLMAILS_PER_RUN = clean_setting(
-    "KILLTRACKER_MAX_KILLMAILS_PER_RUN", 250
+    "KILLTRACKER_MAX_KILLMAILS_PER_RUN", 200
 )
 
 # Killmails older than set number of days will be purged from the database.
@@ -35,10 +35,6 @@ KILLTRACKER_WEBHOOK_SET_AVATAR = clean_setting("KILLTRACKER_WEBHOOK_SET_AVATAR",
 # Max duration to wait for new killmails from redisq in seconds
 KILLTRACKER_REDISQ_TTW = clean_setting("KILLTRACKER_REDISQ_TTW", 5)
 
-# Maximum duration in seconds for a killtracker run.
-# Important to ensure that the current run finishes before CRON starts the next one
-KILLTRACKER_MAX_DURATION_PER_RUN = clean_setting("KILLTRACKER_MAX_DURATION_PER_RUN", 50)
-
 # Tasks hard timeout
 KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1800)
 
@@ -61,4 +57,9 @@ KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN = clean_setting(
 # Cache duration for objects in tasks in seconds
 KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT = clean_setting(
     "KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT", 60
+)
+
+# Minimum delay when retrying a task
+KILLTRACKER_TASK_MINIMUM_RETRY_DELAY = clean_setting(
+    "KILLTRACKER_TASK_MINIMUM_RETRY_DELAY", default_value=0.1, min_value=0
 )
