@@ -61,5 +61,5 @@ KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT = clean_setting(
 
 # Minimum delay when retrying a task
 KILLTRACKER_TASK_MINIMUM_RETRY_DELAY = clean_setting(
-    "KILLTRACKER_TASK_MINIMUM_RETRY_DELAY", default_value=0.1, min_value=0
+    "KILLTRACKER_TASK_MINIMUM_RETRY_DELAY", default_value=0.05, min_value=0.0
 )

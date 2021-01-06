@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.0b2] - 2021-01-07
+
 ### Changed
 
 - Significantly improved task performance with added caching
 - Reduced default for KILLTRACKER_MAX_KILLMAILS_PER_RUN to 200
+
+### Fixed
+
+- Occasional 429 errors from ZKB RedisQ [#22](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/22)
 
 ## [0.3.0b1] - 2021-01-04
 
