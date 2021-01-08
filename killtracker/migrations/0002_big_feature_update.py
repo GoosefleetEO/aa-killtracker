@@ -348,7 +348,6 @@ class Migration(migrations.Migration):
             name="notes",
             field=models.TextField(
                 blank=True,
-                default="",
                 help_text="you can add notes about this webhook here if you want",
             ),
             preserve_default=False,

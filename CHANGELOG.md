@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.0b3] - 2021-01-08
+
+### Fix
+
+- Migrations fail on MySQL 8 due to default for TextField
+
 ## [0.3.0b2] - 2021-01-07
 
 ### Changed
