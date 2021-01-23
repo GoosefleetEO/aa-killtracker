@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.3.0] - 2021-01-23
+## [0.3.0b4] - 2021-01-23
 
 ### Fix
 
 - Incompatible with django-redis-cache 3.0
+- Fix attempt: Occasionally occurring transaction timeouts [#14](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/14)
 
 ## [0.3.0b3] - 2021-01-08
 

@@ -59,44 +59,43 @@ class EveKillmailManager(models.Manager):
             EveKillmailZkb,
         )
 
-        with transaction.atomic():
-            args = {
-                "id": killmail.id,
-                "time": killmail.time,
-            }
-            if killmail.solar_system_id:
-                args["solar_system"], _ = EveEntity.objects.get_or_create(
-                    id=killmail.solar_system_id
-                )
-            eve_killmail = self.create(**args)
+        args = {
+            "id": killmail.id,
+            "time": killmail.time,
+        }
+        if killmail.solar_system_id:
+            args["solar_system"], _ = EveEntity.objects.get_or_create(
+                id=killmail.solar_system_id
+            )
+        eve_killmail = self.create(**args)
 
-            if killmail.zkb:
-                args = {**killmail.zkb.asdict(), **{"killmail": eve_killmail}}
-                EveKillmailZkb.objects.create(**args)
+        if killmail.zkb:
+            args = {**killmail.zkb.asdict(), **{"killmail": eve_killmail}}
+            EveKillmailZkb.objects.create(**args)
 
+        args = {
+            **{
+                "killmail": eve_killmail,
+                "damage_taken": killmail.victim.damage_taken,
+            },
+            **self._create_args_for_entities(killmail.victim),
+        }
+        EveKillmailVictim.objects.create(**args)
+
+        args = {**killmail.position.asdict(), **{"killmail": eve_killmail}}
+        EveKillmailPosition.objects.create(**args)
+
+        for attacker in killmail.attackers:
             args = {
                 **{
                     "killmail": eve_killmail,
-                    "damage_taken": killmail.victim.damage_taken,
+                    "damage_done": attacker.damage_done,
+                    "security_status": attacker.security_status,
+                    "is_final_blow": attacker.is_final_blow,
                 },
-                **self._create_args_for_entities(killmail.victim),
+                **self._create_args_for_entities(attacker),
             }
-            EveKillmailVictim.objects.create(**args)
-
-            args = {**killmail.position.asdict(), **{"killmail": eve_killmail}}
-            EveKillmailPosition.objects.create(**args)
-
-            for attacker in killmail.attackers:
-                args = {
-                    **{
-                        "killmail": eve_killmail,
-                        "damage_done": attacker.damage_done,
-                        "security_status": attacker.security_status,
-                        "is_final_blow": attacker.is_final_blow,
-                    },
-                    **self._create_args_for_entities(attacker),
-                }
-                EveKillmailAttacker.objects.create(**args)
+            EveKillmailAttacker.objects.create(**args)
 
         if resolve_ids:
             EveEntity.objects.bulk_update_new_esi()
@@ -125,7 +124,10 @@ class EveKillmailManager(models.Manager):
             except self.model.DoesNotExist:
                 created = True
 
-            obj = self.create_from_killmail(killmail)
+            obj = self.create_from_killmail(killmail, resolve_ids=False)
+
+        if created:
+            EveEntity.objects.bulk_update_new_esi()
 
         return obj, created
 
