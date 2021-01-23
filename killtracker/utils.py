@@ -1,12 +1,13 @@
 """
 Utility functions meant to be used in many apps
 
-Version 1.2.0
+Version 1.3.1
 """
 
 import socket
 from datetime import datetime, timedelta
 import functools
+import hashlib
 import json
 import logging
 import os
@@ -121,11 +122,6 @@ def add_no_wrap_html(text: str) -> str:
     return format_html('<span style="white-space: nowrap;">{}</span>', mark_safe(text))
 
 
-def add_bs_label_html(text: str, label: str = "default") -> str:
-    """create Bootstrap label and return HTML"""
-    return format_html('<div class="label label-{}">{}</div>', label, text)
-
-
 def create_link_html(url: str, label: str, new_window: bool = True) -> str:
     """create html link and return HTML"""
     return format_html(
@@ -134,6 +130,11 @@ def create_link_html(url: str, label: str, new_window: bool = True) -> str:
         mark_safe(' target="_blank"') if new_window else "",
         label,
     )
+
+
+def add_bs_label_html(text: str, label: str = "default") -> str:
+    """create Bootstrap label and return HTML"""
+    return format_html('<div class="label label-{}">{}</div>', label, text)
 
 
 def create_bs_glyph_html(glyph_name: str) -> str:
@@ -209,7 +210,17 @@ def humanize_value(value: float, precision: int = 2) -> str:
 
 
 ###################
-# messages
+# django
+
+
+def app_labels() -> set:
+    """returns set of all current app labels"""
+    return {x for x in apps.app_configs.keys()}
+
+
+def get_absolute_url(url_name: str) -> str:
+    """Returns absolute URL for the given URL name."""
+    return urljoin(get_site_base_url(), reverse(url_name))
 
 
 class messages_plus:
@@ -300,6 +311,84 @@ class messages_plus:
         messages.error(
             request, cls._add_messages_icon(ERROR, message), extra_tags, fail_silently
         )
+
+
+def clean_setting(
+    name: str,
+    default_value: object,
+    min_value: int = None,
+    max_value: int = None,
+    required_type: type = None,
+    choices: list = None,
+) -> Any:
+    """cleans the input for a custom setting
+
+    Will use default_value if setting is not defined.
+    Will use minimum or maximum value if respective boundary is exceeded.
+
+    Args:
+    - `default_value`: value to use if setting is not defined
+    - `min_value`: minimum allowed value (0 assumed for int)
+    - `max_value`: maximum value value
+    - `required_type`: Mandatory if `default_value` is `None`,
+    otherwise derived from default_value
+
+    Returns:
+    - cleaned value for setting
+    """
+    if default_value is None and not required_type:
+        raise ValueError("You must specify a required_type for None defaults")
+
+    if not required_type:
+        required_type = type(default_value)
+
+    if min_value is None and issubclass(required_type, int):
+        min_value = 0
+
+    if issubclass(required_type, int) and default_value is not None:
+        if min_value is not None and default_value < min_value:
+            raise ValueError("default_value can not be below min_value")
+        if max_value is not None and default_value > max_value:
+            raise ValueError("default_value can not be above max_value")
+
+    if not hasattr(settings, name):
+        cleaned_value = default_value
+    else:
+        dirty_value = getattr(settings, name)
+        if dirty_value is None or (
+            isinstance(dirty_value, required_type)
+            and (min_value is None or dirty_value >= min_value)
+            and (max_value is None or dirty_value <= max_value)
+            and (choices is None or dirty_value in choices)
+        ):
+            cleaned_value = dirty_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and min_value is not None
+            and dirty_value < min_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using minimum value for now: {}".format(name, min_value)
+            )
+            cleaned_value = min_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and max_value is not None
+            and dirty_value > max_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using maximum value for now: {}".format(name, max_value)
+            )
+            cleaned_value = max_value
+        else:
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using default for now: {}".format(name, default_value)
+            )
+            cleaned_value = default_value
+    return cleaned_value
 
 
 ###################
@@ -415,10 +504,17 @@ class ObjectCacheMixin:
     """Adds a simple object cache to a Django manager"""
 
     def get_cached(
-        self, pk, timeout: Union[int, float] = None, select_related: str = None
+        self,
+        pk,
+        timeout: Union[int, float] = None,
+        select_related: str = None,
     ) -> models.Model:
         """Will return the requested object either from DB or from cache
 
+        Args:
+        - pk: Primary key for object to fetch
+        - timeout: Timeout in seconds for cache
+        - select_related: select_related query to be applied (if any)
         Exceptions:
         - raised Model.DoesNotExist if object can not be found
         """
@@ -426,12 +522,20 @@ class ObjectCacheMixin:
             self._fetch_object_for_cache, pk=pk, select_related=select_related
         )
         return cache.get_or_set(
-            key=self._create_object_cache_key(pk), func=func, timeout=timeout
+            self._create_object_cache_key(pk, select_related), func, timeout
         )
 
-    def _create_object_cache_key(self, pk) -> str:
-        return "{}_{}_{}".format(
-            self.model._meta.app_label, self.model._meta.model_name, pk
+    def _create_object_cache_key(self, pk, select_related: str = None) -> str:
+        suffix = (
+            hashlib.md5(select_related.encode("utf-8")).hexdigest()
+            if select_related
+            else ""
+        )
+        return "{}_{}_{}{}".format(
+            self.model._meta.app_label,
+            self.model._meta.model_name,
+            pk,
+            f"_{suffix}" if suffix else "",
         )
 
     def _fetch_object_for_cache(self, pk, select_related: str = None):
@@ -442,105 +546,11 @@ class ObjectCacheMixin:
 def cached_queryset(
     queryset: models.QuerySet, key: str, timeout: Union[int, float]
 ) -> models.QuerySet:
-    return cache.get_or_set(key=key, func=lambda: queryset, timeout=timeout)
+    return cache.get_or_set(key, lambda: queryset, timeout)
 
 
 ###################
-# other
-
-
-def get_swagger_spec_path() -> str:
-    """returns the path to the current swagger spec file"""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "swagger.json")
-
-
-def chunks(lst, size):
-    """Yield successive sized chunks from lst."""
-    for i in range(0, len(lst), size):
-        yield lst[i : i + size]
-
-
-def clean_setting(
-    name: str,
-    default_value: object,
-    min_value: int = None,
-    max_value: int = None,
-    required_type: type = None,
-    choices: list = None,
-) -> Any:
-    """cleans the input for a custom setting
-
-    Will use default_value if setting is not defined.
-    Will use minimum or maximum value if respective boundary is exceeded.
-
-    Args:
-    - `default_value`: value to use if setting is not defined
-    - `min_value`: minimum allowed value (0 assumed for int)
-    - `max_value`: maximum value value
-    - `required_type`: Mandatory if `default_value` is `None`,
-    otherwise derived from default_value
-
-    Returns:
-    - cleaned value for setting
-    """
-    if default_value is None and not required_type:
-        raise ValueError("You must specify a required_type for None defaults")
-
-    if not required_type:
-        required_type = type(default_value)
-
-    if min_value is None and issubclass(required_type, int):
-        min_value = 0
-
-    if issubclass(required_type, int) and default_value is not None:
-        if min_value is not None and default_value < min_value:
-            raise ValueError("default_value can not be below min_value")
-        if max_value is not None and default_value > max_value:
-            raise ValueError("default_value can not be above max_value")
-
-    if not hasattr(settings, name):
-        cleaned_value = default_value
-    else:
-        dirty_value = getattr(settings, name)
-        if dirty_value is None or (
-            isinstance(dirty_value, required_type)
-            and (min_value is None or dirty_value >= min_value)
-            and (max_value is None or dirty_value <= max_value)
-            and (choices is None or dirty_value in choices)
-        ):
-            cleaned_value = dirty_value
-        elif (
-            isinstance(dirty_value, required_type)
-            and min_value is not None
-            and dirty_value < min_value
-        ):
-            logger.warn(
-                "You setting for {} it not valid. Please correct it. "
-                "Using minimum value for now: {}".format(name, min_value)
-            )
-            cleaned_value = min_value
-        elif (
-            isinstance(dirty_value, required_type)
-            and max_value is not None
-            and dirty_value > max_value
-        ):
-            logger.warn(
-                "You setting for {} it not valid. Please correct it. "
-                "Using maximum value for now: {}".format(name, max_value)
-            )
-            cleaned_value = max_value
-        else:
-            logger.warn(
-                "You setting for {} it not valid. Please correct it. "
-                "Using default for now: {}".format(name, default_value)
-            )
-            cleaned_value = default_value
-    return cleaned_value
-
-
-def app_labels() -> set:
-    """returns set of all current app labels"""
-    return {x for x in apps.app_configs.keys()}
+# allianceauth
 
 
 def get_site_base_url() -> str:
@@ -555,6 +565,20 @@ def get_site_base_url() -> str:
     return ""
 
 
-def get_absolute_url(url_name: str) -> str:
-    """Returns absolute URL for the given URL name."""
-    return urljoin(get_site_base_url(), reverse(url_name))
+###################
+# esi
+
+
+def get_swagger_spec_path() -> str:
+    """returns the path to the current swagger spec file"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "swagger.json")
+
+
+###################
+# helpers
+
+
+def chunks(lst, size):
+    """Yield successive sized chunks from lst."""
+    for i in range(0, len(lst), size):
+        yield lst[i : i + size]

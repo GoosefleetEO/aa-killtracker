@@ -36,7 +36,9 @@ from ..utils import (
 )
 from ..utils import set_test_logger
 
-MODULE_PATH = "{}.utils".format(__package__.partition(".")[0])
+_this_package = __package__.partition(".")[0]
+MODULE_PATH = "{}.utils".format(_this_package)
+CURRENT_PATH = "{}.tests.test_utils".format(_this_package)
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
@@ -396,6 +398,9 @@ class FakeManager(ObjectCacheMixin):
     def get(self, pk):
         return fake_objects[pk]
 
+    def select_related(self, query):
+        return self
+
     @property
     def model(self):
         return FakeModel
@@ -417,10 +422,10 @@ class FakeModel:
 
 
 @patch(
-    "killtracker.tests.test_utils.FakeManager._fetch_object_for_cache",
+    CURRENT_PATH + ".FakeManager._fetch_object_for_cache",
     wraps=FakeModel.objects._fetch_object_for_cache,
 )
-class TestMyGroupManager(TestCase):
+class TestObjectCacheMixin(TestCase):
     def setUp(self) -> None:
         self.obj = FakeModel.objects.create(name="My Fake Model")
         cache.clear()
@@ -437,6 +442,13 @@ class TestMyGroupManager(TestCase):
         obj = FakeModel.objects.get_cached(pk=self.obj.pk)
 
         obj = FakeModel.objects.get_cached(pk=self.obj.pk)
+
+        self.assertEqual(obj.name, "My Fake Model")
+        self.assertEqual(mock_fetch_object_for_cache.call_count, 1)
+
+    def test_get_cached_3(self, mock_fetch_object_for_cache):
+        """when cache is empty, load from DB"""
+        obj = FakeModel.objects.get_cached(pk=self.obj.pk, select_related="dummy")
 
         self.assertEqual(obj.name, "My Fake Model")
         self.assertEqual(mock_fetch_object_for_cache.call_count, 1)

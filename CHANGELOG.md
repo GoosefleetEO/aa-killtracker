@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.0] - 2021-01-23
+
+### Fix
+
+- Incompatible with django-redis-cache 3.0
+
 ## [0.3.0b3] - 2021-01-08
 
 ### Fix
