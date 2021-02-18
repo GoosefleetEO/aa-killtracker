@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.3.0] - 2021-02-18
+## [0.3.0] - tbd
 
 ### Change
 
