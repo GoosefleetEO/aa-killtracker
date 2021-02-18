@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.0] - 2021-02-18
+
+### Change
+
+- Improved handling of potential HTTP 429 errors
+- Improved handling of cases when ZKB does not return JSON
+
 ## [0.3.0b4] - 2021-01-23
 
 ### Fix

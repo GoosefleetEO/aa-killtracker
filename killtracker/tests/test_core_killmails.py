@@ -19,27 +19,26 @@ unittest.util._MAX_LENGTH = 1000
 
 @requests_mock.Mocker()
 class TestCreateFromZkbRedisq(NoSocketsTestCase):
-    def test_normal(self, requests_mocker):
+    def test_should_return_killmail(self, requests_mocker):
+        # given
         requests_mocker.register_uri(
             "GET",
             ZKB_REDISQ_URL,
             status_code=200,
             json={"package": killmails_data()[10000001]},
         )
-
+        # when
         killmail = Killmail.create_from_zkb_redisq()
-
+        # then
         self.assertIsNotNone(killmail)
         self.assertEqual(killmail.id, 10000001)
         self.assertEqual(killmail.solar_system_id, 30004984)
         self.assertAlmostEqual(killmail.time, now(), delta=timedelta(seconds=120))
-
         self.assertEqual(killmail.victim.alliance_id, 3011)
         self.assertEqual(killmail.victim.character_id, 1011)
         self.assertEqual(killmail.victim.corporation_id, 2011)
         self.assertEqual(killmail.victim.damage_taken, 434)
         self.assertEqual(killmail.victim.ship_type_id, 603)
-
         self.assertEqual(len(killmail.attackers), 3)
 
         attacker_1 = killmail.attackers[0]
@@ -59,27 +58,48 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         self.assertFalse(killmail.zkb.is_solo)
         self.assertFalse(killmail.zkb.is_awox)
 
-    def test_zkb_returns_empty_package(self, requests_mocker):
+    def test_should_return_none_when_zkb_returns_empty_package(self, requests_mocker):
+        # given
         requests_mocker.register_uri(
-            "GET",
-            ZKB_REDISQ_URL,
-            status_code=200,
-            json={"package": None},
+            "GET", ZKB_REDISQ_URL, status_code=200, json={"package": None}
         )
-
+        # when
         killmail = Killmail.create_from_zkb_redisq()
+        # then
         self.assertIsNone(killmail)
 
-    def test_zkb_can_handle_no_solar_system(self, requests_mocker):
+    def test_should_handle_zkb_data_has_no_solar_system(self, requests_mocker):
+        # given
         requests_mocker.register_uri(
             "GET",
             ZKB_REDISQ_URL,
             status_code=200,
             json={"package": killmails_data()[10000402]},
         )
-
+        # when
         killmail = Killmail.create_from_zkb_redisq()
+        # then
         self.assertIsNotNone(killmail)
+
+    def test_should_return_none_when_zkb_returns_429_error(self, requests_mocker):
+        # given
+        requests_mocker.register_uri(
+            "GET", ZKB_REDISQ_URL, status_code=429, text="429 too many requests"
+        )
+        # when
+        killmail = Killmail.create_from_zkb_redisq()
+        # then
+        self.assertIsNone(killmail)
+
+    def test_should_return_none_when_zkb_does_not_return_json(self, requests_mocker):
+        # given
+        requests_mocker.register_uri(
+            "GET", ZKB_REDISQ_URL, status_code=200, text="this is not JSON"
+        )
+        # when
+        killmail = Killmail.create_from_zkb_redisq()
+        # then
+        self.assertIsNone(killmail)
 
 
 class TestKillmailSerialization(NoSocketsTestCase):

@@ -58,7 +58,6 @@ def run_killtracker(self) -> None:
             webhook.reset_failed_messages()
 
     killmail = Killmail.create_from_zkb_redisq()
-
     if killmail:
         killmail_json = killmail.asjson()
         qs = cached_queryset(

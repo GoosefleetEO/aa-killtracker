@@ -115,6 +115,8 @@ class TrackerInfo(_KillmailBase):
 
 @dataclass
 class Killmail(_KillmailBase):
+    HTTP_TOO_MANY_REQUESTS = 429
+
     id: int
     time: datetime
     victim: KillmailVictim
@@ -193,7 +195,7 @@ class Killmail(_KillmailBase):
         return cls.from_dict(json.loads(json_str, cls=JSONDateTimeDecoder))
 
     @classmethod
-    def create_from_zkb_redisq(cls) -> "Killmail":
+    def create_from_zkb_redisq(cls) -> Optional["Killmail"]:
         """Fetches and returns a killmail from ZKB.
 
         Returns None if no killmail is received.
@@ -205,8 +207,17 @@ class Killmail(_KillmailBase):
             timeout=REQUESTS_TIMEOUT,
             headers={"User-Agent": USER_AGENT_TEXT},
         )
+        if r.status_code == cls.HTTP_TOO_MANY_REQUESTS:
+            logger.warning("429 Client Error: Too many requests: %s", r.text)
+            return None
         r.raise_for_status()
-        data = r.json()
+        try:
+            data = r.json()
+        except Exception:
+            logger.warning(
+                "ZKB did not return JSON as was expected: %s", r.text, exc_info=True
+            )
+            return None
         if data:
             logger.debug("data:\n%s", data)
         if data and "package" in data and data["package"]:
@@ -218,12 +229,11 @@ class Killmail(_KillmailBase):
             return None
 
     @classmethod
-    def create_from_zkb_api(cls, killmail_id: int) -> "Killmail":
+    def create_from_zkb_api(cls, killmail_id: int) -> Optional["Killmail"]:
         """Fetches and returns a killmail from ZKB API.
 
         results are cached
         """
-
         cache_key = f"{__title__.upper()}_KILLMAIL_{killmail_id}"
         killmail_json = cache.get(cache_key)
         if killmail_json:
@@ -277,6 +287,9 @@ class Killmail(_KillmailBase):
 
     @staticmethod
     def _create_from_dict(package_data: dict) -> "Killmail":
+        """creates a new object from given dict.
+        Needs to confirm with data structure returned from ZKB RedisQ
+        """
         zkb = KillmailZkb()
         if "zkb" in package_data:
             zkb_data = package_data["zkb"]
