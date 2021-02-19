@@ -7,10 +7,11 @@ import requests_mock
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
+from app_utils.testing import NoSocketsTestCase
+
 from . import CacheStub, BravadoOperationStub
 from ..core.killmails import Killmail, EntityCount, ZKB_REDISQ_URL, ZKB_API_URL
 from .testdata.helpers import killmails_data, load_killmail
-from ..utils import NoSocketsTestCase
 
 
 MODULE_PATH = "killtracker.core.killmails"

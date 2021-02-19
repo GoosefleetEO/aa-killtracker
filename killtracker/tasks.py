@@ -27,7 +27,9 @@ from .models import (
     Tracker,
     Webhook,
 )
-from .utils import LoggerAddTag, cached_queryset
+from app_utils.caching import cached_queryset
+from app_utils.logging import LoggerAddTag
+
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

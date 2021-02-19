@@ -11,10 +11,12 @@ from django.utils.dateparse import parse_datetime
 
 from allianceauth.services.hooks import get_extension_logger
 
+from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
+from app_utils.logging import LoggerAddTag
+
 from .. import __title__, USER_AGENT_TEXT
 from ..app_settings import KILLTRACKER_REDISQ_TTW
 from ..providers import esi
-from ..utils import LoggerAddTag, JSONDateTimeDecoder, JSONDateTimeEncoder
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

@@ -7,6 +7,8 @@ from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
+from app_utils.testing import generate_invalid_pk
+
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
@@ -19,7 +21,6 @@ from ..tasks import (
     send_test_message_to_webhook,
     generate_killmail_message,
 )
-from ..utils import generate_invalid_pk
 
 
 MODULE_PATH = "killtracker.tasks"

@@ -14,6 +14,9 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
+from app_utils.django import app_labels
+from app_utils.json import JSONDateTimeDecoder
+from app_utils.testing import NoSocketsTestCase, set_test_logger
 from eveuniverse.models import (
     EveConstellation,
     EveEntity,
@@ -22,15 +25,12 @@ from eveuniverse.models import (
     EveSolarSystem,
     EveType,
 )
-from killtracker.core.killmails import EntityCount
 
 from . import BravadoOperationStub
-from ..core.killmails import Killmail
+from ..core.killmails import Killmail, EntityCount
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
 from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
-from ..utils import app_labels, NoSocketsTestCase, set_test_logger, JSONDateTimeDecoder
-
 
 MODULE_PATH = "killtracker.models"
 logger = set_test_logger(MODULE_PATH, __file__)

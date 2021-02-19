@@ -1,4 +1,4 @@
-from .utils import clean_setting
+from app_utils.django import clean_setting
 
 
 # ignore killmails that are older than the given number in minutes

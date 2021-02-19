@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Change
+
 ## [0.3.0] - tbd
 
 ### Change
 
 - Improved handling of potential HTTP 429 errors
 - Improved handling of cases when ZKB does not return JSON
+- Integrated allianceauth-app-utils
 
 ## [0.3.0b4] - 2021-01-23
 

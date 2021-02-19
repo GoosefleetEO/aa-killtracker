@@ -4,7 +4,7 @@ from django.contrib.admin.sites import AdminSite
 
 from ..admin import TrackerAdmin
 from ..models import Tracker, Webhook
-from ..utils import NoSocketsTestCase
+from app_utils.testing import NoSocketsTestCase
 
 
 class TestTrackerAdmin(NoSocketsTestCase):

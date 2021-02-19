@@ -20,6 +20,11 @@ from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.modules.discord.models import DiscordUser
 
+from app_utils.django import app_labels
+from app_utils.logging import LoggerAddTag
+from app_utils.json import JSONDateTimeEncoder, JSONDateTimeDecoder
+from app_utils.urls import site_absolute_url
+from app_utils.views import humanize_value
 from eveuniverse.helpers import meters_to_ly, EveEntityNameResolver
 from eveuniverse.models import (
     EveConstellation,
@@ -38,14 +43,7 @@ from .app_settings import (
 from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
 from .exceptions import WebhookTooManyRequests
 from .managers import EveKillmailManager, TrackerManager, WebhookManager
-from .utils import (
-    app_labels,
-    LoggerAddTag,
-    get_site_base_url,
-    humanize_value,
-    JSONDateTimeEncoder,
-    JSONDateTimeDecoder,
-)
+
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -314,7 +312,7 @@ class Webhook(models.Model):
         """Enqueues a message to be send with this webhook"""
         username = __title__ if KILLTRACKER_WEBHOOK_SET_AVATAR else username
         brand_url = urljoin(
-            get_site_base_url(),
+            site_absolute_url(),
             staticfiles_storage.url("killtracker/killtracker_logo.png"),
         )
         avatar_url = brand_url if KILLTRACKER_WEBHOOK_SET_AVATAR else avatar_url
@@ -1211,7 +1209,7 @@ class Tracker(models.Model):
             else None
         )
         zkb_icon_url = urljoin(
-            get_site_base_url(), staticfiles_storage.url("killtracker/zkb_icon.png")
+            site_absolute_url(), staticfiles_storage.url("killtracker/zkb_icon.png")
         )
         embed = dhooks_lite.Embed(
             author=author,

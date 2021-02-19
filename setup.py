@@ -45,6 +45,7 @@ setup(
         "dataclasses>='0.7';python_version<'3.7'",
         "dacite",
         "django-eveuniverse>=0.6.4",
+        "allianceauth-app-utils>=1.0.0a7",
         "redis-simple-mq>=0.4",
         "dhooks-lite>=0.6",
     ],
