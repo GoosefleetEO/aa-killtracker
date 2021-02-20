@@ -7,41 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-### Change
-
-## [0.3.0] - tbd
-
-### Change
-
-- Improved handling of potential HTTP 429 errors
-- Improved handling of cases when ZKB does not return JSON
-- Integrated allianceauth-app-utils
-
-## [0.3.0b4] - 2021-01-23
-
-### Fix
-
-- Incompatible with django-redis-cache 3.0
-- Fix attempt: Occasionally occurring transaction timeouts [#14](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/14)
-
-## [0.3.0b3] - 2021-01-08
-
-### Fix
-
-- Migrations fail on MySQL 8 due to default for TextField
-
-## [0.3.0b2] - 2021-01-07
-
-### Changed
-
-- Significantly improved task performance with added caching
-- Reduced default for KILLTRACKER_MAX_KILLMAILS_PER_RUN to 200
-
-### Fixed
-
-- Occasional 429 errors from ZKB RedisQ [#22](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/22)
-
-## [0.3.0b1] - 2021-01-04
+## [0.3.0] - 2021-02-20
 
 ### Update notes
 
@@ -62,6 +28,18 @@ Please re-run **killtracker_load_eve** to get all the newly added types.
 - Restructured tasks to improve scalability, performance and resilience [#20](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/20)
 - Killtracker will no longer start when ESI is offline
 - Remove support for Django 2.1 & 3.0 [#17](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/17)
+- Significantly improved task performance with added caching
+- Improved handling of potential HTTP 429 errors
+- Improved handling of cases when ZKB does not return JSON
+- Reduced default for KILLTRACKER_MAX_KILLMAILS_PER_RUN to 200
+- Integrated allianceauth-app-utils
+
+### Fixed
+
+- Incompatible with django-redis-cache 3.0
+- Fix attempt: Occasionally occurring transaction timeouts [#14](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/14)
+- Migrations fail on MySQL 8 due to default for TextField
+- Occasional 429 errors from ZKB RedisQ [#22](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/22)
 
 ## [0.2.6] - 2020-12-09
 
