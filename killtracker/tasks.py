@@ -36,7 +36,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 @shared_task(
     bind=True,
-    base=QueueOnce,
     timeout=KILLTRACKER_TASKS_TIMEOUT,
     retry_backoff=False,
     max_retries=None,

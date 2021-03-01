@@ -19,8 +19,9 @@ unittest.util._MAX_LENGTH = 1000
 
 
 @requests_mock.Mocker()
+@patch(MODULE_PATH + ".cache.lock")
 class TestCreateFromZkbRedisq(NoSocketsTestCase):
-    def test_should_return_killmail(self, requests_mocker):
+    def test_should_return_killmail(self, requests_mocker, mock_lock):
         # given
         requests_mocker.register_uri(
             "GET",
@@ -28,6 +29,7 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
             status_code=200,
             json={"package": killmails_data()[10000001]},
         )
+        mock_lock.return_value.acquire.return_value = True
         # when
         killmail = Killmail.create_from_zkb_redisq()
         # then
@@ -59,17 +61,22 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         self.assertFalse(killmail.zkb.is_solo)
         self.assertFalse(killmail.zkb.is_awox)
 
-    def test_should_return_none_when_zkb_returns_empty_package(self, requests_mocker):
+    def test_should_return_none_when_zkb_returns_empty_package(
+        self, requests_mocker, mock_lock
+    ):
         # given
         requests_mocker.register_uri(
             "GET", ZKB_REDISQ_URL, status_code=200, json={"package": None}
         )
+        mock_lock.return_value.acquire.return_value = True
         # when
         killmail = Killmail.create_from_zkb_redisq()
         # then
         self.assertIsNone(killmail)
 
-    def test_should_handle_zkb_data_has_no_solar_system(self, requests_mocker):
+    def test_should_handle_zkb_data_has_no_solar_system(
+        self, requests_mocker, mock_lock
+    ):
         # given
         requests_mocker.register_uri(
             "GET",
@@ -77,26 +84,41 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
             status_code=200,
             json={"package": killmails_data()[10000402]},
         )
+        mock_lock.return_value.acquire.return_value = True
         # when
         killmail = Killmail.create_from_zkb_redisq()
         # then
         self.assertIsNotNone(killmail)
 
-    def test_should_return_none_when_zkb_returns_429_error(self, requests_mocker):
+    def test_should_return_none_when_zkb_returns_429_error(
+        self, requests_mocker, mock_lock
+    ):
         # given
         requests_mocker.register_uri(
             "GET", ZKB_REDISQ_URL, status_code=429, text="429 too many requests"
         )
+        mock_lock.return_value.acquire.return_value = True
         # when
         killmail = Killmail.create_from_zkb_redisq()
         # then
         self.assertIsNone(killmail)
 
-    def test_should_return_none_when_zkb_does_not_return_json(self, requests_mocker):
+    def test_should_return_none_when_zkb_does_not_return_json(
+        self, requests_mocker, mock_lock
+    ):
         # given
         requests_mocker.register_uri(
             "GET", ZKB_REDISQ_URL, status_code=200, text="this is not JSON"
         )
+        mock_lock.return_value.acquire.return_value = True
+        # when
+        killmail = Killmail.create_from_zkb_redisq()
+        # then
+        self.assertIsNone(killmail)
+
+    def test_should_return_none_if_lock_not_acquired(self, requests_mocker, mock_lock):
+        # given
+        mock_lock.return_value.acquire.return_value = False
         # when
         killmail = Killmail.create_from_zkb_redisq()
         # then
