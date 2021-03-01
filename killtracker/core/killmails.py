@@ -15,7 +15,7 @@ from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
 from .. import __title__, USER_AGENT_TEXT
-from ..app_settings import KILLTRACKER_REDISQ_TTW
+from ..app_settings import KILLTRACKER_REDISQ_TTW, KILLTRACKER_REDISQ_LOCK_TIMEOUT
 from ..providers import esi
 
 
@@ -204,7 +204,7 @@ class Killmail(_KillmailBase):
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
         lock_key = f"{__title__.upper()}_REDISQ_LOCK"
-        lock = cache.lock(key=lock_key, timeout=300)
+        lock = cache.lock(key=lock_key, timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT)
         acquired = lock.acquire(blocking=False)
         if not acquired:
             logger.warning("Failed to acquire lock for atomic access to RedisQ.")
