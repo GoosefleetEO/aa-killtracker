@@ -18,7 +18,6 @@ from .app_settings import (
     KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
     KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
     KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
-    KILLTRACKER_TASK_MINIMUM_RETRY_DELAY,
 )
 from .core.killmails import Killmail
 from .exceptions import WebhookTooManyRequests
@@ -34,14 +33,8 @@ from app_utils.logging import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-@shared_task(
-    bind=True,
-    base=QueueOnce,
-    timeout=KILLTRACKER_TASKS_TIMEOUT,
-    retry_backoff=False,
-    max_retries=None,
-)
-def run_killtracker(self) -> None:
+@shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
+def run_killtracker(runs: int = 0) -> None:
     """Main task for running the Killtracker.
     Will fetch new killmails from ZKB and start running trackers for them
     """
@@ -49,7 +42,7 @@ def run_killtracker(self) -> None:
         logger.warning("ESI is currently offline. Aborting")
         return
 
-    if self.request.retries == 0:
+    if runs == 0:
         logger.info("Killtracker run started...")
         qs = cached_queryset(
             Webhook.objects.filter(is_enabled=True),
@@ -79,9 +72,9 @@ def run_killtracker(self) -> None:
                 update_unresolved_eve_entities.si(),
             ).delay()
 
-    total_killmails = self.request.retries + (1 if killmail else 0)
+    total_killmails = runs + (1 if killmail else 0)
     if killmail and total_killmails < KILLTRACKER_MAX_KILLMAILS_PER_RUN:
-        self.retry(countdown=KILLTRACKER_TASK_MINIMUM_RETRY_DELAY)
+        run_killtracker.delay(runs=runs + 1)
     else:
         if (
             KILLTRACKER_STORING_KILLMAILS_ENABLED
@@ -90,7 +83,8 @@ def run_killtracker(self) -> None:
             delete_stale_killmails.delay()
 
         logger.info(
-            "Killtracker run completed. %d killmails received from ZKB", total_killmails
+            "Killtracker runs completed. %d killmails received from ZKB",
+            total_killmails,
         )
 
 

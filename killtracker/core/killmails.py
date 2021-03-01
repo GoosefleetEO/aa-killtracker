@@ -15,7 +15,7 @@ from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
 from .. import __title__, USER_AGENT_TEXT
-from ..app_settings import KILLTRACKER_REDISQ_TTW
+from ..app_settings import KILLTRACKER_REDISQ_TTW, KILLTRACKER_REDISQ_LOCK_TIMEOUT
 from ..providers import esi
 
 
@@ -203,14 +203,21 @@ class Killmail(_KillmailBase):
         Returns None if no killmail is received.
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
+        lock_key = f"{__title__.upper()}_REDISQ_LOCK"
+        lock = cache.lock(key=lock_key, timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT)
+        acquired = lock.acquire(blocking=False)
+        if not acquired:
+            logger.warning("Failed to acquire lock for atomic access to RedisQ.")
+            return None
         r = requests.get(
             ZKB_REDISQ_URL,
             params={"ttw": KILLTRACKER_REDISQ_TTW},
             timeout=REQUESTS_TIMEOUT,
             headers={"User-Agent": USER_AGENT_TEXT},
         )
+        lock.release()
         if r.status_code == cls.HTTP_TOO_MANY_REQUESTS:
-            logger.warning("429 Client Error: Too many requests: %s", r.text)
+            logger.error("429 Client Error: Too many requests: %s", r.text)
             return None
         r.raise_for_status()
         try:
