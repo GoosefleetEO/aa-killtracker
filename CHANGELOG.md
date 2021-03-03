@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.3.1] - tbd
+## [0.3.1] - 2021-03-03
 
 ### Fixed
 
-- Fix attempt: Replaced celery_once with cache lock to ensure calls to ZKB RedisQ are atomic, because it looks like celery_once does not fully guarantee atomicity. [#10](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/10)
+- Replaces celery_once with cache lock to ensure calls to ZKB RedisQ are atomic, because it looks like celery_once does not fully guarantee atomicity. [#10](https://gitlab.com/ErikKalkoken/aa-killtracker/-/issues/10)
 
 ## [0.3.0] - 2021-02-20
 
