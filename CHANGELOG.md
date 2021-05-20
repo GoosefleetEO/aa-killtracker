@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.3.2] - 2021-03-03
+
+### Changed
+
+- Reduce load time for tracker list on admin site
+
 ## [0.3.1] - 2021-03-03
 
 ### Fixed

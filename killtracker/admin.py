@@ -1,25 +1,23 @@
+from allianceauth.eveonline.models import EveAllianceInfo
 from django.contrib import admin
-
 from django.db.models import Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.safestring import mark_safe
-
-from allianceauth.eveonline.models import EveAllianceInfo
 from eveuniverse.models import EveGroup, EveType
 
+from . import tasks
 from .constants import (
+    EVE_CATEGORY_ID_FIGHTER,
     EVE_CATEGORY_ID_SHIP,
     EVE_CATEGORY_ID_STRUCTURE,
-    EVE_CATEGORY_ID_FIGHTER,
     EVE_GROUP_MINING_DRONE,
     EVE_GROUP_ORBITAL_INFRASTRUCTURE,
 )
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
-from .models import Webhook, Tracker
-from . import tasks
+from .models import Tracker, Webhook
 
 
 @admin.register(Webhook)
@@ -80,6 +78,25 @@ class TrackerAdmin(admin.ModelAdmin):
         ("webhook", admin.RelatedOnlyFieldListFilter),
     )
     ordering = ("name",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related(
+            "exclude_attacker_alliances",
+            "require_attacker_alliances",
+            "exclude_attacker_corporations",
+            "require_attacker_corporations",
+            "require_victim_alliances",
+            "require_victim_corporations",
+            "require_regions",
+            "require_constellations",
+            "require_solar_systems",
+            "require_attackers_ship_groups",
+            "require_attackers_ship_types",
+            "require_victim_ship_groups",
+            "require_victim_ship_types",
+            "ping_groups",
+        )
 
     def _color(self, obj):
         html = (
