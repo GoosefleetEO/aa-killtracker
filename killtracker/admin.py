@@ -86,6 +86,9 @@ class TrackerAdmin(admin.ModelAdmin):
             "require_attacker_alliances",
             "exclude_attacker_corporations",
             "require_attacker_corporations",
+            "exclude_attacker_states",
+            "require_attacker_states",
+            "require_victim_states",
             "require_victim_alliances",
             "require_victim_corporations",
             "require_regions",
@@ -123,6 +126,9 @@ class TrackerAdmin(admin.ModelAdmin):
             ("require_attacker_corporations", self._add_to_clauses_2),
             ("require_victim_alliances", self._add_to_clauses_2),
             ("require_victim_corporations", self._add_to_clauses_2),
+            ("exclude_attacker_states", self._add_to_clauses_2),
+            ("require_attacker_states", self._add_to_clauses_2),
+            ("require_victim_states", self._add_to_clauses_2),
             ("exclude_blue_attackers", self._add_to_clauses_1),
             ("require_blue_victim", self._add_to_clauses_1),
             ("require_min_attackers", self._add_to_clauses_1),
@@ -152,7 +158,7 @@ class TrackerAdmin(admin.ModelAdmin):
 
     def _add_to_clauses_2(self, clauses, obj, field):
         if getattr(obj, field).count() > 0:
-            text = ", ".join(map(str, getattr(obj, field).all()))
+            text = ", ".join(sorted(map(str, getattr(obj, field).all())))
             self._append_field_to_clauses(clauses, field, text)
 
     def _append_field_to_clauses(self, clauses, field, text):
@@ -237,6 +243,9 @@ class TrackerAdmin(admin.ModelAdmin):
         "require_attacker_corporations",
         "require_victim_alliances",
         "require_victim_corporations",
+        "exclude_attacker_states",
+        "require_attacker_states",
+        "require_victim_states",
         "require_regions",
         "require_constellations",
         "require_solar_systems",
@@ -289,6 +298,16 @@ class TrackerAdmin(admin.ModelAdmin):
                     "require_attacker_corporations",
                     "require_victim_alliances",
                     "require_victim_corporations",
+                ),
+            },
+        ),
+        (
+            "Auth State",
+            {
+                "fields": (
+                    "exclude_attacker_states",
+                    "require_attacker_states",
+                    "require_victim_states",
                 ),
             },
         ),
