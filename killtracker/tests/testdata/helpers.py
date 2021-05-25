@@ -6,6 +6,7 @@ from hashlib import md5
 from eveuniverse.models import EveEntity, EveType, EveUniverseEntityModel
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from allianceauth.tests.auth_utils import AuthUtils
 
 from ...core.killmails import Killmail
 from ...models import EveKillmail, Webhook
@@ -131,3 +132,4 @@ class LoadTestDataMixin:
         cls.type_merlin = EveType.objects.get(id=603)
         cls.type_svipul = EveType.objects.get(id=34562)
         cls.type_gnosis = EveType.objects.get(id=2977)
+        cls.state_member = AuthUtils.get_member_state()

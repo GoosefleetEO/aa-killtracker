@@ -776,7 +776,9 @@ class Tracker(models.Model):
 
         # Make sure all ship types are in the local database
         if self.has_type_clause:
-            EveType.objects.bulk_get_or_create_esi(ids=killmail.ship_type_ids())
+            EveType.objects.bulk_get_or_create_esi(
+                ids=killmail.ship_type_distinct_ids()
+            )
 
         # apply filters
         is_matching = True
@@ -842,22 +844,22 @@ class Tracker(models.Model):
 
             if is_matching and self.exclude_attacker_alliances.exists():
                 is_matching = self.exclude_attacker_alliances.exclude(
-                    alliance_id__in=killmail.attackers_alliance_ids()
+                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
             if is_matching and self.require_attacker_alliances.exists():
                 is_matching = self.require_attacker_alliances.filter(
-                    alliance_id__in=killmail.attackers_alliance_ids()
+                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
             if is_matching and self.exclude_attacker_corporations.exists():
                 is_matching = self.exclude_attacker_corporations.exclude(
-                    corporation_id__in=killmail.attackers_corporation_ids()
+                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
             if is_matching and self.require_attacker_corporations.exists():
                 is_matching = self.require_attacker_corporations.filter(
-                    corporation_id__in=killmail.attackers_corporation_ids()
+                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
             if is_matching and self.require_victim_alliances.exists():
@@ -869,6 +871,15 @@ class Tracker(models.Model):
                 is_matching = self.require_victim_corporations.filter(
                     corporation_id=killmail.victim.corporation_id
                 ).exists()
+
+            # states
+
+            # if is_matching and self.require_attacker_states.exists():
+            #     is_matching = self.require_attacker_states.filter(
+            #         corporation_id__in=killmail.attackers_distinct_corporation_ids()
+            #     ).exists()
+
+            ##
 
             if is_matching and self.require_victim_ship_groups.exists():
                 ship_types_matching_qs = EveType.objects.filter(
@@ -897,9 +908,8 @@ class Tracker(models.Model):
                     )
 
             if is_matching and self.require_attackers_ship_groups.exists():
-                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
                 ship_types_matching_qs = EveType.objects.filter(
-                    id__in=attackers_ship_type_ids
+                    id__in=set(killmail.attackers_ship_type_ids())
                 ).filter(
                     eve_group_id__in=list(
                         self.require_attackers_ship_groups.values_list("id", flat=True)
@@ -912,9 +922,8 @@ class Tracker(models.Model):
                     )
 
             if is_matching and self.require_attackers_ship_types.exists():
-                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
                 ship_types_matching_qs = EveType.objects.filter(
-                    id__in=attackers_ship_type_ids
+                    id__in=set(killmail.attackers_ship_type_ids())
                 ).filter(
                     id__in=list(
                         self.require_attackers_ship_types.values_list("id", flat=True)

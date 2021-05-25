@@ -20,9 +20,14 @@ from eveuniverse.models import (
 )
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+
+# from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder
-from app_utils.testing import NoSocketsTestCase, set_test_logger
+from app_utils.testing import (  # add_character_to_user_2,
+    NoSocketsTestCase,
+    set_test_logger,
+)
 
 from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
@@ -601,6 +606,19 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         expected = {10000301}
         self.assertSetEqual(results, expected)
 
+    # def test_should_apply_require_attackers_states(self):
+    #     # given
+    #     killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+    #     tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+    #     tracker.require_attacker_states.add(self.state_member)
+    #     user = AuthUtils.create_member("Lex Luther")
+    #     add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+    #     # when
+    #     results = self._matching_killmail_ids(tracker, killmail_ids)
+    #     # then
+    #     expected = {10000005}
+    #     self.assertSetEqual(results, expected)
+
 
 class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
@@ -608,14 +626,15 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 
     @patch("eveuniverse.models.esi")
     def test_basics(self, mock_esi):
+        # given
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
             esi_get_route_origin_destination
         )
         self.tracker.origin_solar_system_id = 30003067
         self.tracker.save()
-
+        # when
         killmail = self.tracker.process_killmail(load_killmail(10000101))
-
+        # then
         self.assertTrue(killmail.tracker_info)
         self.assertEqual(killmail.tracker_info.tracker_pk, self.tracker.pk)
         self.assertEqual(killmail.tracker_info.jumps, 7)

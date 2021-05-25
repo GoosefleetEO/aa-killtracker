@@ -174,14 +174,20 @@ class TestKillmailBasics(NoSocketsTestCase):
         }
         self.assertSetEqual(result, expected)
 
+    def test_should_return_attacker_alliance_ids(self):
+        # when
+        result = self.killmail.attackers_distinct_alliance_ids()
+        # then
+        self.assertSetEqual(set(result), {3001})
+
     def test_attackers_ships_types(self):
-        self.assertListEqual(
-            self.killmail.attackers_ship_type_ids(), [34562, 3756, 3756]
+        self.assertSetEqual(
+            set(self.killmail.attackers_ship_type_ids()), {34562, 3756, 3756}
         )
 
     def test_ships_types(self):
         self.assertSetEqual(
-            set(self.killmail.ship_type_ids()), {603, 34562, 3756, 3756}
+            set(self.killmail.ship_type_distinct_ids()), {603, 34562, 3756, 3756}
         )
 
 
