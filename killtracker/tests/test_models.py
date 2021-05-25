@@ -20,12 +20,12 @@ from eveuniverse.models import (
 )
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-
-# from allianceauth.tests.auth_utils import AuthUtils
+from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder
-from app_utils.testing import (  # add_character_to_user_2,
+from app_utils.testing import (
     NoSocketsTestCase,
+    add_character_to_user_2,
     set_test_logger,
 )
 
@@ -606,18 +606,41 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         expected = {10000301}
         self.assertSetEqual(results, expected)
 
-    # def test_should_apply_require_attackers_states(self):
-    #     # given
-    #     killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
-    #     tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
-    #     tracker.require_attacker_states.add(self.state_member)
-    #     user = AuthUtils.create_member("Lex Luther")
-    #     add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
-    #     # when
-    #     results = self._matching_killmail_ids(tracker, killmail_ids)
-    #     # then
-    #     expected = {10000005}
-    #     self.assertSetEqual(results, expected)
+    def test_should_apply_require_attackers_states(self):
+        # given
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_attacker_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000005})
+
+    def test_should_apply_exclude_attacker_states(self):
+        # given
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.exclude_attacker_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000001, 10000002, 10000003, 10000004})
+
+    def test_should_apply_require_victim_states(self):
+        # given
+        killmail_ids = {10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_victim_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000003, 10000004})
 
 
 class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):

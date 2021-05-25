@@ -8,7 +8,7 @@ import dhooks_lite
 from requests.exceptions import HTTPError
 from simple_mq import SimpleMQ
 
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.cache import cache
 from django.db import models
@@ -874,12 +874,31 @@ class Tracker(models.Model):
 
             # states
 
-            # if is_matching and self.require_attacker_states.exists():
-            #     is_matching = self.require_attacker_states.filter(
-            #         corporation_id__in=killmail.attackers_distinct_corporation_ids()
-            #     ).exists()
+            if is_matching and self.require_attacker_states.exists():
+                is_matching = User.objects.filter(
+                    profile__state__in=list(self.require_attacker_states.all()),
+                    character_ownerships__character__character_id__in=(
+                        killmail.attackers_distinct_character_ids()
+                    ),
+                ).exists()
 
-            ##
+            if is_matching and self.exclude_attacker_states.exists():
+                is_matching = not User.objects.filter(
+                    profile__state__in=list(self.exclude_attacker_states.all()),
+                    character_ownerships__character__character_id__in=(
+                        killmail.attackers_distinct_character_ids()
+                    ),
+                ).exists()
+
+            if is_matching and self.require_victim_states.exists():
+                is_matching = User.objects.filter(
+                    profile__state__in=list(self.require_victim_states.all()),
+                    character_ownerships__character__character_id=(
+                        killmail.victim.character_id
+                    ),
+                ).exists()
+
+            #
 
             if is_matching and self.require_victim_ship_groups.exists():
                 ship_types_matching_qs = EveType.objects.filter(
