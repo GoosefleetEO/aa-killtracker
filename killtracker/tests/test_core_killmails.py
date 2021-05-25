@@ -1,5 +1,5 @@
-from datetime import timedelta
 import unittest
+from datetime import timedelta
 from unittest.mock import patch
 
 import requests_mock
@@ -9,10 +9,9 @@ from django.utils.timezone import now
 
 from app_utils.testing import NoSocketsTestCase
 
-from . import CacheStub, BravadoOperationStub
-from ..core.killmails import Killmail, EntityCount, ZKB_REDISQ_URL, ZKB_API_URL
+from ..core.killmails import ZKB_API_URL, ZKB_REDISQ_URL, EntityCount, Killmail
+from . import BravadoOperationStub, CacheStub
 from .testdata.helpers import killmails_data, load_killmail
-
 
 MODULE_PATH = "killtracker.core.killmails"
 unittest.util._MAX_LENGTH = 1000

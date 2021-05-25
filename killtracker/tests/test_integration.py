@@ -8,10 +8,10 @@ from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
+from .. import tasks
 from ..core.killmails import ZKB_REDISQ_URL
 from ..models import Tracker
-from .. import tasks
-from .testdata.helpers import killmails_data, LoadTestDataMixin
+from .testdata.helpers import LoadTestDataMixin, killmails_data
 
 PACKAGE_PATH = "killtracker"
 

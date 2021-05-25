@@ -1,4 +1,3 @@
-from allianceauth.eveonline.models import EveAllianceInfo
 from django.contrib import admin
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -6,6 +5,8 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.safestring import mark_safe
 from eveuniverse.models import EveGroup, EveType
+
+from allianceauth.eveonline.models import EveAllianceInfo
 
 from . import tasks
 from .constants import (

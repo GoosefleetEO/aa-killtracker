@@ -1,23 +1,21 @@
-from datetime import datetime
-from dataclasses import dataclass, asdict
 import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import List, Optional, Set
 
-from dacite import from_dict, DaciteError
 import requests
+from dacite import DaciteError, from_dict
 
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
-from .. import __title__, USER_AGENT_TEXT
-from ..app_settings import KILLTRACKER_REDISQ_TTW, KILLTRACKER_REDISQ_LOCK_TIMEOUT
+from .. import USER_AGENT_TEXT, __title__
+from ..app_settings import KILLTRACKER_REDISQ_LOCK_TIMEOUT, KILLTRACKER_REDISQ_TTW
 from ..providers import esi
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

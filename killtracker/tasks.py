@@ -1,34 +1,28 @@
-from celery import shared_task, chain
+from celery import chain, shared_task
 
 from django.db import IntegrityError
-
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
-
-from . import __title__, APP_NAME
-from .app_settings import (
-    KILLTRACKER_MAX_KILLMAILS_PER_RUN,
-    KILLTRACKER_STORING_KILLMAILS_ENABLED,
-    KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
-    KILLTRACKER_TASKS_TIMEOUT,
-    KILLTRACKER_DISCORD_SEND_DELAY,
-    KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
-    KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
-    KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
-)
-from .core.killmails import Killmail
-from .exceptions import WebhookTooManyRequests
-from .models import (
-    EveKillmail,
-    Tracker,
-    Webhook,
-)
 from app_utils.caching import cached_queryset
 from app_utils.logging import LoggerAddTag
 
+from . import APP_NAME, __title__
+from .app_settings import (
+    KILLTRACKER_DISCORD_SEND_DELAY,
+    KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
+    KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
+    KILLTRACKER_MAX_KILLMAILS_PER_RUN,
+    KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS,
+    KILLTRACKER_STORING_KILLMAILS_ENABLED,
+    KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
+    KILLTRACKER_TASKS_TIMEOUT,
+)
+from .core.killmails import Killmail
+from .exceptions import WebhookTooManyRequests
+from .models import EveKillmail, Tracker, Webhook
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

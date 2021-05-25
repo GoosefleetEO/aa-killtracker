@@ -6,7 +6,7 @@ An app for running killmail trackers with Alliance Auth and Discord
 [![python](https://img.shields.io/pypi/pyversions/aa-killtracker)](https://pypi.org/project/aa-killtracker/)
 [![django](https://img.shields.io/pypi/djversions/aa-killtracker?label=django)](https://pypi.org/project/aa-killtracker/)
 [![pipeline](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/pipelines)
-[![codecov](https://codecov.io/gl/ErikKalkoken/aa-killtracker/branch/\x6d6173746572/graph/badge.svg?token=ZTGEX30YIN)](https://codecov.io/gl/ErikKalkoken/aa-killtracker)
+[![codecov](https://codecov.io/gl/ErikKalkoken/aa-killtracker/branch/master/graph/badge.svg?token=ZTGEX30YIN)](https://codecov.io/gl/ErikKalkoken/aa-killtracker)
 [![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/blob/master/LICENSE)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)

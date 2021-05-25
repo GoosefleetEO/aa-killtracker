@@ -1,15 +1,16 @@
+import json
 from copy import deepcopy
 from datetime import datetime
 from hashlib import md5
-import json
 
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveType, EveUniverseEntityModel
 
-from . import _currentdir
-from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+
 from ...core.killmails import Killmail
 from ...models import EveKillmail, Webhook
+from . import _currentdir
+from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
 
 
 def _load_json_from_file(filename: str) -> dict:

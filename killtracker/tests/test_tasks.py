@@ -10,17 +10,16 @@ from app_utils.testing import generate_invalid_pk
 
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
-from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
 from ..tasks import (
     delete_stale_killmails,
+    generate_killmail_message,
+    run_killtracker,
     run_tracker,
     send_messages_to_webhook,
-    run_killtracker,
-    store_killmail,
     send_test_message_to_webhook,
-    generate_killmail_message,
+    store_killmail,
 )
-
+from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.tasks"
 

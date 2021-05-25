@@ -5,16 +5,9 @@ from typing import List, Optional
 from urllib.parse import urljoin
 
 import dhooks_lite
-from allianceauth.authentication.models import State
-from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-from allianceauth.services.hooks import get_extension_logger
-from allianceauth.services.modules.discord.models import DiscordUser
-from app_utils.django import app_labels
-from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
-from app_utils.logging import LoggerAddTag
-from app_utils.urls import site_absolute_url
-from app_utils.views import humanize_value
+from requests.exceptions import HTTPError
+from simple_mq import SimpleMQ
+
 from django.contrib.auth.models import Group
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.cache import cache
@@ -30,8 +23,17 @@ from eveuniverse.models import (
     EveSolarSystem,
     EveType,
 )
-from requests.exceptions import HTTPError
-from simple_mq import SimpleMQ
+
+from allianceauth.authentication.models import State
+from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from allianceauth.services.hooks import get_extension_logger
+from allianceauth.services.modules.discord.models import DiscordUser
+from app_utils.django import app_labels
+from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
+from app_utils.logging import LoggerAddTag
+from app_utils.urls import site_absolute_url
+from app_utils.views import humanize_value
 
 from . import APP_NAME, HOMEPAGE_URL, __title__, __version__
 from .app_settings import (

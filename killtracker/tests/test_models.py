@@ -1,22 +1,15 @@
-from datetime import timedelta
 import json
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
-from bravado.exception import HTTPNotFound
-
 import dhooks_lite
+from bravado.exception import HTTPNotFound
 from requests.exceptions import HTTPError
 
-from django.core.cache import cache
 from django.contrib.auth.models import Group
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now
-
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-
-from app_utils.django import app_labels
-from app_utils.json import JSONDateTimeDecoder
-from app_utils.testing import NoSocketsTestCase, set_test_logger
 from eveuniverse.models import (
     EveConstellation,
     EveEntity,
@@ -26,11 +19,16 @@ from eveuniverse.models import (
     EveType,
 )
 
-from . import BravadoOperationStub
-from ..core.killmails import Killmail, EntityCount
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from app_utils.django import app_labels
+from app_utils.json import JSONDateTimeDecoder
+from app_utils.testing import NoSocketsTestCase, set_test_logger
+
+from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
-from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
+from . import BravadoOperationStub
+from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.models"
 logger = set_test_logger(MODULE_PATH, __file__)

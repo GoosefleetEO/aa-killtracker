@@ -1,8 +1,8 @@
 import os
+
 from setuptools import find_packages, setup
 
-from killtracker import __version__, APP_NAME, HOMEPAGE_URL
-
+from killtracker import APP_NAME, HOMEPAGE_URL, __version__
 
 # read the contents of your README file
 this_directory = os.path.abspath(os.path.dirname(__file__))

@@ -1,11 +1,10 @@
 from esi.clients import EsiClientProvider
 
 from allianceauth.services.hooks import get_extension_logger
-
-from . import __title__, USER_AGENT_TEXT
-from app_utils.logging import LoggerAddTag
 from app_utils.helpers import swagger_spec_path
+from app_utils.logging import LoggerAddTag
 
+from . import USER_AGENT_TEXT, __title__
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
