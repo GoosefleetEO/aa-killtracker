@@ -872,8 +872,6 @@ class Tracker(models.Model):
                     corporation_id=killmail.victim.corporation_id
                 ).exists()
 
-            # states
-
             if is_matching and self.require_attacker_states.exists():
                 is_matching = User.objects.filter(
                     profile__state__in=list(self.require_attacker_states.all()),
@@ -897,8 +895,6 @@ class Tracker(models.Model):
                         killmail.victim.character_id
                     ),
                 ).exists()
-
-            #
 
             if is_matching and self.require_victim_ship_groups.exists():
                 ship_types_matching_qs = EveType.objects.filter(
@@ -1201,9 +1197,7 @@ class Tracker(models.Model):
                     main_org_icon_url = eveimageserver.alliance_logo_url(
                         main_org.id, size=self.ICON_SIZE
                     )
-
                 main_org_text = f" | Main group: {main_org_link} ({main_org.count})"
-
             else:
                 show_as_fleetkill = False
 
