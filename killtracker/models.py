@@ -1,49 +1,48 @@
+import json
 from copy import deepcopy
 from datetime import timedelta
-import json
-from typing import Optional, List
+from typing import List, Optional
 from urllib.parse import urljoin
 
 import dhooks_lite
 from requests.exceptions import HTTPError
 from simple_mq import SimpleMQ
 
-from django.core.cache import cache
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.contrib.staticfiles.storage import staticfiles_storage
+from django.core.cache import cache
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
-
-from allianceauth.eveonline.evelinks import eveimageserver, zkillboard, dotlan
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-from allianceauth.services.hooks import get_extension_logger
-from allianceauth.services.modules.discord.models import DiscordUser
-
-from app_utils.django import app_labels
-from app_utils.logging import LoggerAddTag
-from app_utils.json import JSONDateTimeEncoder, JSONDateTimeDecoder
-from app_utils.urls import site_absolute_url
-from app_utils.views import humanize_value
-from eveuniverse.helpers import meters_to_ly, EveEntityNameResolver
+from django.utils.translation import gettext_lazy as _
+from eveuniverse.helpers import EveEntityNameResolver, meters_to_ly
 from eveuniverse.models import (
     EveConstellation,
+    EveEntity,
+    EveGroup,
     EveRegion,
     EveSolarSystem,
-    EveGroup,
-    EveEntity,
     EveType,
 )
 
-from . import __title__, APP_NAME, HOMEPAGE_URL, __version__
+from allianceauth.authentication.models import State
+from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from allianceauth.services.hooks import get_extension_logger
+from allianceauth.services.modules.discord.models import DiscordUser
+from app_utils.django import app_labels
+from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
+from app_utils.logging import LoggerAddTag
+from app_utils.urls import site_absolute_url
+from app_utils.views import humanize_value
+
+from . import APP_NAME, HOMEPAGE_URL, __title__, __version__
 from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
 )
-from .core.killmails import EntityCount, Killmail, TrackerInfo, ZKB_KILLMAIL_BASEURL
+from .core.killmails import ZKB_KILLMAIL_BASEURL, EntityCount, Killmail, TrackerInfo
 from .exceptions import WebhookTooManyRequests
 from .managers import EveKillmailManager, TrackerManager, WebhookManager
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -508,6 +507,26 @@ class Tracker(models.Model):
         blank=True,
         help_text="only include killmails with attackers from one of these corporations",
     )
+    exclude_attacker_states = models.ManyToManyField(
+        State,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "exclude killmails with characters belonging "
+            "to users with these Auth states"
+        ),
+    )
+    require_attacker_states = models.ManyToManyField(
+        State,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "only include killmails with characters belonging "
+            "to users with these Auth states"
+        ),
+    )
     require_victim_alliances = models.ManyToManyField(
         EveAllianceInfo,
         related_name="+",
@@ -525,6 +544,16 @@ class Tracker(models.Model):
         help_text=(
             "only include killmails where the victim belongs "
             "to one of these corporations"
+        ),
+    )
+    require_victim_states = models.ManyToManyField(
+        State,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "only include killmails where the victim characters belong "
+            "to users with these Auth states"
         ),
     )
     identify_fleets = models.BooleanField(
@@ -747,7 +776,9 @@ class Tracker(models.Model):
 
         # Make sure all ship types are in the local database
         if self.has_type_clause:
-            EveType.objects.bulk_get_or_create_esi(ids=killmail.ship_type_ids())
+            EveType.objects.bulk_get_or_create_esi(
+                ids=killmail.ship_type_distinct_ids()
+            )
 
         # apply filters
         is_matching = True
@@ -813,22 +844,22 @@ class Tracker(models.Model):
 
             if is_matching and self.exclude_attacker_alliances.exists():
                 is_matching = self.exclude_attacker_alliances.exclude(
-                    alliance_id__in=killmail.attackers_alliance_ids()
+                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
             if is_matching and self.require_attacker_alliances.exists():
                 is_matching = self.require_attacker_alliances.filter(
-                    alliance_id__in=killmail.attackers_alliance_ids()
+                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
             if is_matching and self.exclude_attacker_corporations.exists():
                 is_matching = self.exclude_attacker_corporations.exclude(
-                    corporation_id__in=killmail.attackers_corporation_ids()
+                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
             if is_matching and self.require_attacker_corporations.exists():
                 is_matching = self.require_attacker_corporations.filter(
-                    corporation_id__in=killmail.attackers_corporation_ids()
+                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
             if is_matching and self.require_victim_alliances.exists():
@@ -839,6 +870,30 @@ class Tracker(models.Model):
             if is_matching and self.require_victim_corporations.exists():
                 is_matching = self.require_victim_corporations.filter(
                     corporation_id=killmail.victim.corporation_id
+                ).exists()
+
+            if is_matching and self.require_attacker_states.exists():
+                is_matching = User.objects.filter(
+                    profile__state__in=list(self.require_attacker_states.all()),
+                    character_ownerships__character__character_id__in=(
+                        killmail.attackers_distinct_character_ids()
+                    ),
+                ).exists()
+
+            if is_matching and self.exclude_attacker_states.exists():
+                is_matching = not User.objects.filter(
+                    profile__state__in=list(self.exclude_attacker_states.all()),
+                    character_ownerships__character__character_id__in=(
+                        killmail.attackers_distinct_character_ids()
+                    ),
+                ).exists()
+
+            if is_matching and self.require_victim_states.exists():
+                is_matching = User.objects.filter(
+                    profile__state__in=list(self.require_victim_states.all()),
+                    character_ownerships__character__character_id=(
+                        killmail.victim.character_id
+                    ),
                 ).exists()
 
             if is_matching and self.require_victim_ship_groups.exists():
@@ -868,9 +923,8 @@ class Tracker(models.Model):
                     )
 
             if is_matching and self.require_attackers_ship_groups.exists():
-                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
                 ship_types_matching_qs = EveType.objects.filter(
-                    id__in=attackers_ship_type_ids
+                    id__in=set(killmail.attackers_ship_type_ids())
                 ).filter(
                     eve_group_id__in=list(
                         self.require_attackers_ship_groups.values_list("id", flat=True)
@@ -883,9 +937,8 @@ class Tracker(models.Model):
                     )
 
             if is_matching and self.require_attackers_ship_types.exists():
-                attackers_ship_type_ids = killmail.attackers_ship_type_ids()
                 ship_types_matching_qs = EveType.objects.filter(
-                    id__in=attackers_ship_type_ids
+                    id__in=set(killmail.attackers_ship_type_ids())
                 ).filter(
                     id__in=list(
                         self.require_attackers_ship_types.values_list("id", flat=True)
@@ -1144,9 +1197,7 @@ class Tracker(models.Model):
                     main_org_icon_url = eveimageserver.alliance_logo_url(
                         main_org.id, size=self.ICON_SIZE
                     )
-
                 main_org_text = f" | Main group: {main_org_link} ({main_org.count})"
-
             else:
                 show_as_fleetkill = False
 

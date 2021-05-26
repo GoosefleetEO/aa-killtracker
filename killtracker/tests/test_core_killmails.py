@@ -1,5 +1,5 @@
-from datetime import timedelta
 import unittest
+from datetime import timedelta
 from unittest.mock import patch
 
 import requests_mock
@@ -9,10 +9,9 @@ from django.utils.timezone import now
 
 from app_utils.testing import NoSocketsTestCase
 
-from . import CacheStub, BravadoOperationStub
-from ..core.killmails import Killmail, EntityCount, ZKB_REDISQ_URL, ZKB_API_URL
+from ..core.killmails import ZKB_API_URL, ZKB_REDISQ_URL, EntityCount, Killmail
+from . import BravadoOperationStub, CacheStub
 from .testdata.helpers import killmails_data, load_killmail
-
 
 MODULE_PATH = "killtracker.core.killmails"
 unittest.util._MAX_LENGTH = 1000
@@ -175,15 +174,31 @@ class TestKillmailBasics(NoSocketsTestCase):
         }
         self.assertSetEqual(result, expected)
 
+    def test_should_return_attacker_alliance_ids(self):
+        # when
+        result = self.killmail.attackers_distinct_alliance_ids()
+        # then
+        self.assertSetEqual(set(result), {3001})
+
+    def test_should_return_attacker_corporation_ids(self):
+        # when
+        result = self.killmail.attackers_distinct_corporation_ids()
+        # then
+        self.assertSetEqual(set(result), {2001})
+
+    def test_should_return_attacker_character_ids(self):
+        # when
+        result = self.killmail.attackers_distinct_character_ids()
+        # then
+        self.assertSetEqual(set(result), {1001, 1002, 1003})
+
     def test_attackers_ships_types(self):
         self.assertListEqual(
             self.killmail.attackers_ship_type_ids(), [34562, 3756, 3756]
         )
 
     def test_ships_types(self):
-        self.assertSetEqual(
-            set(self.killmail.ship_type_ids()), {603, 34562, 3756, 3756}
-        )
+        self.assertSetEqual(self.killmail.ship_type_distinct_ids(), {603, 34562, 3756})
 
 
 class TestEntityCount(NoSocketsTestCase):

@@ -1,23 +1,21 @@
-from datetime import datetime
-from dataclasses import dataclass, asdict
 import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import List, Optional, Set
 
-from dacite import from_dict, DaciteError
 import requests
+from dacite import DaciteError, from_dict
 
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
-from .. import __title__, USER_AGENT_TEXT
-from ..app_settings import KILLTRACKER_REDISQ_TTW, KILLTRACKER_REDISQ_LOCK_TIMEOUT
+from .. import USER_AGENT_TEXT, __title__
+from ..app_settings import KILLTRACKER_REDISQ_LOCK_TIMEOUT, KILLTRACKER_REDISQ_TTW
 from ..providers import esi
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -131,28 +129,24 @@ class Killmail(_KillmailBase):
     def __repr__(self):
         return f"{type(self).__name__}(id={self.id})"
 
-    def attackers_alliance_ids(self) -> List[int]:
-        """returns alliance IDs of all attackers"""
-        return [
-            obj.alliance_id for obj in self.attackers if obj.alliance_id is not None
-        ]
+    def attackers_distinct_alliance_ids(self) -> Set[int]:
+        """Return distinct alliance IDs of all attackers."""
+        return {obj.alliance_id for obj in self.attackers if obj.alliance_id}
 
-    def attackers_corporation_ids(self) -> List[int]:
-        """returns corporation IDs of all attackers"""
-        return [
-            obj.corporation_id
-            for obj in self.attackers
-            if obj.corporation_id is not None
-        ]
+    def attackers_distinct_corporation_ids(self) -> Set[int]:
+        """Return distinct corporation IDs of all attackers."""
+        return {obj.corporation_id for obj in self.attackers if obj.corporation_id}
+
+    def attackers_distinct_character_ids(self) -> Set[int]:
+        """Return distinct character IDs of all attackers."""
+        return {obj.character_id for obj in self.attackers if obj.character_id}
 
     def attackers_ship_type_ids(self) -> List[int]:
-        """returns ship type IDs of all attackers as list (including duplicates!)"""
-        return [
-            obj.ship_type_id for obj in self.attackers if obj.ship_type_id is not None
-        ]
+        """Returns ship type IDs of all attackers with duplicates."""
+        return [obj.ship_type_id for obj in self.attackers if obj.ship_type_id]
 
     def entity_ids(self) -> Set[int]:
-        """returns set of IDs of all entities that are not None"""
+        """Return distinct IDs of all entities (excluding None)."""
         ids = {
             self.victim.character_id,
             self.victim.corporation_id,
@@ -175,8 +169,8 @@ class Killmail(_KillmailBase):
         ids.discard(None)
         return ids
 
-    def ship_type_ids(self) -> Set[int]:
-        """returns ship type IDs of all entities that are not None as set"""
+    def ship_type_distinct_ids(self) -> Set[int]:
+        """Return distinct ship type IDs of all entities that are not None."""
         ids = set(self.attackers_ship_type_ids())
         ids.add(self.victim.ship_type_id)
         return ids

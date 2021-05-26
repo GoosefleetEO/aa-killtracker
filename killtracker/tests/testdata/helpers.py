@@ -1,15 +1,17 @@
+import json
 from copy import deepcopy
 from datetime import datetime
 from hashlib import md5
-import json
 
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from eveuniverse.models import EveEntity, EveType, EveUniverseEntityModel
 
-from . import _currentdir
-from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from allianceauth.tests.auth_utils import AuthUtils
+
 from ...core.killmails import Killmail
 from ...models import EveKillmail, Webhook
+from . import _currentdir
+from .load_eveuniverse import load_eveuniverse  # noqa  pylint: disable=W0611
 
 
 def _load_json_from_file(filename: str) -> dict:
@@ -130,3 +132,4 @@ class LoadTestDataMixin:
         cls.type_merlin = EveType.objects.get(id=603)
         cls.type_svipul = EveType.objects.get(id=34562)
         cls.type_gnosis = EveType.objects.get(id=2977)
+        cls.state_member = AuthUtils.get_member_state()

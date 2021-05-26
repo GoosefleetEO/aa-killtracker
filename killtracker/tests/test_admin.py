@@ -1,11 +1,10 @@
-from django_webtest import WebTest
-
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django_webtest import WebTest
 
 from allianceauth.eveonline.models import EveCorporationInfo
 
-from ..models import Webhook, Tracker
+from ..models import Tracker, Webhook
 from .testdata.helpers import LoadTestDataMixin
 
 

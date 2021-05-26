@@ -1,15 +1,13 @@
 from datetime import timedelta
-
 from typing import Dict, Tuple
 
 from django.db import models, transaction
 from django.utils.timezone import now
+from eveuniverse.models import EveEntity
 
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.caching import ObjectCacheMixin
 from app_utils.logging import LoggerAddTag
-from eveuniverse.models import EveEntity
 
 from . import __title__
 from .app_settings import KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS

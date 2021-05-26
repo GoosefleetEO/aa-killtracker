@@ -6,7 +6,7 @@ An app for running killmail trackers with Alliance Auth and Discord
 [![python](https://img.shields.io/pypi/pyversions/aa-killtracker)](https://pypi.org/project/aa-killtracker/)
 [![django](https://img.shields.io/pypi/djversions/aa-killtracker?label=django)](https://pypi.org/project/aa-killtracker/)
 [![pipeline](https://gitlab.com/ErikKalkoken/aa-killtracker/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/pipelines)
-[![codecov](https://codecov.io/gl/ErikKalkoken/aa-killtracker/branch/\x6d6173746572/graph/badge.svg?token=ZTGEX30YIN)](https://codecov.io/gl/ErikKalkoken/aa-killtracker)
+[![codecov](https://codecov.io/gl/ErikKalkoken/aa-killtracker/branch/master/graph/badge.svg?token=ZTGEX30YIN)](https://codecov.io/gl/ErikKalkoken/aa-killtracker)
 [![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-killtracker/-/blob/master/LICENSE)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -35,7 +35,7 @@ Or you maybe want to be informed about any capitals being active within your jum
 ## Key Features
 
 - Automatically post killmails conforming with a set of conditions to a Discord channel as soon as they arrive on zKillboard
-- Use 20+ clauses to define exactly what you want to track incl. clauses for location, organization and ship types
+- Use 20+ clauses to define exactly what you want to track incl. clauses for location, organization, Auth state and ship types
 - Clauses for "ship types" include ships, structures, customs offices, fighters and excavator drones
 - Optional channel and group pinging for matching killmails
 - Designed for fast response times, high throughput and low resource requirements
@@ -162,6 +162,9 @@ require attacker alliances|only include killmails with attackers from one of the
 require attacker corporations|only include killmails with attackers from one of these corporations
 require victim alliances|only include killmails where the victim belongs to one of these alliances
 require victim corporations|only include killmails where the victim belongs to one of these corporations
+exclude_attacker_states|exclude killmails with characters belonging to users with these Auth states
+require_attacker_states|only include killmails with characters belonging to users with these Auth states
+require_victim_states|only include killmails where the victim characters belong to users with these Auth state
 require regions|Only include killmails that occurred in one of these regions
 require constellations|Only include killmails that occurred in one of these regions
 require solar systems|Only include killmails that occurred in one of these regions

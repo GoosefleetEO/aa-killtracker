@@ -1,22 +1,15 @@
-from datetime import timedelta
 import json
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
-from bravado.exception import HTTPNotFound
-
 import dhooks_lite
+from bravado.exception import HTTPNotFound
 from requests.exceptions import HTTPError
 
-from django.core.cache import cache
 from django.contrib.auth.models import Group
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now
-
-from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
-
-from app_utils.django import app_labels
-from app_utils.json import JSONDateTimeDecoder
-from app_utils.testing import NoSocketsTestCase, set_test_logger
 from eveuniverse.models import (
     EveConstellation,
     EveEntity,
@@ -26,11 +19,21 @@ from eveuniverse.models import (
     EveType,
 )
 
-from . import BravadoOperationStub
-from ..core.killmails import Killmail, EntityCount
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
+from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.django import app_labels
+from app_utils.json import JSONDateTimeDecoder
+from app_utils.testing import (
+    NoSocketsTestCase,
+    add_character_to_user_2,
+    set_test_logger,
+)
+
+from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
-from .testdata.helpers import load_killmail, load_eve_killmails, LoadTestDataMixin
+from . import BravadoOperationStub
+from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.models"
 logger = set_test_logger(MODULE_PATH, __file__)
@@ -603,6 +606,42 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         expected = {10000301}
         self.assertSetEqual(results, expected)
 
+    def test_should_apply_require_attackers_states(self):
+        # given
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_attacker_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000005})
+
+    def test_should_apply_exclude_attacker_states(self):
+        # given
+        killmail_ids = {10000001, 10000002, 10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.exclude_attacker_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000001, 10000002, 10000003, 10000004})
+
+    def test_should_apply_require_victim_states(self):
+        # given
+        killmail_ids = {10000003, 10000004, 10000005}
+        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker.require_victim_states.add(self.state_member)
+        user = AuthUtils.create_member("Lex Luther")
+        add_character_to_user_2(user, 1011, "Lex Luthor", 2011, "LexCorp")
+        # when
+        results = self._matching_killmail_ids(tracker, killmail_ids)
+        # then
+        self.assertSetEqual(results, {10000003, 10000004})
+
 
 class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
     def setUp(self) -> None:
@@ -610,14 +649,15 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 
     @patch("eveuniverse.models.esi")
     def test_basics(self, mock_esi):
+        # given
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
             esi_get_route_origin_destination
         )
         self.tracker.origin_solar_system_id = 30003067
         self.tracker.save()
-
+        # when
         killmail = self.tracker.process_killmail(load_killmail(10000101))
-
+        # then
         self.assertTrue(killmail.tracker_info)
         self.assertEqual(killmail.tracker_info.tracker_pk, self.tracker.pk)
         self.assertEqual(killmail.tracker_info.jumps, 7)
