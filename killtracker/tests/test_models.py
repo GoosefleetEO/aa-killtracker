@@ -31,7 +31,7 @@ from app_utils.testing import (
 
 from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
-from ..models import EveKillmail, EveKillmailCharacter, Tracker, Webhook
+from ..models import EveKillmail, EveKillmailVictim, Tracker, Webhook
 from . import BravadoOperationStub
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
@@ -1064,17 +1064,17 @@ class TestEveKillmail(LoadTestDataMixin, NoSocketsTestCase):
 
 class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
     def test_str_character(self):
-        obj = EveKillmailCharacter(character=EveEntity.objects.get(id=1001))
+        obj = EveKillmailVictim(character=EveEntity.objects.get(id=1001))
         self.assertEqual(str(obj), "Bruce Wayne")
 
     def test_str_corporation(self):
-        obj = EveKillmailCharacter(corporation=EveEntity.objects.get(id=2001))
+        obj = EveKillmailVictim(corporation=EveEntity.objects.get(id=2001))
         self.assertEqual(str(obj), "Wayne Technologies")
 
     def test_str_alliance(self):
-        obj = EveKillmailCharacter(alliance=EveEntity.objects.get(id=3001))
+        obj = EveKillmailVictim(alliance=EveEntity.objects.get(id=3001))
         self.assertEqual(str(obj), "Wayne Enterprise")
 
     def test_str_faction(self):
-        obj = EveKillmailCharacter(faction=EveEntity.objects.get(id=500001))
+        obj = EveKillmailVictim(faction=EveEntity.objects.get(id=500001))
         self.assertEqual(str(obj), "Caldari State")

@@ -1,12 +1,11 @@
 from unittest.mock import patch
 
+import celery
 import dhooks_lite
 
 from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
-
-from app_utils.testing import generate_invalid_pk
 
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
@@ -355,26 +354,20 @@ class TestStoreKillmail(TestTrackerBase):
         self.assertTrue(mock_logger.warning.called)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch("killtracker.models.dhooks_lite.Webhook.execute")
 @patch(MODULE_PATH + ".logger")
 class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
         self.webhook_1.main_queue.clear()
 
-    def test_log_warning_when_pk_is_invalid(self, mock_logger, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
-        send_test_message_to_webhook(generate_invalid_pk(Webhook))
-
-        self.assertFalse(mock_execute.called)
-        self.assertTrue(mock_logger.error.called)
-
     def test_run_normal(self, mock_logger, mock_execute):
+        # given
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
-        send_test_message_to_webhook(self.webhook_1.pk)
-
+        # when
+        with self.assertRaises(celery.exceptions.Retry):
+            send_test_message_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertTrue(mock_execute.called)
         self.assertFalse(mock_logger.error.called)
 
