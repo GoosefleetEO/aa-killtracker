@@ -32,33 +32,29 @@ class WebhookAdmin(admin.ModelAdmin):
 
     actions = ["send_test_message", "purge_messages"]
 
+    @admin.display(description="Purge queued messages of selected webhooks")
     def purge_messages(self, request, queryset):
         actions_count = 0
         killmails_deleted = 0
         for webhook in queryset:
             killmails_deleted += webhook.main_queue.clear()
             actions_count += 1
-
         self.message_user(
             request,
             f"Purged queued messages for {actions_count} webhooks, "
             f"deleting a total of {killmails_deleted} messages.",
         )
 
-    purge_messages.short_description = "Purge queued messages of selected webhooks"
-
+    @admin.display(description="Send test message to selected webhooks")
     def send_test_message(self, request, queryset):
         actions_count = 0
         for webhook in queryset:
             tasks.send_test_message_to_webhook.delay(webhook.pk)
             actions_count += 1
-
         self.message_user(
             request,
             f"Initiated sending of {actions_count} test messages to selected webhooks.",
         )
-
-    send_test_message.short_description = "Send test message to selected webhooks"
 
 
 @admin.register(Tracker)
@@ -167,23 +163,21 @@ class TrackerAdmin(admin.ModelAdmin):
 
     actions = ["disable_tracker", "enable_tracker", "reset_color", "run_test_killmail"]
 
+    @admin.display(description="Reset color for selected trackers")
     def reset_color(self, request, queryset):
         queryset.update(color="")
 
-    reset_color.short_description = "Reset color for selected trackers"
-
+    @admin.display(description="Enable selected trackers")
     def enable_tracker(self, request, queryset):
         queryset.update(is_enabled=True)
         self.message_user(request, f"{queryset.count()} trackers enabled.")
 
-    enable_tracker.short_description = "Enable selected trackers"
-
+    @admin.display(description="Disable selected trackers")
     def disable_tracker(self, request, queryset):
         queryset.update(is_enabled=False)
         self.message_user(request, f"{queryset.count()} trackers disabled.")
 
-    disable_tracker.short_description = "Disable selected trackers"
-
+    @admin.display(description="Run test killmail with selected trackers")
     def run_test_killmail(self, request, queryset):
         if "apply" in request.POST:
             form = TrackerAdminKillmailIdForm(request.POST)
@@ -200,7 +194,6 @@ class TrackerAdmin(admin.ModelAdmin):
                             ignore_max_age=True,
                         )
                         actions_count += 1
-
                     self.message_user(
                         request,
                         (
@@ -213,16 +206,14 @@ class TrackerAdmin(admin.ModelAdmin):
                         request,
                         "Failed to load killmail with ID {killmail_id} from ZKB",
                     )
-
             return HttpResponseRedirect(request.get_full_path())
-        else:
-            last_killmail_id = request.session.get("last_killmail_id")
-            if last_killmail_id:
-                initial = {"killmail_id": last_killmail_id}
-            else:
-                initial = None
-            form = TrackerAdminKillmailIdForm(initial=initial)
 
+        last_killmail_id = request.session.get("last_killmail_id")
+        if last_killmail_id:
+            initial = {"killmail_id": last_killmail_id}
+        else:
+            initial = None
+        form = TrackerAdminKillmailIdForm(initial=initial)
         return render(
             request,
             "admin/killtracker_killmail_id.html",
@@ -232,8 +223,6 @@ class TrackerAdmin(admin.ModelAdmin):
                 "queryset": queryset.all(),
             },
         )
-
-    run_test_killmail.short_description = "Run test killmail with selected trackers"
 
     autocomplete_fields = ["origin_solar_system"]
 
