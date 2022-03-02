@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
         ("eveuniverse", "0005_type_materials_and_sections"),
         ("authentication", "0019_merge_20211026_0919"),
         ("auth", "0012_alter_user_first_name_max_length"),
-        ("eveonline", "0016_character_names_are_not_unique"),
+        ("eveonline", "0015_factions"),
         ("killtracker", "0003_add_state_clauses"),
     ]
 
