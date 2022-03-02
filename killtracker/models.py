@@ -29,6 +29,7 @@ from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.modules.discord.models import DiscordUser
+from app_utils.allianceauth import get_redis_client
 from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
@@ -277,10 +278,9 @@ class Webhook(models.Model):
             self.error_queue = self._create_queue("error")
 
     def _create_queue(self, suffix: str) -> Optional[SimpleMQ]:
+        redis_client = get_redis_client()
         return (
-            SimpleMQ(
-                cache.get_master_client(), f"{__title__}_webhook_{self.pk}_{suffix}"
-            )
+            SimpleMQ(redis_client, f"{__title__}_webhook_{self.pk}_{suffix}")
             if self.pk
             else None
         )

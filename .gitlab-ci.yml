@@ -1,5 +1,5 @@
 stages:
-- pre-commit
+- checks
 - test
 - deploy
 
@@ -11,7 +11,7 @@ before_script:
 - pip install tox
 
 pre-commit-check:
-  stage: pre-commit
+  stage: checks
   image: python:3.8-bullseye
   variables:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
@@ -24,14 +24,17 @@ pre-commit-check:
 
 .test-py37:
   stage: test
+  needs: []
   image: python:3.7-bullseye
 
 .test-py38:
   stage: test
+  needs: []
   image: python:3.8-bullseye
 
 .test-py39:
   stage: test
+  needs: []
   image: python:3.9-bullseye
 
 test-37-django32:

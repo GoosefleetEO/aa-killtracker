@@ -41,10 +41,10 @@ setup(
     python_requires="~=3.7",
     install_requires=[
         "django-esi>=2.0.4",
-        "allianceauth>=2.9,<3",
+        "allianceauth>=2.9",
         "dacite",
-        "django-eveuniverse>=0.12",
-        "allianceauth-app-utils>=1.11",
+        "django-eveuniverse>=0.14",
+        "allianceauth-app-utils>=1.13",
         "redis-simple-mq>=0.4",
         "dhooks-lite>=0.6",
     ],
