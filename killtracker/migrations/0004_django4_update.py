@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("eveuniverse", "0005_type_materials_and_sections"),
-        ("authentication", "0020_userprofile_language_userprofile_night_mode"),
+        ("authentication", "0019_merge_20211026_0919"),
         ("auth", "0012_alter_user_first_name_max_length"),
         ("eveonline", "0016_character_names_are_not_unique"),
         ("killtracker", "0003_add_state_clauses"),
