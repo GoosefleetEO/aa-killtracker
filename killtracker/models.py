@@ -48,16 +48,9 @@ from .managers import EveKillmailManager, TrackerManager, WebhookManager
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-class EveKillmail(models.Model):
-    """A killmail in Eve Online."""
+class _EveKillmailCharacter(models.Model):
+    """A character in a killmail for Eve Online. Can be both vitim and attacker."""
 
-    id = models.BigIntegerField(primary_key=True)
-    time = models.DateTimeField(default=None, null=True, blank=True, db_index=True)
-    solar_system = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
-    )
-    updated_at = models.DateTimeField(auto_now=True)
-    # victim
     character = models.ForeignKey(
         EveEntity,
         on_delete=models.CASCADE,
@@ -98,6 +91,20 @@ class EveKillmail(models.Model):
         blank=True,
         related_name="+",
     )
+
+    class Meta:
+        abstract = True
+
+
+class EveKillmail(_EveKillmailCharacter):
+    """A killmail in Eve Online."""
+
+    id = models.BigIntegerField(primary_key=True)
+    time = models.DateTimeField(default=None, null=True, blank=True, db_index=True)
+    solar_system = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
     damage_taken = models.BigIntegerField(default=None, null=True, blank=True)
     # position
     position_x = models.FloatField(default=None, null=True, blank=True)
@@ -149,7 +156,7 @@ class EveKillmail(models.Model):
         return [int(x) for x in ids if x is not None]
 
 
-class EveKillmailAttacker(models.Model):
+class EveKillmailAttacker(_EveKillmailCharacter):
     """An attacker on a killmail in Eve Online."""
 
     killmail = models.ForeignKey(
@@ -158,46 +165,6 @@ class EveKillmailAttacker(models.Model):
     damage_done = models.BigIntegerField(default=None, null=True, blank=True)
     is_final_blow = models.BooleanField(
         default=None, null=True, blank=True, db_index=True
-    )
-    character = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
-    corporation = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
-    alliance = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
-    faction = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
-    ship_type = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-        related_name="+",
     )
     security_status = models.FloatField(default=None, null=True, blank=True)
     weapon_type = models.ForeignKey(
