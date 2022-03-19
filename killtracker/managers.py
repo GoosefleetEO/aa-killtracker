@@ -69,19 +69,20 @@ class EveKillmailBaseManager(models.Manager):
             zkb = killmail.zkb.asdict()
             params.update(zkb)
         eve_killmail = self.create(**params)
-
-        for attacker in killmail.attackers:
-            params = {
-                **{
-                    "killmail": eve_killmail,
-                    "damage_done": attacker.damage_done,
-                    "security_status": attacker.security_status,
-                    "is_final_blow": attacker.is_final_blow,
-                },
-                **self._create_args_for_entities(attacker),
-            }
-            EveKillmailAttacker.objects.create(**params)
-
+        if killmail.attackers:
+            attacker_objs = []
+            for attacker in killmail.attackers:
+                params = {
+                    **{
+                        "killmail": eve_killmail,
+                        "damage_done": attacker.damage_done,
+                        "security_status": attacker.security_status,
+                        "is_final_blow": attacker.is_final_blow,
+                    },
+                    **self._create_args_for_entities(attacker),
+                }
+                attacker_objs.append(EveKillmailAttacker(**params))
+            EveKillmailAttacker.objects.bulk_create(attacker_objs)
         if resolve_ids:
             eve_killmail.load_eve_entities()
         return eve_killmail
