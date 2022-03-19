@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 from datetime import timedelta
-from typing import List, Optional
+from typing import List, Optional, Set
 from urllib.parse import urljoin
 
 import dhooks_lite
@@ -95,6 +95,18 @@ class _EveKillmailCharacter(models.Model):
     class Meta:
         abstract = True
 
+    def entity_ids(self) -> Set[int]:
+        """IDs of all entity objects."""
+        ids = {
+            self.character_id,
+            self.corporation_id,
+            self.alliance_id,
+            self.faction_id,
+            self.ship_type_id,
+        }
+        ids.discard(None)
+        return ids
+
 
 class EveKillmail(_EveKillmailCharacter):
     """A killmail in Eve Online."""
@@ -132,28 +144,19 @@ class EveKillmail(_EveKillmailCharacter):
     def __repr__(self):
         return f"{type(self).__name__}(id={self.id})"
 
-    def load_entities(self):
-        """loads unknown entities for this killmail"""
-        qs = EveEntity.objects.filter(id__in=self.entity_ids(), name="")
-        qs.update_from_esi()
+    def load_eve_entities(self) -> int:
+        """Loads unknown entities for this killmail."""
+        return EveKillmail.objects.filter(pk=self.pk).load_eve_entities()
 
-    def entity_ids(self) -> List[int]:
-        ids = [
-            self.character_id,
-            self.corporation_id,
-            self.alliance_id,
-            self.ship_type_id,
-            self.solar_system_id,
-        ]
+    def entity_ids(self) -> Set[int]:
+        """IDs of all entity objects."""
+        ids = super().entity_ids()
+        ids.add(self.solar_system_id)
         for attacker in self.attackers.all():
-            ids += [
-                attacker.character_id,
-                attacker.corporation_id,
-                attacker.alliance_id,
-                attacker.ship_type_id,
-                attacker.weapon_type_id,
-            ]
-        return [int(x) for x in ids if x is not None]
+            ids |= attacker.entity_ids()
+            ids.add(attacker.weapon_type_id)
+        ids.discard(None)
+        return ids
 
 
 class EveKillmailAttacker(_EveKillmailCharacter):
@@ -185,8 +188,7 @@ class EveKillmailAttacker(_EveKillmailCharacter):
             return str(self.alliance)
         elif self.faction:
             return str(self.faction)
-        else:
-            return f"PK:{self.pk}"
+        return f"PK:{self.pk}"
 
 
 class Webhook(models.Model):

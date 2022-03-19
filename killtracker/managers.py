@@ -1,5 +1,6 @@
 from datetime import timedelta
-from typing import Dict, Tuple
+from itertools import chain
+from typing import Dict, Set, Tuple
 
 from django.db import models, transaction
 from django.utils.timezone import now
@@ -19,23 +20,20 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 class EveKillmailQuerySet(models.QuerySet):
     """Custom queryset for EveKillmail"""
 
-    def load_entities(self) -> int:
+    def entity_ids(self) -> Set[int]:
+        """Ids of all Eve Entities."""
+        killmails_qs = self.prefetch_related("attackers")
+        return set(chain(*[killmail.entity_ids() for killmail in killmails_qs]))
+
+    def load_eve_entities(self) -> int:
         """loads unknown entities for all killmails of this QuerySet.
         Returns count of updated entities
         """
-        entity_ids = []
-        for killmail in self:
-            entity_ids += killmail.entity_ids()
-
-        return EveEntity.objects.filter(
-            id__in=list(set(entity_ids)), name=""
-        ).update_from_esi()
+        entity_ids = self.entity_ids()
+        return EveEntity.objects.filter(id__in=entity_ids, name="").update_from_esi()
 
 
-class EveKillmailManager(models.Manager):
-    def get_queryset(self) -> models.QuerySet:
-        return EveKillmailQuerySet(self.model, using=self._db)
-
+class EveKillmailBaseManager(models.Manager):
     def delete_stale(self) -> Tuple[int, Dict[str, int]]:
         """deletes all stale killmail"""
         if KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0:
@@ -85,9 +83,7 @@ class EveKillmailManager(models.Manager):
             EveKillmailAttacker.objects.create(**params)
 
         if resolve_ids:
-            EveEntity.objects.bulk_update_new_esi()
-
-        eve_killmail.refresh_from_db()
+            eve_killmail.load_eve_entities()
         return eve_killmail
 
     @staticmethod
@@ -98,7 +94,6 @@ class EveKillmailManager(models.Manager):
             if entity_id:
                 field = prop_name.replace("_id", "")
                 args[field], _ = EveEntity.objects.get_or_create(id=entity_id)
-
         return args
 
     def update_or_create_from_killmail(
@@ -110,13 +105,12 @@ class EveKillmailManager(models.Manager):
                 created = False
             except self.model.DoesNotExist:
                 created = True
-
             obj = self.create_from_killmail(killmail, resolve_ids=False)
-
-        if created:
-            EveEntity.objects.bulk_update_new_esi()
-
+        obj.load_eve_entities()
         return obj, created
+
+
+EveKillmailManager = EveKillmailBaseManager.from_queryset(EveKillmailQuerySet)
 
 
 class TrackerManager(ObjectCacheMixin, models.Manager):

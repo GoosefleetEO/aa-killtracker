@@ -33,6 +33,7 @@ from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, Tracker, Webhook
 from . import BravadoOperationStub
+from .testdata.factories import create_eve_killmail, create_eve_killmail_attacker
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.models"
@@ -104,10 +105,6 @@ class TestWebhookQueue(LoadTestDataMixin, TestCase):
 
 
 class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
     def test_create_from_killmail(self):
         # given
         killmail = load_killmail(10000001)
@@ -220,7 +217,83 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
 
     def test_load_entities(self):
         load_eve_killmails([10000001, 10000002])
-        self.assertEqual(EveKillmail.objects.all().load_entities(), 0)
+        self.assertEqual(EveKillmail.objects.all().load_eve_entities(), 0)
+
+    def test_should_return_list_of_eve_entities_1(self):
+        # given
+        killmail = create_eve_killmail()
+        create_eve_killmail_attacker(killmail)
+        # when
+        ids = EveKillmail.objects.filter(id=killmail.id).entity_ids()
+        # then
+        self.assertSetEqual(
+            ids,
+            {
+                2001,
+                1001,
+                603,
+                3001,
+                30003069,
+                2977,
+                34562,
+                3011,
+                1011,
+                2011,
+                500001,
+                500004,
+            },
+        )
+
+    def test_should_return_list_of_eve_entities_2(self):
+        # given
+        killmail = create_eve_killmail(faction_id=None)
+        create_eve_killmail_attacker(killmail, faction_id=None)
+        # when
+        ids = EveKillmail.objects.filter(id=killmail.id).entity_ids()
+        # then
+        self.assertSetEqual(
+            ids,
+            {
+                2001,
+                1001,
+                603,
+                3001,
+                30003069,
+                2977,
+                34562,
+                3011,
+                1011,
+                2011,
+            },
+        )
+
+    def test_should_return_list_of_eve_entities_3(self):
+        # given
+        killmail_1 = create_eve_killmail()
+        create_eve_killmail_attacker(killmail_1)
+        killmail_2 = create_eve_killmail(character_id=1002)
+        create_eve_killmail_attacker(killmail_2)
+        # when
+        ids = EveKillmail.objects.entity_ids()
+        # then
+        self.assertSetEqual(
+            ids,
+            {
+                2001,
+                1001,
+                603,
+                3001,
+                30003069,
+                2977,
+                34562,
+                3011,
+                1011,
+                2011,
+                500001,
+                500004,
+                1002,
+            },
+        )
 
 
 class TestHasLocalizationClause(LoadTestDataMixin, NoSocketsTestCase):
