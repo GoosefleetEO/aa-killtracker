@@ -76,7 +76,7 @@ class KillmailZkb(_KillmailBase):
     hash: Optional[str] = None
     fitted_value: Optional[float] = None
     total_value: Optional[float] = None
-    points: Optional[int] = None
+    zkb_points: Optional[int] = None
     is_npc: Optional[bool] = None
     is_solo: Optional[bool] = None
     is_awox: Optional[bool] = None
@@ -302,7 +302,7 @@ class Killmail(_KillmailBase):
                 ("hash", None),
                 ("fittedValue", "fitted_value"),
                 ("totalValue", "total_value"),
-                ("points", None),
+                ("points", "zkb_points"),
                 ("npc", "is_npc"),
                 ("solo", "is_solo"),
                 ("awox", "is_awox"),

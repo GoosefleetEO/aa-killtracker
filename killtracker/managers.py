@@ -51,41 +51,29 @@ class EveKillmailManager(models.Manager):
         - resolve_ids: When set to False will not resolve EveEntity IDs
 
         """
-        from .models import (
-            EveKillmailAttacker,
-            EveKillmailPosition,
-            EveKillmailVictim,
-            EveKillmailZkb,
-        )
+        from .models import EveKillmailAttacker
 
-        args = {
+        params = {
             "id": killmail.id,
             "time": killmail.time,
+            "damage_taken": killmail.victim.damage_taken,
+            "position_x": killmail.position.x,
+            "position_y": killmail.position.y,
+            "position_z": killmail.position.z,
         }
+        victim = self._create_args_for_entities(killmail.victim)
+        params.update(victim)
         if killmail.solar_system_id:
-            args["solar_system"], _ = EveEntity.objects.get_or_create(
+            params["solar_system"], _ = EveEntity.objects.get_or_create(
                 id=killmail.solar_system_id
             )
-        eve_killmail = self.create(**args)
-
         if killmail.zkb:
-            args = {**killmail.zkb.asdict(), **{"killmail": eve_killmail}}
-            EveKillmailZkb.objects.create(**args)
-
-        args = {
-            **{
-                "killmail": eve_killmail,
-                "damage_taken": killmail.victim.damage_taken,
-            },
-            **self._create_args_for_entities(killmail.victim),
-        }
-        EveKillmailVictim.objects.create(**args)
-
-        args = {**killmail.position.asdict(), **{"killmail": eve_killmail}}
-        EveKillmailPosition.objects.create(**args)
+            zkb = killmail.zkb.asdict()
+            params.update(zkb)
+        eve_killmail = self.create(**params)
 
         for attacker in killmail.attackers:
-            args = {
+            params = {
                 **{
                     "killmail": eve_killmail,
                     "damage_done": attacker.damage_done,
@@ -94,7 +82,7 @@ class EveKillmailManager(models.Manager):
                 },
                 **self._create_args_for_entities(attacker),
             }
-            EveKillmailAttacker.objects.create(**args)
+            EveKillmailAttacker.objects.create(**params)
 
         if resolve_ids:
             EveEntity.objects.bulk_update_new_esi()

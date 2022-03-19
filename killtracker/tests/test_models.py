@@ -31,7 +31,7 @@ from app_utils.testing import (
 
 from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
-from ..models import EveKillmail, EveKillmailVictim, Tracker, Webhook
+from ..models import EveKillmail, Tracker, Webhook
 from . import BravadoOperationStub
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
@@ -109,22 +109,22 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
         super().setUpClass()
 
     def test_create_from_killmail(self):
+        # given
         killmail = load_killmail(10000001)
+        # when
         eve_killmail = EveKillmail.objects.create_from_killmail(killmail)
-
+        # then
         self.assertIsInstance(eve_killmail, EveKillmail)
         self.assertEqual(eve_killmail.id, 10000001)
         self.assertEqual(eve_killmail.solar_system, EveEntity.objects.get(id=30004984))
         self.assertAlmostEqual(eve_killmail.time, now(), delta=timedelta(seconds=60))
 
-        self.assertEqual(eve_killmail.victim.alliance, EveEntity.objects.get(id=3011))
-        self.assertEqual(eve_killmail.victim.character, EveEntity.objects.get(id=1011))
-        self.assertEqual(
-            eve_killmail.victim.corporation, EveEntity.objects.get(id=2011)
-        )
-        self.assertEqual(eve_killmail.victim.faction, EveEntity.objects.get(id=500004))
-        self.assertEqual(eve_killmail.victim.damage_taken, 434)
-        self.assertEqual(eve_killmail.victim.ship_type, EveEntity.objects.get(id=603))
+        self.assertEqual(eve_killmail.alliance, EveEntity.objects.get(id=3011))
+        self.assertEqual(eve_killmail.character, EveEntity.objects.get(id=1011))
+        self.assertEqual(eve_killmail.corporation, EveEntity.objects.get(id=2011))
+        self.assertEqual(eve_killmail.faction, EveEntity.objects.get(id=500004))
+        self.assertEqual(eve_killmail.damage_taken, 434)
+        self.assertEqual(eve_killmail.ship_type, EveEntity.objects.get(id=603))
 
         attacker_ids = list(eve_killmail.attackers.values_list("pk", flat=True))
         self.assertEqual(len(attacker_ids), 3)
@@ -162,13 +162,13 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
         self.assertEqual(attacker.weapon_type, EveEntity.objects.get(id=2488))
         self.assertFalse(attacker.is_final_blow)
 
-        self.assertEqual(eve_killmail.zkb.location_id, 50012306)
-        self.assertEqual(eve_killmail.zkb.fitted_value, 10000)
-        self.assertEqual(eve_killmail.zkb.total_value, 10000)
-        self.assertEqual(eve_killmail.zkb.points, 1)
-        self.assertFalse(eve_killmail.zkb.is_npc)
-        self.assertFalse(eve_killmail.zkb.is_solo)
-        self.assertFalse(eve_killmail.zkb.is_awox)
+        self.assertEqual(eve_killmail.location_id, 50012306)
+        self.assertEqual(eve_killmail.fitted_value, 10000)
+        self.assertEqual(eve_killmail.total_value, 10000)
+        self.assertEqual(eve_killmail.zkb_points, 1)
+        self.assertFalse(eve_killmail.is_npc)
+        self.assertFalse(eve_killmail.is_solo)
+        self.assertFalse(eve_killmail.is_awox)
 
     def test_update_or_create_from_killmail(self):
         killmail = load_killmail(10000001)
@@ -1062,19 +1062,19 @@ class TestEveKillmail(LoadTestDataMixin, NoSocketsTestCase):
         self.assertEqual(repr(self.eve_killmail), "EveKillmail(id=10000001)")
 
 
-class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
-    def test_str_character(self):
-        obj = EveKillmailVictim(character=EveEntity.objects.get(id=1001))
-        self.assertEqual(str(obj), "Bruce Wayne")
+# class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
+#     def test_str_character(self):
+#         obj = EveKillmailVictim(character=EveEntity.objects.get(id=1001))
+#         self.assertEqual(str(obj), "Bruce Wayne")
 
-    def test_str_corporation(self):
-        obj = EveKillmailVictim(corporation=EveEntity.objects.get(id=2001))
-        self.assertEqual(str(obj), "Wayne Technologies")
+#     def test_str_corporation(self):
+#         obj = EveKillmailVictim(corporation=EveEntity.objects.get(id=2001))
+#         self.assertEqual(str(obj), "Wayne Technologies")
 
-    def test_str_alliance(self):
-        obj = EveKillmailVictim(alliance=EveEntity.objects.get(id=3001))
-        self.assertEqual(str(obj), "Wayne Enterprise")
+#     def test_str_alliance(self):
+#         obj = EveKillmailVictim(alliance=EveEntity.objects.get(id=3001))
+#         self.assertEqual(str(obj), "Wayne Enterprise")
 
-    def test_str_faction(self):
-        obj = EveKillmailVictim(faction=EveEntity.objects.get(id=500001))
-        self.assertEqual(str(obj), "Caldari State")
+#     def test_str_faction(self):
+#         obj = EveKillmailVictim(faction=EveEntity.objects.get(id=500001))
+#         self.assertEqual(str(obj), "Caldari State")
