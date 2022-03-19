@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
@@ -18,43 +18,75 @@ from .constants import (
 )
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
-from .models import Tracker, Webhook
+from .models import EveKillmail, EveKillmailAttacker, Tracker, Webhook
 
 
-@admin.register(Webhook)
-class WebhookAdmin(admin.ModelAdmin):
-    list_display = ("name", "is_enabled", "_messages_in_queue")
-    list_filter = ("is_enabled",)
-    ordering = ("name",)
+class EveKillmailAttackerAdminInline(admin.TabularInline):
+    model = EveKillmailAttacker
 
-    def _messages_in_queue(self, obj):
-        return obj.main_queue.size()
-
-    actions = ["send_test_message", "purge_messages"]
-
-    @admin.display(description="Purge queued messages of selected webhooks")
-    def purge_messages(self, request, queryset):
-        actions_count = 0
-        killmails_deleted = 0
-        for webhook in queryset:
-            killmails_deleted += webhook.main_queue.clear()
-            actions_count += 1
-        self.message_user(
-            request,
-            f"Purged queued messages for {actions_count} webhooks, "
-            f"deleting a total of {killmails_deleted} messages.",
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        return qs.select_related(
+            "character",
+            "corporation",
+            "alliance",
+            "ship_type",
+            "weapon_type",
+            "faction",
         )
 
-    @admin.display(description="Send test message to selected webhooks")
-    def send_test_message(self, request, queryset):
-        actions_count = 0
-        for webhook in queryset:
-            tasks.send_test_message_to_webhook.delay(webhook.pk)
-            actions_count += 1
-        self.message_user(
-            request,
-            f"Initiated sending of {actions_count} test messages to selected webhooks.",
-        )
+    def has_add_permission(self, *args, **kwargs):
+        return False
+
+    def has_change_permission(self, *args, **kwargs):
+        return False
+
+    def has_delete_permission(self, *args, **kwargs):
+        return False
+
+
+@admin.register(EveKillmail)
+class EveKillmailAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "time",
+        "solar_system",
+        "ship_type",
+        "character",
+        "corporation",
+        "alliance",
+        "_attacker_count",
+    )
+    list_filter = ("time",)
+    inlines = (EveKillmailAttackerAdminInline,)
+    ordering = ["-time"]
+    search_fields = (
+        "id",
+        "solar_system__name",
+        "character__name",
+        "corporation__name",
+        "alliance__name",
+        "ship_type__name",
+    )
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        return qs.select_related(
+            "solar_system",
+            "ship_type",
+            "character",
+            "corporation",
+            "alliance",
+        ).annotate(attackers_count=Count("attackers"))
+
+    def _attacker_count(self, obj) -> int:
+        return obj.attackers_count
+
+    def has_add_permission(self, *args, **kwargs) -> bool:
+        return False
+
+    def has_change_permission(self, *args, **kwargs) -> bool:
+        return False
 
 
 @admin.register(Tracker)
@@ -407,3 +439,39 @@ class TrackerAdmin(admin.ModelAdmin):
             )
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+@admin.register(Webhook)
+class WebhookAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_enabled", "_messages_in_queue")
+    list_filter = ("is_enabled",)
+    ordering = ("name",)
+
+    def _messages_in_queue(self, obj):
+        return obj.main_queue.size()
+
+    actions = ["send_test_message", "purge_messages"]
+
+    @admin.display(description="Purge queued messages of selected webhooks")
+    def purge_messages(self, request, queryset):
+        actions_count = 0
+        killmails_deleted = 0
+        for webhook in queryset:
+            killmails_deleted += webhook.main_queue.clear()
+            actions_count += 1
+        self.message_user(
+            request,
+            f"Purged queued messages for {actions_count} webhooks, "
+            f"deleting a total of {killmails_deleted} messages.",
+        )
+
+    @admin.display(description="Send test message to selected webhooks")
+    def send_test_message(self, request, queryset):
+        actions_count = 0
+        for webhook in queryset:
+            tasks.send_test_message_to_webhook.delay(webhook.pk)
+            actions_count += 1
+        self.message_user(
+            request,
+            f"Initiated sending of {actions_count} test messages to selected webhooks.",
+        )
