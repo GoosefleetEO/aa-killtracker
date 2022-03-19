@@ -7,3 +7,4 @@ class KillmailsConfig(AppConfig):
     name = "killtracker"
     label = "killtracker"
     verbose_name = f"Killtracker v{__version__}"
+    default_auto_field = "django.db.models.BigAutoField"
