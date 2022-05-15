@@ -55,10 +55,7 @@ def run_killtracker(runs: int = 0) -> None:
             timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
         )
         for tracker in qs:
-            run_tracker.delay(
-                tracker_pk=tracker.pk,
-                killmail_json=killmail_json,
-            )
+            run_tracker.delay(tracker_pk=tracker.pk, killmail_json=killmail_json)
 
         if KILLTRACKER_STORING_KILLMAILS_ENABLED:
             chain(

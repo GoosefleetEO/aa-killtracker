@@ -4,6 +4,8 @@ from unittest.mock import Mock, patch
 
 import dhooks_lite
 from bravado.exception import HTTPNotFound
+from bs4 import BeautifulSoup
+from markdown import markdown
 from requests.exceptions import HTTPError
 
 from django.contrib.auth.models import Group
@@ -1078,3 +1080,47 @@ class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
     def test_str_faction(self):
         obj = EveKillmailVictim(faction=EveEntity.objects.get(id=500001))
         self.assertEqual(str(obj), "Caldari State")
+
+
+@patch(MODULE_PATH + ".Webhook.enqueue_message")
+class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
+    def setUp(self) -> None:
+        self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
+
+    def test_should_generate_message(self, mock_enqueue_message):
+        # given
+        self.tracker.origin_solar_system_id = 30003067
+        self.tracker.save()
+        svipul = EveType.objects.get(name="Svipul")
+        self.tracker.require_attackers_ship_types.add(svipul)
+        self.tracker.require_attackers_ship_types.add(
+            EveType.objects.get(name="Gnosis")
+        )
+        killmail = load_killmail(10000101)
+        killmail_json = Killmail.from_json(killmail.asjson())
+        # when
+        self.tracker.generate_killmail_message(killmail_json)
+        # then
+        _, kwargs = mock_enqueue_message.call_args
+        content = kwargs["content"]
+        self.assertIn("My Tracker", content)
+        embed = kwargs["embeds"][0]
+        self.assertEqual(embed.title, "Haras | Svipul | Killmail")
+        self.assertEqual(
+            embed.thumbnail.url, svipul.icon_url(size=self.tracker.ICON_SIZE)
+        )
+        html = markdown(embed.description)
+        description = "".join(
+            BeautifulSoup(html, features="html.parser").findAll(text=True)
+        )
+        lines = description.splitlines()
+        self.assertEqual(
+            (
+                "Lex Luthor (LexCorp) lost their Svipul in Haras (The Bleak Lands) "
+                "worth 10.00k ISK."
+            ),
+            lines[0],
+        )
+        self.assertEqual(
+            "Final blow by Bruce Wayne (Wayne Technologies) in a Svipul.", lines[1]
+        )

@@ -417,7 +417,9 @@ class Webhook(models.Model):
     @staticmethod
     def create_message_link(name: str, url: str) -> str:
         """Create link for a Discord message"""
-        return f"[{str(name)}]({str(url)})"
+        if name and url:
+            return f"[{str(name)}]({str(url)})"
+        return str(name)
 
 
 class Tracker(models.Model):
@@ -1069,16 +1071,21 @@ class Tracker(models.Model):
 
         # victim
         if killmail.victim.alliance_id:
-            victim_organization = EveEntity.objects.get(id=killmail.victim.alliance_id)
+            victim_organization = resolver.to_name(killmail.victim.alliance_id)
             victim_org_url = zkillboard.alliance_url(killmail.victim.alliance_id)
-        elif killmail.victim.corporation_id:
-            victim_organization = EveEntity.objects.get(
-                id=killmail.victim.corporation_id
+            victim_org_icon_url = eveimageserver.corporation_logo_url(
+                killmail.victim.alliance_id, size=self.ICON_SIZE
             )
+        elif killmail.victim.corporation_id:
+            victim_organization = resolver.to_name(killmail.victim.corporation_id)
             victim_org_url = zkillboard.corporation_url(killmail.victim.corporation_id)
+            victim_org_icon_url = eveimageserver.corporation_logo_url(
+                killmail.victim.corporation_id, size=self.ICON_SIZE
+            )
         else:
             victim_organization = None
             victim_org_url = None
+            victim_org_icon_url = None
 
         if killmail.victim.corporation_id:
             victim_corporation_zkb_link = self._corporation_zkb_link(
@@ -1089,10 +1096,9 @@ class Tracker(models.Model):
 
         if killmail.victim.character_id:
             victim_character_zkb_link = self._character_zkb_link(
-                killmail.victim.character_id,
-                resolver,
+                killmail.victim.character_id, resolver
             )
-            victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link}) "
+            victim_str = f"{victim_character_zkb_link} ({victim_corporation_zkb_link})"
         elif killmail.victim.corporation_id:
             victim_str = victim_corporation_zkb_link
         else:
@@ -1252,11 +1258,11 @@ class Tracker(models.Model):
         # TODO This is a workaround for Embed.Author.name. Address in dhooks_lite
         author = (
             dhooks_lite.Author(
-                name=victim_organization.name if victim_organization.name else "?",
+                name=victim_organization if victim_organization else "?",
                 url=victim_org_url,
-                icon_url=victim_organization.icon_url(),
+                icon_url=victim_org_icon_url,
             )
-            if victim_organization and victim_org_url
+            if victim_organization and victim_org_url and victim_org_icon_url
             else None
         )
         zkb_icon_url = urljoin(
