@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.5.2] - 2022-05-15
+
+### Fixed
+
+- Trying to run a test killmail for a tracker on the admin site results in swagger file not found error
+
 ## [0.5.1] - 2022-03-02
 
 ### Changed
