@@ -25,11 +25,7 @@ from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder
-from app_utils.testing import (
-    NoSocketsTestCase,
-    add_character_to_user_2,
-    set_test_logger,
-)
+from app_utils.testing import NoSocketsTestCase, add_character_to_user_2
 
 from ..core.killmails import EntityCount, Killmail
 from ..exceptions import WebhookTooManyRequests
@@ -38,7 +34,6 @@ from . import BravadoOperationStub
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.models"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 def esi_get_route_origin_destination(origin, destination, **kwargs) -> list:
