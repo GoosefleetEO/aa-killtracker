@@ -5,11 +5,13 @@ from typing import List, Optional, Set
 
 import requests
 from dacite import DaciteError, from_dict
+from redis.exceptions import LockError
 
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.allianceauth import get_redis_client
 from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
@@ -197,19 +199,20 @@ class Killmail(_KillmailBase):
         Returns None if no killmail is received.
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
+        redis = get_redis_client()
         lock_key = f"{__title__.upper()}_REDISQ_LOCK"
-        lock = cache.lock(key=lock_key, timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT)
-        acquired = lock.acquire(blocking=False)
-        if not acquired:
+        try:
+            with redis.lock(lock_key, blocking_timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT):
+                r = requests.get(
+                    ZKB_REDISQ_URL,
+                    params={"ttw": KILLTRACKER_REDISQ_TTW},
+                    timeout=REQUESTS_TIMEOUT,
+                    headers={"User-Agent": USER_AGENT_TEXT},
+                )
+        except LockError:
             logger.warning("Failed to acquire lock for atomic access to RedisQ.")
             return None
-        r = requests.get(
-            ZKB_REDISQ_URL,
-            params={"ttw": KILLTRACKER_REDISQ_TTW},
-            timeout=REQUESTS_TIMEOUT,
-            headers={"User-Agent": USER_AGENT_TEXT},
-        )
-        lock.release()
+
         if r.status_code == cls.HTTP_TOO_MANY_REQUESTS:
             logger.error("429 Client Error: Too many requests: %s", r.text)
             return None

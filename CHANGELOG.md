@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.6.0] - 2022-06-03
+
+### Changed
+
+- Refactored lock logic to be agnostic of which django library is used for the redis cache, so it now works with both django-redis-cache and django-redis
+
 ## [0.5.2] - 2022-05-15
 
 ### Fixed

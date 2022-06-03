@@ -1,7 +1,7 @@
 from app_utils.django import clean_setting
 
 # Timeout for lock to ensure atomic access to ZKB RedisQ
-KILLTRACKER_REDISQ_LOCK_TIMEOUT = clean_setting("KILLTRACKER_REDISQ_LOCK_TIMEOUT", 300)
+KILLTRACKER_REDISQ_LOCK_TIMEOUT = clean_setting("KILLTRACKER_REDISQ_LOCK_TIMEOUT", 5)
 
 # ignore killmails that are older than the given number in minutes
 # sometimes killmails appear belated on ZKB,
