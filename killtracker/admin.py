@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.utils.safestring import mark_safe
 from eveuniverse.models import EveGroup, EveType
 
-from allianceauth.eveonline.models import EveAllianceInfo
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
 from . import tasks
 from .constants import (
@@ -75,6 +75,119 @@ class TrackerAdmin(admin.ModelAdmin):
         ("webhook", admin.RelatedOnlyFieldListFilter),
     )
     ordering = ("name",)
+    actions = ["disable_tracker", "enable_tracker", "reset_color", "run_test_killmail"]
+    autocomplete_fields = ["origin_solar_system"]
+    filter_horizontal = (
+        "exclude_attacker_alliances",
+        "exclude_attacker_corporations",
+        "require_attacker_alliances",
+        "require_attacker_corporations",
+        "require_victim_alliances",
+        "exclude_victim_alliances",
+        "require_victim_corporations",
+        "exclude_victim_corporations",
+        "exclude_attacker_states",
+        "require_attacker_states",
+        "require_victim_states",
+        "require_regions",
+        "require_constellations",
+        "require_solar_systems",
+        "require_attackers_ship_groups",
+        "require_attackers_ship_types",
+        "require_victim_ship_groups",
+        "require_victim_ship_types",
+        "ping_groups",
+    )
+    fieldsets = (
+        (None, {"fields": ("name", "description", "is_enabled", "color")}),
+        (
+            "Discord Configuration",
+            {
+                "fields": (
+                    "webhook",
+                    "ping_type",
+                    "ping_groups",
+                    "is_posting_name",
+                ),
+            },
+        ),
+        (
+            "Locations",
+            {
+                "fields": (
+                    "origin_solar_system",
+                    "require_max_jumps",
+                    "require_max_distance",
+                    (
+                        "exclude_low_sec",
+                        "exclude_null_sec",
+                        "exclude_w_space",
+                        "exclude_high_sec",
+                    ),
+                    "require_regions",
+                    "require_constellations",
+                    "require_solar_systems",
+                ),
+            },
+        ),
+        (
+            "Organizations",
+            {
+                "fields": (
+                    "exclude_attacker_alliances",
+                    "exclude_attacker_corporations",
+                    "require_attacker_alliances",
+                    "require_attacker_corporations",
+                    "require_attacker_organizations_final_blow",
+                    "require_victim_alliances",
+                    "exclude_victim_alliances",
+                    "require_victim_corporations",
+                    "exclude_victim_corporations",
+                ),
+            },
+        ),
+        (
+            "Auth State",
+            {
+                "fields": (
+                    "exclude_attacker_states",
+                    "require_attacker_states",
+                    "require_victim_states",
+                ),
+            },
+        ),
+        (
+            "Fleet detection",
+            {
+                "fields": (
+                    "require_min_attackers",
+                    "require_max_attackers",
+                    "identify_fleets",
+                ),
+            },
+        ),
+        (
+            "EveKillmail properties",
+            {
+                "fields": (
+                    "require_min_value",
+                    "exclude_npc_kills",
+                    "require_npc_kills",
+                ),
+            },
+        ),
+        (
+            "Ship types",
+            {
+                "fields": (
+                    "require_attackers_ship_groups",
+                    "require_attackers_ship_types",
+                    "require_victim_ship_groups",
+                    "require_victim_ship_types",
+                ),
+            },
+        ),
+    )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -83,6 +196,8 @@ class TrackerAdmin(admin.ModelAdmin):
             "require_attacker_alliances",
             "exclude_attacker_corporations",
             "require_attacker_corporations",
+            "exclude_victim_corporations",
+            "exclude_victim_alliances",
             "exclude_attacker_states",
             "require_attacker_states",
             "require_victim_states",
@@ -121,8 +236,11 @@ class TrackerAdmin(admin.ModelAdmin):
             ("exclude_attacker_corporations", self._add_to_clauses_2),
             ("require_attacker_alliances", self._add_to_clauses_2),
             ("require_attacker_corporations", self._add_to_clauses_2),
+            ("require_attacker_organizations_final_blow", self._add_to_clauses_1),
             ("require_victim_alliances", self._add_to_clauses_2),
+            ("exclude_victim_alliances", self._add_to_clauses_2),
             ("require_victim_corporations", self._add_to_clauses_2),
+            ("exclude_victim_corporations", self._add_to_clauses_2),
             ("exclude_attacker_states", self._add_to_clauses_2),
             ("require_attacker_states", self._add_to_clauses_2),
             ("require_victim_states", self._add_to_clauses_2),
@@ -160,8 +278,6 @@ class TrackerAdmin(admin.ModelAdmin):
 
     def _append_field_to_clauses(self, clauses, field, text):
         clauses.append(f"{field_nice_display(field)} = {text}")
-
-    actions = ["disable_tracker", "enable_tracker", "reset_color", "run_test_killmail"]
 
     @admin.display(description="Reset color for selected trackers")
     def reset_color(self, request, queryset):
@@ -224,129 +340,25 @@ class TrackerAdmin(admin.ModelAdmin):
             },
         )
 
-    autocomplete_fields = ["origin_solar_system"]
-
-    filter_horizontal = (
-        "exclude_attacker_alliances",
-        "exclude_attacker_corporations",
-        "require_attacker_alliances",
-        "require_attacker_corporations",
-        "require_victim_alliances",
-        "require_victim_corporations",
-        "exclude_attacker_states",
-        "require_attacker_states",
-        "require_victim_states",
-        "require_regions",
-        "require_constellations",
-        "require_solar_systems",
-        "require_attackers_ship_groups",
-        "require_attackers_ship_types",
-        "require_victim_ship_groups",
-        "require_victim_ship_types",
-        "ping_groups",
-    )
-
-    fieldsets = (
-        (None, {"fields": ("name", "description", "is_enabled", "color")}),
-        (
-            "Discord Configuration",
-            {
-                "fields": (
-                    "webhook",
-                    "ping_type",
-                    "ping_groups",
-                    "is_posting_name",
-                ),
-            },
-        ),
-        (
-            "Locations",
-            {
-                "fields": (
-                    "origin_solar_system",
-                    "require_max_jumps",
-                    "require_max_distance",
-                    (
-                        "exclude_low_sec",
-                        "exclude_null_sec",
-                        "exclude_w_space",
-                        "exclude_high_sec",
-                    ),
-                    "require_regions",
-                    "require_constellations",
-                    "require_solar_systems",
-                ),
-            },
-        ),
-        (
-            "Organizations",
-            {
-                "fields": (
-                    "exclude_attacker_alliances",
-                    "exclude_attacker_corporations",
-                    "require_attacker_alliances",
-                    "require_attacker_corporations",
-                    "require_victim_alliances",
-                    "require_victim_corporations",
-                ),
-            },
-        ),
-        (
-            "Auth State",
-            {
-                "fields": (
-                    "exclude_attacker_states",
-                    "require_attacker_states",
-                    "require_victim_states",
-                ),
-            },
-        ),
-        (
-            "Fleet detection",
-            {
-                "fields": (
-                    "require_min_attackers",
-                    "require_max_attackers",
-                    "identify_fleets",
-                ),
-            },
-        ),
-        (
-            "EveKillmail properties",
-            {
-                "fields": (
-                    "require_min_value",
-                    "exclude_npc_kills",
-                    "require_npc_kills",
-                ),
-            },
-        ),
-        (
-            "Ship types",
-            {
-                "fields": (
-                    "require_attackers_ship_groups",
-                    "require_attackers_ship_types",
-                    "require_victim_ship_groups",
-                    "require_victim_ship_types",
-                ),
-            },
-        ),
-    )
-
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         """overriding this formfield to have sorted lists in the form"""
-        if db_field.name == "exclude_attacker_alliances":
-            kwargs["queryset"] = EveAllianceInfo.objects.all().order_by(
+        if db_field.name in {
+            "exclude_attacker_alliances",
+            "require_attacker_alliances",
+            "require_victim_alliances",
+            "exclude_victim_alliances",
+        }:
+            kwargs["queryset"] = EveAllianceInfo.objects.order_by(
                 Lower("alliance_name")
             )
-        elif db_field.name == "require_attacker_alliances":
-            kwargs["queryset"] = EveAllianceInfo.objects.all().order_by(
-                Lower("alliance_name")
-            )
-        elif db_field.name == "require_victim_alliances":
-            kwargs["queryset"] = EveAllianceInfo.objects.all().order_by(
-                Lower("alliance_name")
+        elif db_field.name in {
+            "exclude_attacker_corporations",
+            "require_attacker_corporations",
+            "require_victim_corporations",
+            "exclude_victim_corporations",
+        }:
+            kwargs["queryset"] = EveCorporationInfo.objects.order_by(
+                Lower("corporation_name")
             )
         elif db_field.name == "require_attackers_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
@@ -357,19 +369,6 @@ class TrackerAdmin(admin.ModelAdmin):
                 ],
                 published=True,
             ).order_by(Lower("name"))
-        elif db_field.name == "require_attackers_ship_types":
-            kwargs["queryset"] = (
-                EveType.objects.select_related("eve_group")
-                .filter(
-                    eve_group__eve_category_id__in=[
-                        EVE_CATEGORY_ID_STRUCTURE,
-                        EVE_CATEGORY_ID_SHIP,
-                        EVE_CATEGORY_ID_FIGHTER,
-                    ],
-                    published=True,
-                )
-                .order_by(Lower("name"))
-            )
         elif db_field.name == "require_victim_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
                 (
@@ -385,7 +384,19 @@ class TrackerAdmin(admin.ModelAdmin):
                 | (Q(id=EVE_GROUP_MINING_DRONE) & Q(published=True))
                 | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
-
+        elif db_field.name == "require_attackers_ship_types":
+            kwargs["queryset"] = (
+                EveType.objects.select_related("eve_group")
+                .filter(
+                    eve_group__eve_category_id__in=[
+                        EVE_CATEGORY_ID_STRUCTURE,
+                        EVE_CATEGORY_ID_SHIP,
+                        EVE_CATEGORY_ID_FIGHTER,
+                    ],
+                    published=True,
+                )
+                .order_by(Lower("name"))
+            )
         elif db_field.name == "require_victim_ship_types":
             kwargs["queryset"] = (
                 EveType.objects.select_related("eve_group")
@@ -405,5 +416,4 @@ class TrackerAdmin(admin.ModelAdmin):
                 )
                 .order_by(Lower("name"))
             )
-
         return super().formfield_for_manytomany(db_field, request, **kwargs)
