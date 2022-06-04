@@ -8,8 +8,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("eveuniverse", "0007_evetype_description"),
-        ("authentication", "0020_userprofile_language_userprofile_night_mode"),
-        ("eveonline", "0016_character_names_are_not_unique"),
+        ("authentication", "0019_merge_20211026_0919"),
+        ("eveonline", "0015_factions"),
         ("auth", "0012_alter_user_first_name_max_length"),
         ("killtracker", "0004_django4_update"),
     ]
