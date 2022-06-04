@@ -891,15 +891,15 @@ class Tracker(models.Model):
             if is_matching:
                 if self.require_attacker_organizations_final_blow:
                     attacker_final_blow = killmail.attacker_final_blow()
-                    is_matching = attacker_final_blow and (
+                    is_matching = bool(attacker_final_blow) and (
                         (
-                            attacker_final_blow.alliance_id
+                            bool(attacker_final_blow.alliance_id)
                             and self.require_attacker_alliances.filter(
                                 alliance_id=attacker_final_blow.alliance_id
                             ).exists()
                         )
                         | (
-                            attacker_final_blow.corporation_id
+                            bool(attacker_final_blow.corporation_id)
                             and self.require_attacker_corporations.filter(
                                 corporation_id=attacker_final_blow.corporation_id
                             ).exists()
