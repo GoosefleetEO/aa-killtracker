@@ -177,6 +177,13 @@ class Killmail(_KillmailBase):
         ids.add(self.victim.ship_type_id)
         return ids
 
+    def attacker_final_blow(self) -> Optional[KillmailAttacker]:
+        """Returns the attacker with the final blow or None if not found."""
+        for attacker in self.attackers:
+            if attacker.is_final_blow:
+                return attacker
+        return None
+
     @classmethod
     def from_dict(cls, data: dict) -> "Killmail":
         try:

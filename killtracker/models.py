@@ -883,30 +883,37 @@ class Tracker(models.Model):
                     alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
-            if is_matching and self.require_attacker_alliances.exists():
-                is_matching = self.require_attacker_alliances.filter(
-                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
-                ).exists()
-
             if is_matching and self.exclude_attacker_corporations.exists():
                 is_matching = self.exclude_attacker_corporations.exclude(
                     corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
-            if is_matching and self.require_attacker_corporations.exists():
-                is_matching = self.require_attacker_corporations.filter(
-                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
-                ).exists()
-
-            if is_matching and self.require_attacker_organizations_final_blow:
-                is_matching = (
-                    self.require_attacker_alliances.filter(
-                        alliance_id__in=killmail.attackers_distinct_alliance_ids()
-                    ).exists()
-                    | self.require_attacker_corporations.filter(
-                        corporation_id__in=killmail.attackers_distinct_corporation_ids()
-                    ).exists()
-                )
+            if is_matching:
+                if self.require_attacker_organizations_final_blow:
+                    attacker_final_blow = killmail.attacker_final_blow()
+                    is_matching = attacker_final_blow and (
+                        (
+                            attacker_final_blow.alliance_id
+                            and self.require_attacker_alliances.filter(
+                                alliance_id=attacker_final_blow.alliance_id
+                            ).exists()
+                        )
+                        | (
+                            attacker_final_blow.corporation_id
+                            and self.require_attacker_corporations.filter(
+                                corporation_id=attacker_final_blow.corporation_id
+                            ).exists()
+                        )
+                    )
+                else:
+                    if is_matching and self.require_attacker_alliances.exists():
+                        is_matching = self.require_attacker_alliances.filter(
+                            alliance_id__in=killmail.attackers_distinct_alliance_ids()
+                        ).exists()
+                    if is_matching and self.require_attacker_corporations.exists():
+                        is_matching = self.require_attacker_corporations.filter(
+                            corporation_id__in=killmail.attackers_distinct_corporation_ids()
+                        ).exists()
 
             if is_matching and self.require_victim_alliances.exists():
                 is_matching = self.require_victim_alliances.filter(

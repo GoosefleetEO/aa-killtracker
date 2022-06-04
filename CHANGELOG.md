@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.6.0] - 2022-06-03
 
+### Added
+
+- New clause: Exclude victim corporations (#29)
+- New clause: Require attacker corporations/alliances to have final blow (#30)
+
 ### Changed
 
-- Refactored lock logic to be agnostic of which django library is used for the redis cache, so it now works with both django-redis-cache and django-redis
+- Refactored lock logic to be agnostic of which django library is used for the redis cache, so it now works with both django-redis-cache and django-redis => compatible with AA 3
 
 ## [0.5.2] - 2022-05-15
 

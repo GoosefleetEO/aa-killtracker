@@ -401,10 +401,58 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
 
 
 class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
-    def test_should_exclude_victim_corporation_1(self):
+    def test_should_accept_with_require_attacker_alliances(self):
+        attacker = KillmailAttackerFactory(alliance_id=3011)
+        killmail = KillmailFactory(attackers=[attacker])
+        tracker = TrackerFactory(webhook=self.webhook_1)
+        tracker.require_attacker_alliances.add(
+            EveAllianceInfo.objects.get(alliance_id=3011)
+        )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNotNone(result)
+
+    def test_should_deny_with_require_attacker_alliances(self):
+        attacker = KillmailAttackerFactory(alliance_id=3010)
+        killmail = KillmailFactory(attackers=[attacker])
+        tracker = TrackerFactory(webhook=self.webhook_1)
+        tracker.require_attacker_alliances.add(
+            EveAllianceInfo.objects.get(alliance_id=3011)
+        )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNone(result)
+
+    def test_should_accept_with_require_attacker_corporations(self):
+        attacker = KillmailAttackerFactory(corporation_id=2011)
+        killmail = KillmailFactory(attackers=[attacker])
+        tracker = TrackerFactory(webhook=self.webhook_1)
+        tracker.require_attacker_corporations.add(
+            EveCorporationInfo.objects.get(corporation_id=2011)
+        )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNotNone(result)
+
+    def test_should_deny_with_require_attacker_corporations(self):
+        attacker = KillmailAttackerFactory(alliance_id=2010)
+        killmail = KillmailFactory(attackers=[attacker])
+        tracker = TrackerFactory(webhook=self.webhook_1)
+        tracker.require_attacker_corporations.add(
+            EveCorporationInfo.objects.get(corporation_id=2011)
+        )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNone(result)
+
+    def test_should_deny_with_exclude_victim_corporation(self):
         victim = KillmailVictimFactory(corporation_id=2001)
         killmail = KillmailFactory(victim=victim)
-        tracker = TrackerFactory()
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.exclude_victim_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
@@ -413,10 +461,10 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         # then
         self.assertIsNone(result)
 
-    def test_should_exclude_victim_corporation_2(self):
+    def test_should_accept_with_exclude_victim_corporation(self):
         victim = KillmailVictimFactory(corporation_id=2002)
         killmail = KillmailFactory(victim=victim)
-        tracker = TrackerFactory()
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.exclude_victim_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )
@@ -425,10 +473,10 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         # then
         self.assertIsNotNone(result)
 
-    def test_should_exclude_victim_alliance_1(self):
+    def test_should_deny_with_exclude_victim_alliance(self):
         victim = KillmailVictimFactory(alliance_id=3001)
         killmail = KillmailFactory(victim=victim)
-        tracker = TrackerFactory()
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.exclude_victim_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
@@ -437,10 +485,10 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         # then
         self.assertIsNone(result)
 
-    def test_should_exclude_victim_alliance_2(self):
+    def test_should_accept_with_exclude_victim_alliance(self):
         victim = KillmailVictimFactory(alliance_id=3002)
         killmail = KillmailFactory(victim=victim)
-        tracker = TrackerFactory()
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.exclude_victim_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
         )
@@ -449,10 +497,12 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         # then
         self.assertIsNotNone(result)
 
-    def test_should_require_attacker_organizations_final_blow_1(self):
+    def test_should_accept_when_attacker_alliance_has_final_blow(self):
         attacker = KillmailAttackerFactory(alliance_id=3011, is_final_blow=True)
         killmail = KillmailFactory(attackers=[attacker])
-        tracker = TrackerFactory(require_attacker_organizations_final_blow=True)
+        tracker = TrackerFactory(
+            require_attacker_organizations_final_blow=True, webhook=self.webhook_1
+        )
         tracker.require_attacker_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3011)
         )
@@ -461,12 +511,29 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         # then
         self.assertIsNotNone(result)
 
-    def test_should_require_attacker_organizations_final_blow_2(self):
-        attacker = KillmailAttackerFactory(alliance_id=3011, is_final_blow=False)
+    def test_should_accept_when_attacker_corporation_has_final_blow(self):
+        attacker = KillmailAttackerFactory(corporation_id=2011, is_final_blow=True)
         killmail = KillmailFactory(attackers=[attacker])
-        tracker = TrackerFactory(require_attacker_organizations_final_blow=True)
-        tracker.require_attacker_alliances.add(
-            EveAllianceInfo.objects.get(alliance_id=3011)
+        tracker = TrackerFactory(
+            require_attacker_organizations_final_blow=True, webhook=self.webhook_1
+        )
+        tracker.require_attacker_corporations.add(
+            EveCorporationInfo.objects.get(corporation_id=2011)
+        )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNotNone(result)
+
+    def test_should_deny_when_attacker_corporation_has_not_has_final_blow(self):
+        attacker_1 = KillmailAttackerFactory(corporation_id=2011, is_final_blow=False)
+        attacker_2 = KillmailAttackerFactory(corporation_id=2001, is_final_blow=True)
+        killmail = KillmailFactory(attackers=[attacker_1, attacker_2])
+        tracker = TrackerFactory(
+            require_attacker_organizations_final_blow=True, webhook=self.webhook_1
+        )
+        tracker.require_attacker_corporations.add(
+            EveCorporationInfo.objects.get(corporation_id=2011)
         )
         # when
         result = tracker.process_killmail(killmail)
