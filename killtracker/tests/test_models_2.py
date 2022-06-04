@@ -16,11 +16,11 @@ from eveuniverse.models import (
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi_testing import BravadoOperationStub
 from app_utils.testing import NoSocketsTestCase, add_character_to_user_2
 
 from ..core.killmails import EntityCount, Killmail
 from ..models import Tracker
-from . import BravadoOperationStub
 from .testdata.factories import (
     KillmailAttackerFactory,
     KillmailFactory,
