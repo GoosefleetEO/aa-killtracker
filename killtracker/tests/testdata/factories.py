@@ -5,6 +5,7 @@ import factory.fuzzy
 
 from django.utils.timezone import now
 
+from killtracker.app_settings import KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
 from killtracker.core.killmails import (
     Killmail,
     KillmailAttacker,
@@ -14,6 +15,10 @@ from killtracker.core.killmails import (
     _KillmailCharacter,
 )
 from killtracker.models import Tracker, Webhook
+
+from .load_eveuniverse import eveuniverse_testdata
+
+_SOLAR_SYSTEM_IDS = {obj["id"] for obj in eveuniverse_testdata["EveSolarSystem"]}
 
 
 class KillmailCharacterFactory(factory.Factory):
@@ -69,12 +74,21 @@ class KillmailFactory(factory.Factory):
     class Meta:
         model = Killmail
 
+    class Params:
+        # max age of a killmail in seconds
+        max_age = KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
+
     id = factory.Sequence(lambda n: n + 1800000000001)
-    time = factory.fuzzy.FuzzyDateTime(now() - dt.timedelta(hours=1))
     victim = factory.SubFactory(KillmailVictimFactory)
     position = factory.SubFactory(KillmailPositionFactory)
     zkb = factory.SubFactory(KillmailZkbFactory)
-    solar_system_id = 30003067  # Huola
+    solar_system_id = factory.fuzzy.FuzzyChoice(_SOLAR_SYSTEM_IDS)
+
+    @factory.lazy_attribute
+    def time(self):
+        return factory.fuzzy.FuzzyDateTime(
+            now() - dt.timedelta(seconds=self.max_age - 5)
+        ).fuzz()
 
     @factory.lazy_attribute
     def attackers(self):

@@ -774,16 +774,20 @@ class Tracker(models.Model):
     def process_killmail(
         self, killmail: Killmail, ignore_max_age: bool = False
     ) -> Optional[Killmail]:
-        """runs tracker on given killmail
+        """Run tracker on a killmail and see if it matches
 
-        returns new killmail amended with tracker info if killmail matches
-        else returns None
+        Args:
+        - killmail: Killmail to process
+        - ignore_max_age: Wheter to discord killmails that are older then the defiend threshold
+
+        Returns:
+        - Copy of killmail with added tracker info if it matches or None if there is no match
         """
         threshold_date = now() - timedelta(
             minutes=KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER
         )
         if not ignore_max_age and killmail.time < threshold_date:
-            return False
+            return None
 
         # pre-calculate shared information
         solar_system = None
@@ -1027,8 +1031,7 @@ class Tracker(models.Model):
                 matching_ship_type_ids=matching_ship_type_ids,
             )
             return killmail_new
-        else:
-            return None
+        return None
 
     @classmethod
     def _killmail_main_attacker_org(cls, killmail) -> Optional[EntityCount]:
