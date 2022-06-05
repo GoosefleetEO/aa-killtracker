@@ -435,7 +435,7 @@ class Tracker(models.Model):
 
     name = models.CharField(
         max_length=100,
-        help_text="name to identify tracker. Will be shown on alerts posts.",
+        help_text="Name to identify tracker. Will be shown on alerts posts.",
         unique=True,
     )
     description = models.TextField(
@@ -450,7 +450,7 @@ class Tracker(models.Model):
         blank=True,
         help_text=(
             "Optional color for embed on Discord - #000000 / "
-            "black means no color selected"
+            "black means no color selected."
         ),
     )
     origin_solar_system = models.ForeignKey(
@@ -462,7 +462,7 @@ class Tracker(models.Model):
         related_name="+",
         help_text=(
             "Solar system to calculate distance and jumps from. "
-            "When provided distance and jumps will be shown on killmail messages"
+            "When provided distance and jumps will be shown on killmail messages."
         ),
     )
     require_max_jumps = models.PositiveIntegerField(
@@ -470,7 +470,7 @@ class Tracker(models.Model):
         null=True,
         blank=True,
         help_text=(
-            "Require all killmails to be max x jumps away from origin solar system"
+            "Require all killmails to be max x jumps away from origin solar system."
         ),
     )
     require_max_distance = models.FloatField(
@@ -478,7 +478,7 @@ class Tracker(models.Model):
         null=True,
         blank=True,
         help_text=(
-            "Require all killmails to be max x LY away from origin solar system"
+            "Require all killmails to be max x LY away from origin solar system."
         ),
     )
     exclude_attacker_alliances = models.ManyToManyField(
@@ -486,28 +486,40 @@ class Tracker(models.Model):
         related_name="+",
         default=None,
         blank=True,
-        help_text="exclude killmails with attackers from one of these alliances",
+        help_text="Exclude killmails with attackers from one of these alliances. ",
     )
     require_attacker_alliances = models.ManyToManyField(
         EveAllianceInfo,
         related_name="+",
         default=None,
         blank=True,
-        help_text="only include killmails with attackers from one of these alliances",
+        help_text="Only include killmails with attackers from one of these alliances. ",
     )
     exclude_attacker_corporations = models.ManyToManyField(
         EveCorporationInfo,
         related_name="+",
         default=None,
         blank=True,
-        help_text="exclude killmails with attackers from one of these corporations",
+        help_text="Exclude killmails with attackers from one of these corporations. ",
     )
     require_attacker_corporations = models.ManyToManyField(
         EveCorporationInfo,
         related_name="+",
         default=None,
         blank=True,
-        help_text="only include killmails with attackers from one of these corporations",
+        help_text=(
+            "Only include killmails with attackers from one of these corporations. "
+        ),
+    )
+    require_attacker_organizations_final_blow = models.BooleanField(
+        default=False,
+        blank=True,
+        help_text=(
+            "Only include killmails where at least one of the specified "
+            "<b>required attacker corporations</b> or "
+            "<b>required attacker alliances</b> "
+            "has the final blow."
+        ),
     )
     exclude_attacker_states = models.ManyToManyField(
         State,
@@ -515,8 +527,8 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "exclude killmails with characters belonging "
-            "to users with these Auth states"
+            "Exclude killmails with characters belonging "
+            "to users with these Auth states. "
         ),
     )
     require_attacker_states = models.ManyToManyField(
@@ -525,8 +537,8 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "only include killmails with characters belonging "
-            "to users with these Auth states"
+            "Only include killmails with characters belonging "
+            "to users with these Auth states. "
         ),
     )
     require_victim_alliances = models.ManyToManyField(
@@ -535,7 +547,17 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "only include killmails where the victim belongs to one of these alliances"
+            "Only include killmails where the victim belongs "
+            "to one of these alliances. "
+        ),
+    )
+    exclude_victim_alliances = models.ManyToManyField(
+        EveAllianceInfo,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "Exclude killmails where the victim belongs to one of these alliances. "
         ),
     )
     require_victim_corporations = models.ManyToManyField(
@@ -544,8 +566,17 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "only include killmails where the victim belongs "
-            "to one of these corporations"
+            "Only include killmails where the victim belongs "
+            "to one of these corporations. "
+        ),
+    )
+    exclude_victim_corporations = models.ManyToManyField(
+        EveCorporationInfo,
+        related_name="+",
+        default=None,
+        blank=True,
+        help_text=(
+            "Exclude killmails where the victim belongs to one of these corporations. "
         ),
     )
     require_victim_states = models.ManyToManyField(
@@ -554,78 +585,81 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "only include killmails where the victim characters belong "
-            "to users with these Auth states"
+            "Only include killmails where the victim characters belong "
+            "to users with these Auth states. "
         ),
     )
     identify_fleets = models.BooleanField(
         default=False,
-        help_text="when true: kills are interpreted and shown as fleet kills",
+        help_text="When true: kills are interpreted and shown as fleet kills.",
     )
     exclude_blue_attackers = models.BooleanField(
         default=False,
-        help_text=("exclude killmails with blue attackers"),
+        help_text="Exclude killmails with blue attackers.",
     )
     require_blue_victim = models.BooleanField(
         default=False,
         help_text=(
-            "only include killmails where the victim has standing with our group"
+            "Only include killmails where the victim has standing with our group."
         ),
     )
     require_min_attackers = models.PositiveIntegerField(
         default=None,
         null=True,
         blank=True,
-        help_text="Require killmails to have at least given number of attackers",
+        help_text="Require killmails to have at least given number of attackers.",
     )
     require_max_attackers = models.PositiveIntegerField(
         default=None,
         null=True,
         blank=True,
-        help_text="Require killmails to have no more than max number of attackers",
+        help_text="Require killmails to have no more than max number of attackers.",
     )
     exclude_high_sec = models.BooleanField(
         default=False,
         help_text=(
-            "exclude killmails from high sec. "
+            "Exclude killmails from high sec. "
             "Also exclude high sec systems in route finder for jumps from origin."
         ),
     )
     exclude_low_sec = models.BooleanField(
-        default=False, help_text="exclude killmails from low sec"
+        default=False, help_text="Exclude killmails from low sec."
     )
     exclude_null_sec = models.BooleanField(
-        default=False, help_text="exclude killmails from null sec"
+        default=False, help_text="Exclude killmails from null sec."
     )
     exclude_w_space = models.BooleanField(
-        default=False, help_text="exclude killmails from WH space"
+        default=False, help_text="Exclude killmails from WH space."
     )
     require_regions = models.ManyToManyField(
         EveRegion,
         default=None,
         blank=True,
         related_name="+",
-        help_text=("Only include killmails that occurred in one of these regions"),
+        help_text="Only include killmails that occurred in one of these regions. ",
     )
     require_constellations = models.ManyToManyField(
         EveConstellation,
         default=None,
         blank=True,
         related_name="+",
-        help_text=("Only include killmails that occurred in one of these regions"),
+        help_text="Only include killmails that occurred in one of these regions. ",
     )
     require_solar_systems = models.ManyToManyField(
         EveSolarSystem,
         default=None,
         blank=True,
         related_name="+",
-        help_text=("Only include killmails that occurred in one of these regions"),
+        help_text="Only include killmails that occurred in one of these regions. ",
     )
     require_min_value = models.PositiveIntegerField(
         default=None,
         null=True,
         blank=True,
-        help_text="Require killmail's value to be greater or equal to the given value in M ISK",
+        help_text=(
+            "Require killmail's value to be greater "
+            "or equal to the given value in M ISK."
+        ),
     )
     require_attackers_ship_groups = models.ManyToManyField(
         EveGroup,
@@ -634,7 +668,7 @@ class Tracker(models.Model):
         blank=True,
         help_text=(
             "Only include killmails where at least one attacker "
-            "is flying one of these ship groups"
+            "is flying one of these ship groups. "
         ),
     )
     require_attackers_ship_types = models.ManyToManyField(
@@ -644,7 +678,7 @@ class Tracker(models.Model):
         blank=True,
         help_text=(
             "Only include killmails where at least one attacker "
-            "is flying one of these ship types"
+            "is flying one of these ship types. "
         ),
     )
     require_victim_ship_groups = models.ManyToManyField(
@@ -653,7 +687,7 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "Only include killmails where victim is flying one of these ship groups"
+            "Only include killmails where victim is flying one of these ship groups. "
         ),
     )
     require_victim_ship_types = models.ManyToManyField(
@@ -662,26 +696,26 @@ class Tracker(models.Model):
         default=None,
         blank=True,
         help_text=(
-            "Only include killmails where victim is flying one of these ship types"
+            "Only include killmails where victim is flying one of these ship types. "
         ),
     )
     exclude_npc_kills = models.BooleanField(
-        default=False, help_text="exclude npc kills"
+        default=False, help_text="Exclude npc kills."
     )
     require_npc_kills = models.BooleanField(
-        default=False, help_text="only include killmails that are npc kills"
+        default=False, help_text="Only include killmails that are npc kills."
     )
     webhook = models.ForeignKey(
         Webhook,
         on_delete=models.CASCADE,
-        help_text="Webhook URL for a channel on Discord to sent all alerts to",
+        help_text="Webhook URL for a channel on Discord to sent all alerts to.",
     )
     ping_type = models.CharField(
         max_length=2,
         choices=ChannelPingType.choices,
         default=ChannelPingType.NONE,
         verbose_name="channel pings",
-        help_text="Option to ping every member of the channel",
+        help_text="Option to ping every member of the channel.",
     )
     ping_groups = models.ManyToManyField(
         Group,
@@ -689,15 +723,15 @@ class Tracker(models.Model):
         blank=True,
         verbose_name="group pings",
         related_name="+",
-        help_text="Option to ping specific group members - ",
+        help_text="Option to ping specific group members. ",
     )
     is_posting_name = models.BooleanField(
-        default=True, help_text="whether posted messages include the tracker's name"
+        default=True, help_text="Whether posted messages include the tracker's name."
     )
     is_enabled = models.BooleanField(
         default=True,
         db_index=True,
-        help_text="toogle for activating or deactivating a tracker",
+        help_text="Toogle for activating or deactivating a tracker.",
     )
 
     objects = TrackerManager()
@@ -849,28 +883,55 @@ class Tracker(models.Model):
                     alliance_id__in=killmail.attackers_distinct_alliance_ids()
                 ).exists()
 
-            if is_matching and self.require_attacker_alliances.exists():
-                is_matching = self.require_attacker_alliances.filter(
-                    alliance_id__in=killmail.attackers_distinct_alliance_ids()
-                ).exists()
-
             if is_matching and self.exclude_attacker_corporations.exists():
                 is_matching = self.exclude_attacker_corporations.exclude(
                     corporation_id__in=killmail.attackers_distinct_corporation_ids()
                 ).exists()
 
-            if is_matching and self.require_attacker_corporations.exists():
-                is_matching = self.require_attacker_corporations.filter(
-                    corporation_id__in=killmail.attackers_distinct_corporation_ids()
-                ).exists()
+            if is_matching:
+                if self.require_attacker_organizations_final_blow:
+                    attacker_final_blow = killmail.attacker_final_blow()
+                    is_matching = bool(attacker_final_blow) and (
+                        (
+                            bool(attacker_final_blow.alliance_id)
+                            and self.require_attacker_alliances.filter(
+                                alliance_id=attacker_final_blow.alliance_id
+                            ).exists()
+                        )
+                        | (
+                            bool(attacker_final_blow.corporation_id)
+                            and self.require_attacker_corporations.filter(
+                                corporation_id=attacker_final_blow.corporation_id
+                            ).exists()
+                        )
+                    )
+                else:
+                    if is_matching and self.require_attacker_alliances.exists():
+                        is_matching = self.require_attacker_alliances.filter(
+                            alliance_id__in=killmail.attackers_distinct_alliance_ids()
+                        ).exists()
+                    if is_matching and self.require_attacker_corporations.exists():
+                        is_matching = self.require_attacker_corporations.filter(
+                            corporation_id__in=killmail.attackers_distinct_corporation_ids()
+                        ).exists()
 
             if is_matching and self.require_victim_alliances.exists():
                 is_matching = self.require_victim_alliances.filter(
                     alliance_id=killmail.victim.alliance_id
                 ).exists()
 
+            if is_matching and self.exclude_victim_alliances.exists():
+                is_matching = self.exclude_victim_alliances.exclude(
+                    alliance_id=killmail.victim.alliance_id
+                ).exists()
+
             if is_matching and self.require_victim_corporations.exists():
                 is_matching = self.require_victim_corporations.filter(
+                    corporation_id=killmail.victim.corporation_id
+                ).exists()
+
+            if is_matching and self.exclude_victim_corporations.exists():
+                is_matching = self.exclude_victim_corporations.exclude(
                     corporation_id=killmail.victim.corporation_id
                 ).exists()
 

@@ -24,7 +24,6 @@ class TrackerAdminForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-
         if (
             cleaned_data["require_max_jumps"]
             and not cleaned_data["origin_solar_system"]
@@ -56,10 +55,23 @@ class TrackerAdminForm(forms.ModelForm):
             "exclude_attacker_alliances",
             "require_attacker_alliances",
         )
+
         self._validate_not_same_options_chosen(
             cleaned_data,
             "exclude_attacker_corporations",
             "require_attacker_corporations",
+        )
+
+        self._validate_not_same_options_chosen(
+            cleaned_data,
+            "exclude_victim_corporations",
+            "require_victim_corporations",
+        )
+
+        self._validate_not_same_options_chosen(
+            cleaned_data,
+            "exclude_victim_alliances",
+            "require_victim_alliances",
         )
 
         if (
@@ -73,6 +85,19 @@ class TrackerAdminForm(forms.ModelForm):
                     "require_min_attackers": _(
                         "Can not be larger than "
                         f"{field_nice_display('require_max_attackers')}"
+                    )
+                }
+            )
+
+        if cleaned_data["require_attacker_organizations_final_blow"] and not (
+            cleaned_data["require_attacker_alliances"]
+            or cleaned_data["require_attacker_corporations"]
+        ):
+            raise ValidationError(
+                {
+                    "require_attacker_organizations_final_blow": _(
+                        "You need to also require an attacker alliance "
+                        "or attacker corporation."
                     )
                 }
             )
