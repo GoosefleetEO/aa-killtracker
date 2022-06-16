@@ -9,13 +9,7 @@ from eveuniverse.models import EveGroup, EveType
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
 from . import tasks
-from .constants import (
-    EVE_CATEGORY_ID_FIGHTER,
-    EVE_CATEGORY_ID_SHIP,
-    EVE_CATEGORY_ID_STRUCTURE,
-    EVE_GROUP_MINING_DRONE,
-    EVE_GROUP_ORBITAL_INFRASTRUCTURE,
-)
+from .constants import EveCatagoryId, EveGroupId
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
 from .models import Tracker, Webhook
@@ -363,9 +357,9 @@ class TrackerAdmin(admin.ModelAdmin):
         elif db_field.name == "require_attackers_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
                 eve_category_id__in=[
-                    EVE_CATEGORY_ID_STRUCTURE,
-                    EVE_CATEGORY_ID_SHIP,
-                    EVE_CATEGORY_ID_FIGHTER,
+                    EveCatagoryId.STRUCTURE,
+                    EveCatagoryId.SHIP,
+                    EveCatagoryId.FIGHTER,
                 ],
                 published=True,
             ).order_by(Lower("name"))
@@ -374,24 +368,24 @@ class TrackerAdmin(admin.ModelAdmin):
                 (
                     Q(
                         eve_category_id__in=[
-                            EVE_CATEGORY_ID_STRUCTURE,
-                            EVE_CATEGORY_ID_SHIP,
-                            EVE_CATEGORY_ID_FIGHTER,
+                            EveCatagoryId.STRUCTURE,
+                            EveCatagoryId.SHIP,
+                            EveCatagoryId.FIGHTER,
                         ]
                     )
                     & Q(published=True)
                 )
-                | (Q(id=EVE_GROUP_MINING_DRONE) & Q(published=True))
-                | Q(id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
+                | (Q(id=EveGroupId.MINING_DRONE) & Q(published=True))
+                | Q(id=EveGroupId.ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
         elif db_field.name == "require_attackers_ship_types":
             kwargs["queryset"] = (
                 EveType.objects.select_related("eve_group")
                 .filter(
                     eve_group__eve_category_id__in=[
-                        EVE_CATEGORY_ID_STRUCTURE,
-                        EVE_CATEGORY_ID_SHIP,
-                        EVE_CATEGORY_ID_FIGHTER,
+                        EveCatagoryId.STRUCTURE,
+                        EveCatagoryId.SHIP,
+                        EveCatagoryId.FIGHTER,
                     ],
                     published=True,
                 )
@@ -404,15 +398,15 @@ class TrackerAdmin(admin.ModelAdmin):
                     (
                         Q(
                             eve_group__eve_category_id__in=[
-                                EVE_CATEGORY_ID_STRUCTURE,
-                                EVE_CATEGORY_ID_SHIP,
-                                EVE_CATEGORY_ID_FIGHTER,
+                                EveCatagoryId.STRUCTURE,
+                                EveCatagoryId.SHIP,
+                                EveCatagoryId.FIGHTER,
                             ]
                         )
                         & Q(published=True)
                     )
-                    | (Q(eve_group_id=EVE_GROUP_MINING_DRONE) & Q(published=True))
-                    | Q(eve_group_id=EVE_GROUP_ORBITAL_INFRASTRUCTURE)
+                    | (Q(eve_group_id=EveGroupId.MINING_DRONE) & Q(published=True))
+                    | Q(eve_group_id=EveGroupId.ORBITAL_INFRASTRUCTURE)
                 )
                 .order_by(Lower("name"))
             )

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.6.1] - 2022-06-16
+
+### Changed
+
+- Delivery to PyPI also as wheel
+
+### Fixed
+
+- Killtracker can no longer acquire a lock to fetch killmails from RedisQ when the lock key was not cleaned up on Redis
+
 ## [0.6.0] - 2022-06-05
 
 ### Added
