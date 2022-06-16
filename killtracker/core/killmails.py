@@ -7,6 +7,7 @@ import requests
 from dacite import DaciteError, from_dict
 from redis.exceptions import LockError
 
+from django.conf import settings
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
@@ -207,9 +208,10 @@ class Killmail(_KillmailBase):
         """
         logger.info("Trying to fetch killmail from ZKB RedisQ...")
         redis = get_redis_client()
-        lock_key = f"{__title__.upper()}_REDISQ_LOCK"
         try:
-            with redis.lock(lock_key, blocking_timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT):
+            with redis.lock(
+                cls.lock_key(), blocking_timeout=KILLTRACKER_REDISQ_LOCK_TIMEOUT
+            ):
                 r = requests.get(
                     ZKB_REDISQ_URL,
                     params={"ttw": KILLTRACKER_REDISQ_TTW},
@@ -217,7 +219,10 @@ class Killmail(_KillmailBase):
                     headers={"User-Agent": USER_AGENT_TEXT},
                 )
         except LockError:
-            logger.warning("Failed to acquire lock for atomic access to RedisQ.")
+            logger.warning(
+                "Failed to acquire lock for atomic access to RedisQ.",
+                exc_info=settings.DEBUG,  # provide details in DEBUG mode
+            )
             return None
 
         if r.status_code == cls.HTTP_TOO_MANY_REQUESTS:
@@ -378,3 +383,20 @@ class Killmail(_KillmailBase):
             killmail = Killmail(**args)
 
         return killmail
+
+    @staticmethod
+    def lock_key() -> str:
+        """Key used for lock operation on Redis."""
+        return f"{__title__.upper()}_REDISQ_LOCK"
+
+    @classmethod
+    def reset_lock_key(cls):
+        """Delete lock key if it exists.
+
+        It can happen that a lock key is not cleaned up
+        and then prevents this class from ever acquireing a lock again.
+        To prevent this we are deleting the lock key at system start.
+        """
+        redis = get_redis_client()
+        if redis.delete(cls.lock_key()) > 0:
+            logger.warning("A stuck lock key was cleared.")
