@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Delivery to PyPI also as wheel
+
 ## [0.6.0] - 2022-06-05
 
 ### Added
