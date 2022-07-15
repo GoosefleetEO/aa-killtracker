@@ -6,6 +6,7 @@ from typing import List, Optional, Set
 import requests
 from dacite import DaciteError, from_dict
 from redis.exceptions import LockError
+from simplejson.errors import JSONDecodeError
 
 from django.conf import settings
 from django.core.cache import cache
@@ -231,10 +232,8 @@ class Killmail(_KillmailBase):
         r.raise_for_status()
         try:
             data = r.json()
-        except Exception:
-            logger.warning(
-                "ZKB did not return JSON as was expected: %s", r.text, exc_info=True
-            )
+        except JSONDecodeError:
+            logger.error("Error from ZKB API:\n%s", r.text)
             return None
         if data:
             logger.debug("data:\n%s", data)
