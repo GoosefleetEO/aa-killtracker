@@ -326,7 +326,7 @@ class TrackerAdmin(admin.ModelAdmin):
         form = TrackerAdminKillmailIdForm(initial=initial)
         return render(
             request,
-            "admin/killtracker_killmail_id.html",
+            "admin/killtracker/tracker/killmail_test.html",
             {
                 "form": form,
                 "title": "Load Test Killmail for Tracker",
