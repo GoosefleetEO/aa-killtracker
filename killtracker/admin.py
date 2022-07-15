@@ -9,7 +9,7 @@ from eveuniverse.models import EveGroup, EveType
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
 from . import tasks
-from .constants import EveCatagoryId, EveGroupId
+from .constants import SESSION_KEY_TOOGLE_NPC, EveCategoryId, EveGroupId
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
 from .models import Tracker, Webhook
@@ -355,22 +355,25 @@ class TrackerAdmin(admin.ModelAdmin):
                 Lower("corporation_name")
             )
         elif db_field.name == "require_attackers_ship_groups":
-            kwargs["queryset"] = EveGroup.objects.filter(
+            qs = EveGroup.objects.filter(
                 eve_category_id__in=[
-                    EveCatagoryId.STRUCTURE,
-                    EveCatagoryId.SHIP,
-                    EveCatagoryId.FIGHTER,
+                    EveCategoryId.STRUCTURE,
+                    EveCategoryId.SHIP,
+                    EveCategoryId.FIGHTER,
                 ],
                 published=True,
-            ).order_by(Lower("name"))
+            )
+            if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
+                qs = qs | EveGroup.objects.filter(eve_category_id=EveCategoryId.ENTITY)
+            kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
                 (
                     Q(
                         eve_category_id__in=[
-                            EveCatagoryId.STRUCTURE,
-                            EveCatagoryId.SHIP,
-                            EveCatagoryId.FIGHTER,
+                            EveCategoryId.STRUCTURE,
+                            EveCategoryId.SHIP,
+                            EveCategoryId.FIGHTER,
                         ]
                     )
                     & Q(published=True)
@@ -379,35 +382,32 @@ class TrackerAdmin(admin.ModelAdmin):
                 | Q(id=EveGroupId.ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
         elif db_field.name == "require_attackers_ship_types":
-            kwargs["queryset"] = (
-                EveType.objects.select_related("eve_group")
-                .filter(
-                    eve_group__eve_category_id__in=[
-                        EveCatagoryId.STRUCTURE,
-                        EveCatagoryId.SHIP,
-                        EveCatagoryId.FIGHTER,
-                    ],
-                    published=True,
-                )
-                .order_by(Lower("name"))
+            qs = EveType.objects.filter(
+                eve_group__eve_category_id__in=[
+                    EveCategoryId.STRUCTURE,
+                    EveCategoryId.SHIP,
+                    EveCategoryId.FIGHTER,
+                ],
+                published=True,
             )
+            if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
+                qs = qs | EveType.objects.filter(
+                    eve_group__eve_category_id=EveCategoryId.ENTITY
+                )
+            kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_types":
-            kwargs["queryset"] = (
-                EveType.objects.select_related("eve_group")
-                .filter(
-                    (
-                        Q(
-                            eve_group__eve_category_id__in=[
-                                EveCatagoryId.STRUCTURE,
-                                EveCatagoryId.SHIP,
-                                EveCatagoryId.FIGHTER,
-                            ]
-                        )
-                        & Q(published=True)
+            kwargs["queryset"] = EveType.objects.filter(
+                (
+                    Q(
+                        eve_group__eve_category_id__in=[
+                            EveCategoryId.STRUCTURE,
+                            EveCategoryId.SHIP,
+                            EveCategoryId.FIGHTER,
+                        ]
                     )
-                    | (Q(eve_group_id=EveGroupId.MINING_DRONE) & Q(published=True))
-                    | Q(eve_group_id=EveGroupId.ORBITAL_INFRASTRUCTURE)
+                    & Q(published=True)
                 )
-                .order_by(Lower("name"))
-            )
+                | (Q(eve_group_id=EveGroupId.MINING_DRONE) & Q(published=True))
+                | Q(eve_group_id=EveGroupId.ORBITAL_INFRASTRUCTURE)
+            ).order_by(Lower("name"))
         return super().formfield_for_manytomany(db_field, request, **kwargs)

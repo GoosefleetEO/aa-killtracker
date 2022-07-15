@@ -1,14 +1,10 @@
 from enum import IntEnum
 
-# Eve IDs
-EVE_CATEGORY_ID_SHIP = 6
-EVE_CATEGORY_ID_STRUCTURE = 65
-EVE_CATEGORY_ID_FIGHTER = 87
-EVE_GROUP_MINING_DRONE = 101
-EVE_GROUP_ORBITAL_INFRASTRUCTURE = 1025
+SESSION_KEY_TOOGLE_NPC = "killtracker_toogle_npc"
 
 
-class EveCatagoryId(IntEnum):
+class EveCategoryId(IntEnum):
+    ENTITY = 11
     FIGHTER = 87
     SHIP = 6
     STRUCTURE = 65
