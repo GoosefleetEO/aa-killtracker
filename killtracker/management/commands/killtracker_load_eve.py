@@ -19,6 +19,8 @@ class Command(BaseCommand):
             "eveuniverse_load_types",
             __title__,
             "--category_id",
+            str(EveCategoryId.ENTITY.value),
+            "--category_id",
             str(EveCategoryId.SHIP.value),
             "--category_id",
             str(EveCategoryId.STRUCTURE.value),

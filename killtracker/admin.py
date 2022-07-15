@@ -4,7 +4,7 @@ from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.safestring import mark_safe
-from eveuniverse.models import EveGroup, EveType
+from eveuniverse.models import EveGroup
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
@@ -12,7 +12,7 @@ from . import tasks
 from .constants import SESSION_KEY_TOOGLE_NPC, EveCategoryId, EveGroupId
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
-from .models import Tracker, Webhook
+from .models import EveTypePlus, Tracker, Webhook
 
 
 @admin.register(Webhook)
@@ -364,7 +364,16 @@ class TrackerAdmin(admin.ModelAdmin):
                 published=True,
             )
             if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
-                qs = qs | EveGroup.objects.filter(eve_category_id=EveCategoryId.ENTITY)
+                qs = (
+                    qs
+                    | EveGroup.objects.filter(
+                        eve_category_id=EveCategoryId.ENTITY
+                    ).filter(
+                        eve_types__mass__gt=0,
+                        eve_types__volume__gt=0,
+                        eve_types__capacity__gt=0,
+                    )
+                ).distinct()
             kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_groups":
             kwargs["queryset"] = EveGroup.objects.filter(
@@ -382,7 +391,7 @@ class TrackerAdmin(admin.ModelAdmin):
                 | Q(id=EveGroupId.ORBITAL_INFRASTRUCTURE)
             ).order_by(Lower("name"))
         elif db_field.name == "require_attackers_ship_types":
-            qs = EveType.objects.filter(
+            qs = EveTypePlus.objects.filter(
                 eve_group__eve_category_id__in=[
                     EveCategoryId.STRUCTURE,
                     EveCategoryId.SHIP,
@@ -391,12 +400,15 @@ class TrackerAdmin(admin.ModelAdmin):
                 published=True,
             )
             if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
-                qs = qs | EveType.objects.filter(
-                    eve_group__eve_category_id=EveCategoryId.ENTITY
+                qs = qs | EveTypePlus.objects.filter(
+                    eve_group__eve_category_id=EveCategoryId.ENTITY,
+                    mass__gt=0,
+                    volume__gt=0,
+                    capacity__gt=0,
                 )
             kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_types":
-            kwargs["queryset"] = EveType.objects.filter(
+            kwargs["queryset"] = EveTypePlus.objects.filter(
                 (
                     Q(
                         eve_group__eve_category_id__in=[

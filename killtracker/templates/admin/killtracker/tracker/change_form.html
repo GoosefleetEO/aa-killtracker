@@ -5,11 +5,14 @@
 {% block object-tools-items %}
 {{ block.super }}
     <li>
-        <a href="{% url 'killtracker:admin_killtracker_toogle_npc' object_id %}" class="btn btn-high">
+        <a
+            href="{% url 'killtracker:admin_killtracker_toogle_npc' object_id %}"
+            class="btn btn-high"
+            title="Click to toogle">
             {% if request.session.killtracker_toogle_npc %}
-                {% translate "NPC types enabled" %}
+                {% translate "NPC types: enabled" %}
             {% else %}
-                {% translate "NPC types disabled" %}
+                {% translate "NPC types: disabled" %}
             {% endif %}
         </a>
     </li>

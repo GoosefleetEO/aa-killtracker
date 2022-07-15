@@ -16,6 +16,12 @@ from .core.killmails import Killmail, _KillmailCharacter
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
+class EveTypePlusManager(models.Manager):
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.select_related("eve_group")
+
+
 class EveKillmailQuerySet(models.QuerySet):
     """Custom queryset for EveKillmail"""
 
