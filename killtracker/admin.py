@@ -227,7 +227,6 @@ class TrackerAdmin(admin.ModelAdmin):
         )
         request.session[SESSION_KEY_USES_NPC] = is_using_npc
         extra_context["is_using_npc"] = is_using_npc
-        extra_context["npc_toogle"] = request.session.get(SESSION_KEY_TOOGLE_NPC, False)
         return super().change_view(
             request, object_id, form_url, extra_context=extra_context
         )
