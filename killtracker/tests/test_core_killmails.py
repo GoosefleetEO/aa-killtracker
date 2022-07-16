@@ -100,6 +100,23 @@ class TestCreateFromZkbRedisq(NoSocketsTestCase):
         # then
         self.assertIsNone(killmail)
 
+    def test_should_return_none_when_zkb_returns_general_error(
+        self, requests_mocker, mock_redis
+    ):
+        # given
+        requests_mocker.register_uri(
+            "GET",
+            ZKB_REDISQ_URL,
+            status_code=200,
+            text="""Your IP has been banned because of excessive errors.
+
+You can only have one request to listen.php in flight at any time, otherwise you will generate a too many requests error (429). If you have too many of these errors you will be banned automatically.""",
+        )
+        # when
+        killmail = Killmail.create_from_zkb_redisq()
+        # then
+        self.assertIsNone(killmail)
+
     def test_should_return_none_when_zkb_does_not_return_json(
         self, requests_mocker, mock_redis
     ):

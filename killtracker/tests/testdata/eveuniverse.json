@@ -11,6 +11,11 @@
             "published": true
         },
         {
+            "id": 11,
+            "name": "Entity",
+            "published": false
+        },
+        {
             "id": 18,
             "name": "Drone",
             "published": true
@@ -90,6 +95,14 @@
             "position_z": 7.960999000649318e+16
         },
         {
+            "eve_region_id": 10000064,
+            "id": 20000731,
+            "name": "Vieres",
+            "position_x": -2.374094583686981e+17,
+            "position_y": 2.3582545093863256e+16,
+            "position_z": 5.899121419553204e+16
+        },
+        {
             "eve_region_id": 10000069,
             "id": 20000782,
             "name": "Okakuola",
@@ -120,16 +133,16 @@
             "station_system_count": 527
         },
         {
-            "corporation_id": 1000035,
-            "description": "FAKED",
-            "eve_solar_system_id": 30000145,
+            "corporation_id": 1000120,
+            "description": "The Gallente Federation encompasses several races, the Gallenteans the largest by far. The Federation is democratic and very liberal in a world full of dictators and oligarchies. The Caldari State was once part of the Federation, but a severe dispute resulted in their departure and a long war between the Gallente Federation and the Caldari State. The Gallenteans are the masters of pleasure and entertainment and their rich trade empire has given the world many of its most glorious and extravagant sights.  ",
+            "eve_solar_system_id": 30004993,
             "id": 500004,
             "is_unique": true,
-            "militia_corporation_id": 1000180,
-            "name": "Galente Federation",
+            "militia_corporation_id": 1000181,
+            "name": "Gallente Federation",
             "size_factor": 5.0,
-            "station_count": 1523,
-            "station_system_count": 527
+            "station_count": 1074,
+            "station_system_count": 519
         }
     ],
     "EveGroup": [
@@ -182,6 +195,12 @@
             "published": true
         },
         {
+            "eve_category_id": 11,
+            "id": 561,
+            "name": "Asteroid Guristas Cruiser",
+            "published": false
+        },
+        {
             "eve_category_id": 6,
             "id": 1305,
             "name": "Tactical Destroyer",
@@ -228,6 +247,7 @@
     ],
     "EveSolarSystem": [
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000020,
             "eve_star_id": null,
             "id": 30000145,
@@ -238,6 +258,7 @@
             "security_status": 1.0
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000169,
             "eve_star_id": null,
             "id": 30001161,
@@ -248,6 +269,7 @@
             "security_status": -0.14632222056388855
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003063,
@@ -258,6 +280,7 @@
             "security_status": 0.3552711606025696
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003064,
@@ -268,6 +291,7 @@
             "security_status": 0.4537486732006073
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003065,
@@ -278,6 +302,7 @@
             "security_status": 0.7848193645477295
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003066,
@@ -288,6 +313,7 @@
             "security_status": 0.5678633451461792
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003067,
@@ -298,6 +324,7 @@
             "security_status": 0.37024858593940735
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003068,
@@ -308,6 +335,7 @@
             "security_status": 0.3634801506996155
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000448,
             "eve_star_id": null,
             "id": 30003069,
@@ -318,6 +346,7 @@
             "security_status": 0.4408656656742096
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003070,
@@ -328,6 +357,7 @@
             "security_status": 0.4205274283885956
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003071,
@@ -338,6 +368,7 @@
             "security_status": 0.4145998954772949
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003072,
@@ -348,6 +379,7 @@
             "security_status": 0.4138185381889343
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003073,
@@ -358,6 +390,7 @@
             "security_status": 0.48395606875419617
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003074,
@@ -368,6 +401,7 @@
             "security_status": 0.5426346659660339
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003075,
@@ -378,6 +412,7 @@
             "security_status": 0.4817073345184326
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003076,
@@ -388,6 +423,7 @@
             "security_status": 0.4655892848968506
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003077,
@@ -398,6 +434,7 @@
             "security_status": 0.40233927965164185
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003078,
@@ -408,6 +445,7 @@
             "security_status": 0.5920044779777527
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000449,
             "eve_star_id": null,
             "id": 30003079,
@@ -418,6 +456,7 @@
             "security_status": 0.41249215602874756
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003080,
@@ -428,6 +467,7 @@
             "security_status": 0.8206006288528442
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003081,
@@ -438,6 +478,7 @@
             "security_status": 0.7241339087486267
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003082,
@@ -448,6 +489,7 @@
             "security_status": 0.572819709777832
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003083,
@@ -458,6 +500,7 @@
             "security_status": 0.8095908164978027
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003084,
@@ -468,6 +511,7 @@
             "security_status": 0.4744237959384918
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000450,
             "eve_star_id": null,
             "id": 30003085,
@@ -478,6 +522,7 @@
             "security_status": 0.7266675233840942
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003086,
@@ -488,6 +533,7 @@
             "security_status": 0.2798665463924408
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003087,
@@ -498,6 +544,7 @@
             "security_status": 0.2799620032310486
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003088,
@@ -508,6 +555,7 @@
             "security_status": 0.2588910460472107
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003089,
@@ -518,6 +566,7 @@
             "security_status": 0.1143735870718956
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003090,
@@ -528,6 +577,7 @@
             "security_status": 0.10473328828811646
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000451,
             "eve_star_id": null,
             "id": 30003091,
@@ -538,6 +588,7 @@
             "security_status": 0.2470819503068924
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003092,
@@ -548,6 +599,7 @@
             "security_status": 0.5567216277122498
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003093,
@@ -558,6 +610,7 @@
             "security_status": 0.44656839966773987
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003094,
@@ -568,6 +621,7 @@
             "security_status": 0.48835480213165283
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003095,
@@ -578,6 +632,7 @@
             "security_status": 0.6055033206939697
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003096,
@@ -588,6 +643,7 @@
             "security_status": 0.6191213726997375
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000452,
             "eve_star_id": null,
             "id": 30003097,
@@ -598,6 +654,7 @@
             "security_status": 0.6607545614242554
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000728,
             "eve_star_id": null,
             "id": 30004976,
@@ -608,6 +665,7 @@
             "security_status": 0.5549203753471375
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000729,
             "eve_star_id": null,
             "id": 30004984,
@@ -618,6 +676,18 @@
             "security_status": 0.28563404083251953
         },
         {
+            "enabled_sections": 0,
+            "eve_constellation_id": 20000731,
+            "eve_star_id": null,
+            "id": 30004993,
+            "name": "Villore",
+            "position_x": -2.2391125952451392e+17,
+            "position_y": 3.354453615763736e+16,
+            "position_z": 5.732981974353104e+16,
+            "security_status": 0.5065094232559204
+        },
+        {
+            "enabled_sections": 0,
             "eve_constellation_id": 20000782,
             "eve_star_id": null,
             "id": 30045349,
@@ -628,6 +698,7 @@
             "security_status": 0.22278037667274475
         },
         {
+            "enabled_sections": 0,
             "eve_constellation_id": 21000324,
             "eve_star_id": null,
             "id": 31000005,
@@ -641,6 +712,8 @@
     "EveType": [
         {
             "capacity": 150.0,
+            "description": "The Merlin is the most powerful combat frigate of the Caldari. Its role has evolved through the years, and while its defenses have always remained exceptionally strong for a Caldari vessel, its offensive capabilities have evolved from versatile, jack-of-all-trades attack patterns into focused and deadly gunfire tactics. The Merlin's primary aim is to have its turrets punch holes in opponents' hulls.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 25,
             "eve_market_group_id": null,
@@ -656,6 +729,8 @@
         },
         {
             "capacity": 450.0,
+            "description": "The Caracal is a powerful vessel that specializes in missile deployment. It has excellent shield defenses, but poor armor plating. Its missile arsenal, when fully stocked, is capable of making mincemeat of almost anyone.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 26,
             "eve_market_group_id": null,
@@ -671,6 +746,8 @@
         },
         {
             "capacity": 830.0,
+            "description": "The Raven is the powerhouse of the Caldari Navy. With its myriad launcher slots and powerful shields, few ships can rival it in strength or majesty.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 27,
             "eve_market_group_id": null,
@@ -686,6 +763,8 @@
         },
         {
             "capacity": 0.0,
+            "description": "Light Scout Drone",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 100,
             "eve_market_group_id": null,
@@ -701,6 +780,8 @@
         },
         {
             "capacity": 0.05,
+            "description": "Rocket-assisted artillery projectiles designed for long-range combat. It is the most powerful projectile weapon able to be fitted onto frigates. \r\n\r\nMust be loaded with any of the following regular and advanced projectile ammo types: Carbonized Lead, Depleted Uranium, EMP, Fusion, Nuclear, Phased Plasma, Proton, Titanium Sabot, Quake, Tremor.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 55,
             "eve_market_group_id": null,
@@ -716,6 +797,8 @@
         },
         {
             "capacity": 900.0,
+            "description": "The SoCT's Gnosis-class battlecruiser is typically used as an exploration, research or training vessel and is well equipped for such activities. It is even better prepared, however, to guard such tasks from interruption and sabotage.\r\n\r\nAlthough The Society generally frowns upon violent behavior, extreme (and often, extremely violent) methods are taken to protect its own vessels and the secrets they may carry.\r\n\r\nThis mission of acquiring, deepening and sharing knowledge is key to the philosophy of the SoCT, and one well-served by the capable and fearsome Gnosis.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 419,
             "eve_market_group_id": null,
@@ -731,6 +814,8 @@
         },
         {
             "capacity": 300.0,
+            "description": "Following in the footsteps of Caldari vessels since time immemorial, the Hawk relies on tremendously powerful shield systems to see it through combat, blending launchers and turrets to provide for a powerful, well-rounded combat vessel.\r\n\r\nDeveloper: Lai Dai\r\n\r\nLai Dai have always favored a balanced approach to their mix of on-board systems, leading to a line-up of versatile ships but providing very little in terms of tactical specialization.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 324,
             "eve_market_group_id": null,
@@ -746,6 +831,8 @@
         },
         {
             "capacity": 425.0,
+            "description": "The Cormorant is the only State-produced space vessel whose design has come from a third party. Rumors abound, of course, but the designer's identity has remained a tightly-kept secret in the State's inner circle.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 420,
             "eve_market_group_id": null,
@@ -760,7 +847,26 @@
             "volume": 52000.0
         },
         {
+            "capacity": 235.0,
+            "description": "This is a fighter for the Guristas. It is protecting the assets of Guristas and may attack anyone it perceives as a threat or easy pickings. Threat level: Deadly",
+            "enabled_sections": 0,
+            "eve_graphic_id": null,
+            "eve_group_id": 561,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 23320,
+            "mass": 10100000.0,
+            "name": "Guristas Abolisher",
+            "packaged_volume": 101000.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 150.0,
+            "volume": 101000.0
+        },
+        {
             "capacity": 430.0,
+            "description": "Released in YC 117 as the result of the first Republic Fleet joint research project to include engineers from all seven Minmatar tribes, the Svipul is a powerful symbol of inter-tribal unity for many Republic citizens.\r\n\r\nAlthough the contributions of engineers from the Nefantar and Starkmanir tribes were fairly minor, a large delegation from the Vo-Lakat Thukker caravan and donations from Republic loyalist capsuleers across the cluster were invaluable to the development of this incredibly adaptable warship.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 1305,
             "eve_market_group_id": null,
@@ -776,6 +882,8 @@
         },
         {
             "capacity": 400.0,
+            "description": "Command Destroyers represent a versatile addition to fleets of all sizes. Being the smallest and most agile platforms for Command Burst technology positions them as the premier support option for fast-moving wolf packs. Unique access to Micro Jump Field Generators also allows them to perform maneuvers that rapidly reposition other ships, be they friend or foe.",
+            "enabled_sections": 0,
             "eve_graphic_id": null,
             "eve_group_id": 1534,
             "eve_market_group_id": null,

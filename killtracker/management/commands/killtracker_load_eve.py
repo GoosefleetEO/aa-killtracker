@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from app_utils.logging import LoggerAddTag
 
 from ... import __title__
-from ...constants import EveCatagoryId, EveGroupId
+from ...constants import EveCategoryId, EveGroupId
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 
@@ -19,11 +19,13 @@ class Command(BaseCommand):
             "eveuniverse_load_types",
             __title__,
             "--category_id",
-            str(EveCatagoryId.SHIP.value),
+            str(EveCategoryId.ENTITY.value),
             "--category_id",
-            str(EveCatagoryId.STRUCTURE.value),
+            str(EveCategoryId.SHIP.value),
             "--category_id",
-            str(EveCatagoryId.FIGHTER.value),
+            str(EveCategoryId.STRUCTURE.value),
+            "--category_id",
+            str(EveCategoryId.FIGHTER.value),
             "--group_id",
             str(EveGroupId.ORBITAL_INFRASTRUCTURE.value),
             "--group_id",

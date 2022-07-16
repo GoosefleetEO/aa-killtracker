@@ -1,0 +1,16 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools %}
+    <ul class="object-tools">
+        {% if change %}
+            {% if not is_popup %}
+                {% block object-tools-items %}
+                    {{ block.super }}
+                    {% include "admin/killtracker/tracker/toogle_npc_button.html" %}
+                {% endblock %}
+            {% endif %}
+        {% else %}
+            {% include "admin/killtracker/tracker/toogle_npc_button.html" %}
+        {% endif %}
+    </ul>
+{% endblock %}

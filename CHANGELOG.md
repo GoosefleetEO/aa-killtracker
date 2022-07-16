@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.0] - 2022-07-16
+
+### Added
+
+- Ability to use NPC types and groups (e.g. Guristas Abolisher) when defining trackers
+
+### Changed
+
+- ZKB API errors are now logged as error, not warning
+
 ## [0.6.1] - 2022-06-16
 
 ### Changed

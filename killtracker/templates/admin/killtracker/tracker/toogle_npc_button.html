@@ -1,0 +1,23 @@
+{% load i18n %}
+
+<li>
+    {% if not is_using_npc %}
+        <a
+            id="toogle-npc"
+            {% if not change %}
+                href="{% url 'killtracker:admin_killtracker_toogle_npc' %}"
+            {% else %}
+                href="{% url 'killtracker:admin_killtracker_toogle_npc' object_id %}"
+            {% endif %}
+            class="btn"
+            title="Click to toogle">
+            {% if request.session.killtracker_toogle_npc %}
+                {% translate "NPC types: enabled" %}
+            {% else %}
+                {% translate "NPC types: disabled" %}
+            {% endif %}
+        </a>
+    {% else %}
+        <p class="btn">NPC types in use</p>
+    {% endif %}
+</li>

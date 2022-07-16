@@ -228,7 +228,7 @@ LOGGING = {
             "backupCount": 5,  # edit this line to change number of log backups
         },
         "console": {
-            "level": "CRITICAL",  # edit this line to change logging level to console
+            "level": "DEBUG",  # edit this line to change logging level to console
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
@@ -336,3 +336,9 @@ DEFAULT_FROM_EMAIL = ""
 #######################################
 # Add any custom settings below here. #
 #######################################
+
+LOGGING["loggers"][""] = {
+    "handlers": ["log_file", "console"],
+    "level": "DEBUG",
+    "propagate": False,
+}

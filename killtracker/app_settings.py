@@ -31,6 +31,10 @@ KILLTRACKER_STORING_KILLMAILS_ENABLED = clean_setting(
 KILLTRACKER_WEBHOOK_SET_AVATAR = clean_setting("KILLTRACKER_WEBHOOK_SET_AVATAR", True)
 
 
+# Wether NPC types (e.g. Guristas Assaulter) can be selected as attacker types
+# when creating trackers
+KILLTRACKER_SHOW_NPC_TYPES = clean_setting("KILLTRACKER_SHOW_NPC_TYPES", True)
+
 #####################
 # INTERNAL SETTINGS
 

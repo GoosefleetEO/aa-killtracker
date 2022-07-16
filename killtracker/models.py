@@ -43,9 +43,26 @@ from .app_settings import (
 )
 from .core.killmails import ZKB_KILLMAIL_BASEURL, EntityCount, Killmail, TrackerInfo
 from .exceptions import WebhookTooManyRequests
-from .managers import EveKillmailManager, TrackerManager, WebhookManager
+from .managers import (
+    EveKillmailManager,
+    EveTypePlusManager,
+    TrackerManager,
+    WebhookManager,
+)
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+class EveTypePlus(EveType):
+    """Variant to show group names with default output."""
+
+    class Meta:
+        proxy = True
+
+    objects = EveTypePlusManager()
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.eve_group})"
 
 
 class EveKillmail(models.Model):
