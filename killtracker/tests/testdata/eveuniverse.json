@@ -95,6 +95,14 @@
             "position_z": 7.960999000649318e+16
         },
         {
+            "eve_region_id": 10000064,
+            "id": 20000731,
+            "name": "Vieres",
+            "position_x": -2.374094583686981e+17,
+            "position_y": 2.3582545093863256e+16,
+            "position_z": 5.899121419553204e+16
+        },
+        {
             "eve_region_id": 10000069,
             "id": 20000782,
             "name": "Okakuola",
@@ -123,6 +131,18 @@
             "size_factor": 5.0,
             "station_count": 1523,
             "station_system_count": 527
+        },
+        {
+            "corporation_id": 1000120,
+            "description": "The Gallente Federation encompasses several races, the Gallenteans the largest by far. The Federation is democratic and very liberal in a world full of dictators and oligarchies. The Caldari State was once part of the Federation, but a severe dispute resulted in their departure and a long war between the Gallente Federation and the Caldari State. The Gallenteans are the masters of pleasure and entertainment and their rich trade empire has given the world many of its most glorious and extravagant sights.  ",
+            "eve_solar_system_id": 30004993,
+            "id": 500004,
+            "is_unique": true,
+            "militia_corporation_id": 1000181,
+            "name": "Gallente Federation",
+            "size_factor": 5.0,
+            "station_count": 1074,
+            "station_system_count": 519
         }
     ],
     "EveGroup": [
@@ -654,6 +674,17 @@
             "position_y": 5.580652849031512e+16,
             "position_z": 8.141639674703722e+16,
             "security_status": 0.28563404083251953
+        },
+        {
+            "enabled_sections": 0,
+            "eve_constellation_id": 20000731,
+            "eve_star_id": null,
+            "id": 30004993,
+            "name": "Villore",
+            "position_x": -2.2391125952451392e+17,
+            "position_y": 3.354453615763736e+16,
+            "position_z": 5.732981974353104e+16,
+            "security_status": 0.5065094232559204
         },
         {
             "enabled_sections": 0,
