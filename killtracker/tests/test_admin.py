@@ -251,3 +251,52 @@ class TestTrackerChangeForm(WebTest):
             int(obj[0]) for obj in form["require_attackers_ship_groups"].options
         }
         self.assertIn(self.npc_type.eve_group_id, require_attackers_ship_groups_ids)
+
+
+class TestTrackerAddForm(WebTest):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.user = create_fake_user(1001, "Bruce Wayne")
+        cls.user.is_staff = True
+        cls.user.is_superuser = True
+        cls.user.save()
+        load_eveuniverse()
+        cls.npc_type = EveType.objects.get(id=23320)
+
+    def test_do_not_show_npcs_when_not_enabled(self):
+        # given
+        url = reverse("admin:killtracker_tracker_add")
+        self.app.set_user(self.user)
+        # when
+        response = self.app.get(url)
+        # then
+        self.assertEqual(response.status_code, 200)
+        form = response.form
+        require_attackers_ship_types_ids = {
+            int(obj[0]) for obj in form["require_attackers_ship_types"].options
+        }
+        self.assertNotIn(self.npc_type.id, require_attackers_ship_types_ids)
+        require_attackers_ship_groups_ids = {
+            int(obj[0]) for obj in form["require_attackers_ship_groups"].options
+        }
+        self.assertNotIn(self.npc_type.eve_group_id, require_attackers_ship_groups_ids)
+
+    def test_can_enable_npcs(self):
+        # given
+        url = reverse("admin:killtracker_tracker_add")
+        self.app.set_user(self.user)
+        initial_page = self.app.get(url)
+        # when
+        response = initial_page.click(linkid="toogle-npc").follow()
+        # then
+        self.assertEqual(response.status_code, 200)
+        form = response.form
+        require_attackers_ship_types_ids = {
+            int(obj[0]) for obj in form["require_attackers_ship_types"].options
+        }
+        self.assertIn(self.npc_type.id, require_attackers_ship_types_ids)
+        require_attackers_ship_groups_ids = {
+            int(obj[0]) for obj in form["require_attackers_ship_groups"].options
+        }
+        self.assertIn(self.npc_type.eve_group_id, require_attackers_ship_groups_ids)

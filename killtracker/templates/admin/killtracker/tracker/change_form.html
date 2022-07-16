@@ -1,17 +1,16 @@
 {% extends "admin/change_form.html" %}
 
-{% if not change %}
-    {% if not is_popup %}
-        {% block object-tools %}
-            {{ block.super }}
-                <ul class="object-tools">
+{% block object-tools %}
+    <ul class="object-tools">
+        {% if change %}
+            {% if not is_popup %}
+                {% block object-tools-items %}
+                    {{ block.super }}
                     {% include "admin/killtracker/tracker/toogle_npc_button.html" %}
-                </ul>
-        {% endblock %}
-    {% endif %}
-{% else %}
-    {% block object-tools-items %}
-        {{ block.super }}
-        {% include "admin/killtracker/tracker/toogle_npc_button.html" %}
-    {% endblock %}
-{% endif %}
+                {% endblock %}
+            {% endif %}
+        {% else %}
+            {% include "admin/killtracker/tracker/toogle_npc_button.html" %}
+        {% endif %}
+    </ul>
+{% endblock %}
