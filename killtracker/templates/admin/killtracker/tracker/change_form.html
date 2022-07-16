@@ -7,6 +7,7 @@
     <li>
         {% if not is_using_npc %}
             <a
+                id="toogle-npc"
                 href="{% url 'killtracker:admin_killtracker_toogle_npc' object_id %}"
                 class="btn"
                 title="Click to toogle">
