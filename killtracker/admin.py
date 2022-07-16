@@ -1,15 +1,20 @@
 from django.contrib import admin
 from django.db.models import Q
 from django.db.models.functions import Lower
-from django.http import HttpResponseRedirect
-from django.shortcuts import render
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
 from django.utils.safestring import mark_safe
 from eveuniverse.models import EveGroup
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
 from . import tasks
-from .constants import SESSION_KEY_TOOGLE_NPC, EveCategoryId, EveGroupId
+from .constants import (
+    SESSION_KEY_TOOGLE_NPC,
+    SESSION_KEY_USES_NPC,
+    EveCategoryId,
+    EveGroupId,
+)
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
 from .models import EveTypePlus, Tracker, Webhook
@@ -207,6 +212,26 @@ class TrackerAdmin(admin.ModelAdmin):
             "ping_groups",
         )
 
+    def change_view(
+        self, request, object_id, form_url="", extra_context=None
+    ) -> HttpResponse:
+        extra_context = extra_context or {}
+        tracker = get_object_or_404(Tracker, pk=object_id)
+        is_using_npc = (
+            tracker.require_attackers_ship_types.filter(
+                eve_group__eve_category_id=EveCategoryId.ENTITY
+            ).exists()
+            or tracker.require_attackers_ship_groups.filter(
+                eve_category_id=EveCategoryId.ENTITY
+            ).exists()
+        )
+        request.session[SESSION_KEY_USES_NPC] = is_using_npc
+        extra_context["is_using_npc"] = is_using_npc
+        extra_context["npc_toogle"] = request.session.get(SESSION_KEY_TOOGLE_NPC, False)
+        return super().change_view(
+            request, object_id, form_url, extra_context=extra_context
+        )
+
     def _color(self, obj):
         html = (
             f'<input type="color" value="{obj.color}" disabled>' if obj.color else "-"
@@ -336,6 +361,9 @@ class TrackerAdmin(admin.ModelAdmin):
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         """overriding this formfield to have sorted lists in the form"""
+        show_npc_types = request.session.get(
+            SESSION_KEY_USES_NPC, False
+        ) or request.session.get(SESSION_KEY_TOOGLE_NPC, False)
         if db_field.name in {
             "exclude_attacker_alliances",
             "require_attacker_alliances",
@@ -363,7 +391,7 @@ class TrackerAdmin(admin.ModelAdmin):
                 ],
                 published=True,
             )
-            if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
+            if show_npc_types:
                 qs = (
                     qs
                     | EveGroup.objects.filter(
@@ -399,7 +427,7 @@ class TrackerAdmin(admin.ModelAdmin):
                 ],
                 published=True,
             )
-            if request.session.get(SESSION_KEY_TOOGLE_NPC, False):
+            if show_npc_types:
                 qs = qs | EveTypePlus.objects.filter(
                     eve_group__eve_category_id=EveCategoryId.ENTITY,
                     mass__gt=0,

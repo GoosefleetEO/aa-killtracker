@@ -1,6 +1,7 @@
 from enum import IntEnum
 
 SESSION_KEY_TOOGLE_NPC = "killtracker_toogle_npc"
+SESSION_KEY_USES_NPC = "killtracker_uses_npc"
 
 
 class EveCategoryId(IntEnum):

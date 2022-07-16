@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.7.0] - 2022-07-15
+## [0.7.0] - 2022-07-16
 
 ### Added
 
-- Ability to use NPC types and groups when defining trackers
+- Ability to use NPC types and groups (e.g. Guristas Abolisher) when defining trackers
 
 ### Changed
 
