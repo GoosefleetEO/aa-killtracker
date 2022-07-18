@@ -307,7 +307,7 @@ DISCORD_GUILD_ID = ""
 DISCORD_CALLBACK_URL = ""
 DISCORD_APP_ID = ""
 DISCORD_APP_SECRET = ""
-DISCORD_BOT_TOKEN = ""
+DISCORD_BOT_TOKEN = "killtrackerdummytoken"
 DISCORD_SYNC_NAMES = False
 
 # Register an application at https://developers.eveonline.com for Authentication
