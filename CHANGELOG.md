@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.7.0] - 2022-07-16
 
+>**Update Note**:<br>Please make sure to re-load eve types, or you might not see any of the newly added NPC types:<br>`python manage.py killtracker_load_eve`
+
 ### Added
 
 - Ability to use NPC types and groups (e.g. Guristas Abolisher) when defining trackers
