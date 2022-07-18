@@ -395,11 +395,7 @@ class TrackerAdmin(admin.ModelAdmin):
                     qs
                     | EveGroup.objects.filter(
                         eve_category_id=EveCategoryId.ENTITY
-                    ).filter(
-                        eve_types__mass__gt=0,
-                        eve_types__volume__gt=0,
-                        eve_types__capacity__gt=0,
-                    )
+                    ).filter(eve_types__mass__gt=1, eve_types__volume__gt=1)
                 ).distinct()
             kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_groups":
@@ -429,9 +425,8 @@ class TrackerAdmin(admin.ModelAdmin):
             if show_npc_types:
                 qs = qs | EveTypePlus.objects.filter(
                     eve_group__eve_category_id=EveCategoryId.ENTITY,
-                    mass__gt=0,
-                    volume__gt=0,
-                    capacity__gt=0,
+                    mass__gt=1,
+                    volume__gt=1,
                 )
             kwargs["queryset"] = qs.order_by(Lower("name"))
         elif db_field.name == "require_victim_ship_types":

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.1] - 2022-07-18
+
+### Changed
+
+- Added more NPC types, e.g. Angel Dreadnought
+
 ## [0.7.0] - 2022-07-16
 
 ### Added
