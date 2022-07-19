@@ -352,7 +352,7 @@ class Webhook(models.Model):
     ) -> str:
         """Converts a Discord message to JSON and returns it
 
-        Raises ValueError if mesage is incomplete
+        Raises ValueError if message is incomplete
         """
         if not content and not embeds:
             raise ValueError("Message must have content or embeds to be valid")
@@ -763,7 +763,7 @@ class Tracker(models.Model):
 
     @property
     def has_localization_clause(self) -> bool:
-        """returns True if tracker has a clause that needs the killmais's solar system"""
+        """returns True if tracker has a clause that needs the killmails's solar system"""
         return (
             self.exclude_high_sec
             or self.exclude_low_sec
@@ -795,7 +795,7 @@ class Tracker(models.Model):
 
         Args:
         - killmail: Killmail to process
-        - ignore_max_age: Wheter to discord killmails that are older then the defiend threshold
+        - ignore_max_age: Whether to discord killmails that are older then the defined threshold
 
         Returns:
         - Copy of killmail with added tracker info if it matches or None if there is no match
@@ -1076,11 +1076,11 @@ class Tracker(models.Model):
                 for x in set(org_items)
             ]
             max_count = max([x.count for x in org_items_2])
-            treshold = max(
+            threshold = max(
                 len(killmail.attackers) * cls.MAIN_MINIMUM_SHARE,
                 cls.MAIN_MINIMUM_COUNT,
             )
-            if max_count >= treshold:
+            if max_count >= threshold:
                 org_items_3 = [x for x in org_items_2 if x.count == max_count]
                 if len(org_items_3) > 1:
                     org_items_4 = [x for x in org_items_3 if x.is_alliance]
@@ -1127,11 +1127,11 @@ class Tracker(models.Model):
                 for x in set(ship_groups)
             ]
             max_count = max([x.count for x in ship_groups_2])
-            treshold = max(
+            threshold = max(
                 len(killmail.attackers) * cls.MAIN_MINIMUM_SHARE,
                 cls.MAIN_MINIMUM_COUNT,
             )
-            if max_count >= treshold:
+            if max_count >= threshold:
                 return sorted(ship_groups_2, key=lambda x: x.count).pop()
 
         return None

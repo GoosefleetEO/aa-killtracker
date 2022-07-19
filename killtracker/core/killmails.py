@@ -393,7 +393,7 @@ class Killmail(_KillmailBase):
         """Delete lock key if it exists.
 
         It can happen that a lock key is not cleaned up
-        and then prevents this class from ever acquireing a lock again.
+        and then prevents this class from ever acquiring a lock again.
         To prevent this we are deleting the lock key at system start.
         """
         redis = get_redis_client()
