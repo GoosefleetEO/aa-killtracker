@@ -425,7 +425,6 @@ class Webhook(models.Model):
                 key=self._blocked_cache_key(), value="BLOCKED", timeout=retry_after
             )
             raise WebhookTooManyRequests(retry_after)
-
         return response
 
     def _blocked_cache_key(self) -> str:

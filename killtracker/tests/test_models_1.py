@@ -268,29 +268,6 @@ class TestSaveMethod(LoadTestDataMixin, NoSocketsTestCase):
         self.assertFalse(tracker.color)
 
 
-@patch(MODULE_PATH + ".dhooks_lite.Webhook.execute")
-class TestWebhookSendMessage(LoadTestDataMixin, TestCase):
-    def setUp(self) -> None:
-        self.message = Webhook._discord_message_asjson(content="Test message")
-        cache.delete(self.webhook_1._blocked_cache_key())
-
-    def test_when_send_ok_returns_true(self, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
-
-        response = self.webhook_1.send_message_to_webhook(self.message)
-
-        self.assertTrue(response.status_ok)
-        self.assertTrue(mock_execute.called)
-
-    def test_when_send_not_ok_returns_false(self, mock_execute):
-        mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=404)
-
-        response = self.webhook_1.send_message_to_webhook(self.message)
-
-        self.assertFalse(response.status_ok)
-        self.assertTrue(mock_execute.called)
-
-
 if "discord" in app_labels():
 
     @patch(MODULE_PATH + ".DiscordUser", spec=True)
@@ -379,10 +356,49 @@ if "discord" in app_labels():
 
 
 @requests_mock.Mocker()
-class TestWebhookSendMessage2(LoadTestDataMixin, TestCase):
+class TestWebhookSendMessage(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.message = Webhook._discord_message_asjson(content="Test message")
         cache.clear()
+
+    def test_when_send_ok_returns_true(self, requests_mocker):
+        # given
+        requests_mocker.register_uri(
+            "POST",
+            self.webhook_1.url,
+            status_code=200,
+            json={
+                "name": "test webhook",
+                "type": 1,
+                "channel_id": "199737254929760256",
+                "token": "3d89bb7572e0fb30d8128367b3b1b44fecd1726de135cbe28a41f8b2f777c372ba2939e72279b94526ff5d1bd4358d65cf11",
+                "avatar": None,
+                "guild_id": "199737254929760256",
+                "id": "223704706495545344",
+                "application_id": None,
+                "user": {
+                    "username": "test",
+                    "discriminator": "7479",
+                    "id": "190320984123768832",
+                    "avatar": "b004ec1740a63ca06ae2e14c5cee11f3",
+                    "public_flags": 131328,
+                },
+            },
+        )
+        # when
+        response = self.webhook_1.send_message_to_webhook(self.message)
+        # then
+        self.assertTrue(response.status_ok)
+        self.assertTrue(requests_mocker.called)
+
+    def test_when_send_not_ok_returns_false(self, requests_mocker):
+        # given
+        requests_mocker.register_uri("POST", self.webhook_1.url, status_code=404)
+        # when
+        response = self.webhook_1.send_message_to_webhook(self.message)
+        # then
+        self.assertFalse(response.status_ok)
+        self.assertTrue(requests_mocker.called)
 
     def test_too_many_requests_normal(self, requests_mocker):
         # given
