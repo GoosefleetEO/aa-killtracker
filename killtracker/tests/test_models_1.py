@@ -3,6 +3,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import dhooks_lite
+import requests_mock
 from bs4 import BeautifulSoup
 from markdown import markdown
 from requests.exceptions import HTTPError
@@ -289,52 +290,6 @@ class TestWebhookSendMessage(LoadTestDataMixin, TestCase):
         self.assertFalse(response.status_ok)
         self.assertTrue(mock_execute.called)
 
-    def test_too_many_requests_1(self, mock_execute):
-        """when 429 received, then set blocker and raise exception"""
-        mock_execute.return_value = dhooks_lite.WebhookResponse(
-            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "60"},
-            status_code=429,
-            content={
-                "global": False,
-                "message": "You are being rate limited.",
-                "retry_after": 2000,
-            },
-        )
-
-        try:
-            self.webhook_1.send_message_to_webhook(self.message)
-        except Exception as ex:
-            self.assertIsInstance(ex, WebhookTooManyRequests)
-            self.assertEqual(ex.retry_after, 2002)
-        else:
-            self.fail("Did not raise excepted exception")
-
-        self.assertTrue(mock_execute.called)
-        self.assertAlmostEqual(
-            cache.ttl(self.webhook_1._blocked_cache_key()), 2002, delta=5
-        )
-
-    def test_too_many_requests_2(self, mock_execute):
-        """when 429 received and no retry value in response, then use default"""
-        mock_execute.return_value = dhooks_lite.WebhookResponse(
-            headers={"x-ratelimit-remaining": "5", "x-ratelimit-reset-after": "60"},
-            status_code=429,
-            content={
-                "global": False,
-                "message": "You are being rate limited.",
-            },
-        )
-
-        try:
-            self.webhook_1.send_message_to_webhook(self.message)
-        except Exception as ex:
-            self.assertIsInstance(ex, WebhookTooManyRequests)
-            self.assertEqual(ex.retry_after, 600)
-        else:
-            self.fail("Did not raise excepted exception")
-
-        self.assertTrue(mock_execute.called)
-
 
 if "discord" in app_labels():
 
@@ -421,6 +376,63 @@ if "discord" in app_labels():
             self.assertEqual(self.webhook_1.main_queue.size(), 1)
             message = json.loads(self.webhook_1.main_queue.dequeue())
             self.assertNotIn(f"<@&{self.group_1.pk}>", message["content"])
+
+
+@requests_mock.Mocker()
+class TestWebhookSendMessage2(LoadTestDataMixin, TestCase):
+    def setUp(self) -> None:
+        self.message = Webhook._discord_message_asjson(content="Test message")
+        cache.clear()
+
+    def test_too_many_requests_normal(self, requests_mocker):
+        # given
+        requests_mocker.register_uri(
+            "POST",
+            self.webhook_1.url,
+            status_code=429,
+            json={
+                "global": False,
+                "message": "You are being rate limited.",
+                "retry_after": 2000,
+            },
+            headers={
+                "x-ratelimit-remaining": "5",
+                "x-ratelimit-reset-after": "60",
+                "Retry-After": "2000",
+            },
+        )
+        # when/then
+        try:
+            self.webhook_1.send_message_to_webhook(self.message)
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookTooManyRequests)
+            self.assertEqual(ex.retry_after, 2002)
+        else:
+            self.fail("Did not raise excepted exception")
+
+        self.assertAlmostEqual(
+            cache.ttl(self.webhook_1._blocked_cache_key()), 2002, delta=5
+        )
+
+    def test_too_many_requests_no_retry_value(self, requests_mocker):
+        # given
+        requests_mocker.register_uri(
+            "POST",
+            self.webhook_1.url,
+            status_code=429,
+            headers={
+                "x-ratelimit-remaining": "5",
+                "x-ratelimit-reset-after": "60",
+            },
+        )
+        # when/then
+        try:
+            self.webhook_1.send_message_to_webhook(self.message)
+        except Exception as ex:
+            self.assertIsInstance(ex, WebhookTooManyRequests)
+            self.assertEqual(ex.retry_after, WebhookTooManyRequests.DEFAULT_RESET_AFTER)
+        else:
+            self.fail("Did not raise excepted exception")
 
 
 class TestEveKillmail(LoadTestDataMixin, NoSocketsTestCase):

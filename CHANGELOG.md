@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.2] - 2022-07-31
+
+### Changed
+
+- Use retry-after value from header instead of content when being rate limited by Discord
+
 ## [0.7.1] - 2022-07-18
 
 ### Changed

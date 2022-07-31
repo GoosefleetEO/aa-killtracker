@@ -418,8 +418,8 @@ class Webhook(models.Model):
                 response.content,
             )
             try:
-                retry_after = int(response.content.get("retry_after")) + 2
-            except (ValueError, TypeError):
+                retry_after = int(response.headers["Retry-After"]) + 2
+            except (ValueError, KeyError):
                 retry_after = WebhookTooManyRequests.DEFAULT_RESET_AFTER
             cache.set(
                 key=self._blocked_cache_key(), value="BLOCKED", timeout=retry_after
