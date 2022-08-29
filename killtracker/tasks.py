@@ -7,6 +7,7 @@ from eveuniverse.tasks import update_unresolved_eve_entities
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 from app_utils.caching import cached_queryset
+from app_utils.esi import retry_task_if_esi_is_down
 from app_utils.logging import LoggerAddTag
 
 from . import APP_NAME, __title__
@@ -79,12 +80,13 @@ def run_killtracker(runs: int = 0) -> None:
         )
 
 
-@shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
+@shared_task(bind=True, max_retries=None)
 def run_tracker(
-    tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
+    self, tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
 ) -> None:
     """run tracker for given killmail and trigger sending if needed"""
 
+    retry_task_if_esi_is_down(self)
     tracker = Tracker.objects.get_cached(
         pk=tracker_pk,
         select_related="webhook",
@@ -103,10 +105,11 @@ def run_tracker(
         send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 
 
-@shared_task(bind=True, timeout=KILLTRACKER_TASKS_TIMEOUT)
+@shared_task(bind=True, max_retries=None)
 def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None:
     """generate and enqueue message from given killmail and start sending"""
 
+    retry_task_if_esi_is_down(self)
     tracker = Tracker.objects.get_cached(
         pk=tracker_pk,
         select_related="webhook",

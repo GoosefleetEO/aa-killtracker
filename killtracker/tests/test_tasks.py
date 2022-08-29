@@ -145,6 +145,7 @@ class TestRunKilltracker(TestTrackerBase):
         self.assertTrue(mock_delete_stale_killmails.delay.called)
 
 
+@patch(MODULE_PATH + ".retry_task_if_esi_is_down", lambda x: None)
 @patch(MODULE_PATH + ".send_messages_to_webhook")
 @patch(MODULE_PATH + ".generate_killmail_message")
 class TestRunTracker(TestTrackerBase):
@@ -184,6 +185,7 @@ class TestRunTracker(TestTrackerBase):
         self.assertTrue(mock_send_messages_to_webhook.delay.called)
 
 
+@patch(MODULE_PATH + ".retry_task_if_esi_is_down", lambda x: None)
 @patch(MODULE_PATH + ".generate_killmail_message.retry")
 @patch(MODULE_PATH + ".send_messages_to_webhook")
 class TestGenerateKillmailMessage(TestTrackerBase):
