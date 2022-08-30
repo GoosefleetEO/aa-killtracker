@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.3] - tbd
+
+### Changed
+
+- Retry task that need ESI when ESI is down or has too many errors
+
 ## [0.7.2] - 2022-07-31
 
 ### Changed
