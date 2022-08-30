@@ -128,7 +128,7 @@ def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None
             " Will retry." if will_retry else "",
             exc_info=True,
         )
-        self.retry(
+        raise self.retry(
             max_retries=KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES,
             countdown=KILLTRACKER_GENERATE_MESSAGE_RETRY_COUNTDOWN,
             exc=ex,
@@ -201,7 +201,7 @@ def send_messages_to_webhook(self, webhook_pk: int) -> None:
                 response.content,
             )
 
-        self.retry(countdown=KILLTRACKER_DISCORD_SEND_DELAY)
+        raise self.retry(countdown=KILLTRACKER_DISCORD_SEND_DELAY)
     else:
         logger.debug("%s: No more messages to send for webhook", webhook)
 

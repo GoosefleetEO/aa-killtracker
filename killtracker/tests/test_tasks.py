@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 
 from ..exceptions import WebhookTooManyRequests
-from ..models import EveKillmail, Tracker, Webhook
+from ..models import EveKillmail, Tracker
 from ..tasks import (
     delete_stale_killmails,
     generate_killmail_message,
@@ -227,114 +227,83 @@ class TestGenerateKillmailMessage(TestTrackerBase):
         self.assertEqual(mock_retry.call_count, 4)
 
 
-@patch(MODULE_PATH + ".send_messages_to_webhook.retry")
+@patch("celery.app.task.Context.called_directly", False)  # make retry work with eager
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODULE_PATH + ".Webhook.send_message_to_webhook")
-@patch(MODULE_PATH + ".logger")
 class TestSendMessagesToWebhook(TestTrackerBase):
     def setUp(self) -> None:
         cache.clear()
 
-    def my_retry(self, *args, **kwargs):
-        send_messages_to_webhook(self.webhook_1.pk)
-
-    def test_one_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
-        """when one mesage in queue, then send it and retry with delay"""
-        mock_retry.side_effect = self.my_retry
+    def test_one_message(self, mock_send_message_to_webhook):
+        """when one message in queue, then send it and retry with delay"""
+        # given
         mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
             {}, status_code=200
         )
         self.webhook_1.enqueue_message(content="Test message")
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
+        # when
+        send_messages_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
-        self.assertEqual(mock_retry.call_count, 1)
-        _, kwargs = mock_retry.call_args
-        self.assertEqual(kwargs["countdown"], 2)
-        self.assertFalse(mock_logger.error.called)
-        self.assertFalse(mock_logger.warning.called)
 
-    def test_three_message(self, mock_logger, mock_send_message_to_webhook, mock_retry):
-        """when three mesages in queue, then sends them and returns 3"""
-        mock_retry.side_effect = self.my_retry
+    def test_three_message(self, mock_send_message_to_webhook):
+        """when three messages in queue, then sends them and returns 3"""
+        # given
         mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
             {}, status_code=200
         )
         self.webhook_1.enqueue_message(content="Test message")
         self.webhook_1.enqueue_message(content="Test message")
         self.webhook_1.enqueue_message(content="Test message")
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
+        # when
+        send_messages_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertEqual(mock_send_message_to_webhook.call_count, 3)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
-        self.assertTrue(mock_retry.call_count, 4)
 
-    def test_no_messages(self, mock_logger, mock_send_message_to_webhook, mock_retry):
-        """when no mesages in queue, then do nothing"""
-        mock_retry.side_effect = self.my_retry
+    def test_no_messages(self, mock_send_message_to_webhook):
+        """when no messages in queue, then do nothing"""
+        # given
         mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
             {}, status_code=200
         )
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
+        # when
+        send_messages_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertEqual(mock_send_message_to_webhook.call_count, 0)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 0)
-        self.assertEqual(mock_retry.call_count, 0)
-        self.assertFalse(mock_logger.error.called)
-        self.assertFalse(mock_logger.warning.called)
 
-    def test_failed_message(
-        self, mock_logger, mock_send_message_to_webhook, mock_retry
-    ):
-        """when message sending failed,
-        then put message in error queue and log warning
-        """
-        mock_retry.side_effect = self.my_retry
+    def test_failed_message(self, mock_send_message_to_webhook):
+        """when message sending failed, then put message in error queue"""
+        # given
         mock_send_message_to_webhook.return_value = dhooks_lite.WebhookResponse(
             {}, status_code=404
         )
         self.webhook_1.enqueue_message(content="Test message")
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
+        # when
+        send_messages_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(self.webhook_1.error_queue.size(), 1)
-        self.assertTrue(mock_logger.warning.called)
 
-    def test_abort_on_too_many_requests(
-        self, mock_logger, mock_send_message_to_webhook, mock_retry
-    ):
+    def test_abort_on_too_many_requests(self, mock_send_message_to_webhook):
         """
         when WebhookTooManyRequests exception is raised
         then message is re-queued and retry once
         """
-        mock_retry.side_effect = self.my_retry
+        # given
         mock_send_message_to_webhook.side_effect = WebhookTooManyRequests(10)
         self.webhook_1.enqueue_message(content="Test message")
-
-        send_messages_to_webhook(self.webhook_1.pk)
-
+        # when
+        send_messages_to_webhook.delay(self.webhook_1.pk)
+        # then
         self.assertEqual(mock_send_message_to_webhook.call_count, 1)
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
-        self.assertFalse(mock_retry.called)
-
-    def test_log_info_if_not_enabled(
-        self, mock_logger, mock_send_message_to_webhook, mock_retry
-    ):
-        my_webhook = Webhook.objects.create(
-            name="disabled", url="dummy-url-2", is_enabled=False
-        )
-        send_messages_to_webhook(my_webhook.pk)
-
-        self.assertFalse(mock_send_message_to_webhook.called)
-        self.assertTrue(mock_logger.info.called)
 
 
 @patch(MODULE_PATH + ".logger")
