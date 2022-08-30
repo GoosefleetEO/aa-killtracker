@@ -48,7 +48,7 @@ class TestTrackerBase(LoadTestDataMixin, TestCase):
         )
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODULE_PATH + ".is_esi_online")
 @patch(MODULE_PATH + ".delete_stale_killmails")
 @patch(MODULE_PATH + ".store_killmail")

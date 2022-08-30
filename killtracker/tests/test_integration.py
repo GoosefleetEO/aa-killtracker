@@ -16,14 +16,14 @@ from .testdata.helpers import LoadTestDataMixin, killmails_data
 PACKAGE_PATH = "killtracker"
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(PACKAGE_PATH + ".tasks.retry_task_if_esi_is_down", lambda x: None)
 @patch(PACKAGE_PATH + ".tasks.is_esi_online", lambda: True)
 @patch(PACKAGE_PATH + ".tasks.send_messages_to_webhook.retry")
 @patch(PACKAGE_PATH + ".tasks.run_killtracker.retry")
 @patch(PACKAGE_PATH + ".models.dhooks_lite.Webhook.execute", spec=True)
 @requests_mock.Mocker()
-class TestIntegration(LoadTestDataMixin, TestCase):
+class TestTasksEnd2End(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -48,6 +48,7 @@ class TestIntegration(LoadTestDataMixin, TestCase):
         send_messages_to_webhook_retry,
         requests_mocker,
     ):
+        # given
         mock_execute.return_value = dhooks_lite.WebhookResponse(dict(), status_code=200)
         run_killtracker_retry.side_effect = functools.partial(
             self.my_retry, task=tasks.run_killtracker
@@ -68,8 +69,9 @@ class TestIntegration(LoadTestDataMixin, TestCase):
                 {"status_code": 200, "json": {"package": None}},
             ],
         )
-
+        # when
         tasks.run_killtracker.delay()
+        # then
         self.assertEqual(mock_execute.call_count, 2)
 
         _, kwargs = mock_execute.call_args_list[0]
