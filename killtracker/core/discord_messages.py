@@ -1,6 +1,5 @@
 import dhooks_lite
 
-from django.db import models
 from eveuniverse.helpers import EveEntityNameResolver
 from eveuniverse.models import EveEntity, EveSolarSystem
 
@@ -8,12 +7,13 @@ from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
 from app_utils.urls import static_file_absolute_url
 from app_utils.views import humanize_value
 
+from ..models import Tracker
 from .killmails import ZKB_KILLMAIL_BASEURL, Killmail
 
 ICON_SIZE = 128
 
 
-def create_embed(tracker: models.Model, killmail: Killmail) -> dhooks_lite.Embed:
+def create_embed(tracker: Tracker, killmail: Killmail) -> dhooks_lite.Embed:
     """Create Discord embed for a killmail."""
     resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 

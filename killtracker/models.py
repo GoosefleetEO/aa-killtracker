@@ -37,7 +37,6 @@ from .app_settings import (
     KILLTRACKER_KILLMAIL_MAX_AGE_FOR_TRACKER,
     KILLTRACKER_WEBHOOK_SET_AVATAR,
 )
-from .core import discord_messages
 from .core.killmails import EntityCount, Killmail, TrackerInfo
 from .exceptions import WebhookTooManyRequests
 from .managers import (
@@ -1136,6 +1135,8 @@ class Tracker(models.Model):
 
         returns new queue size
         """
+        from .core import discord_messages
+
         embed = discord_messages.create_embed(self, killmail)
         content = self._create_content(intro_text)
         return self.webhook.enqueue_message(content=content, embeds=[embed])
