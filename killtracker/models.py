@@ -865,7 +865,8 @@ class Tracker(models.Model):
 
             if is_matching and self.require_min_value:
                 is_matching = (
-                    killmail.zkb.total_value >= self.require_min_value * 1000000
+                    killmail.zkb.total_value is not None
+                    and killmail.zkb.total_value >= self.require_min_value * 1_000_000
                 )
 
             if is_matching and self.require_max_distance:

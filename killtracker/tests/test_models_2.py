@@ -156,15 +156,6 @@ class TestTrackerCalculate(LoadTestDataMixin, NoSocketsTestCase):
         expected = {10000002, 10000003, 10000004}
         self.assertSetEqual(results, expected)
 
-    def test_can_filter_min_value(self):
-        killmail_ids = {10000001, 10000002, 10000003, 10000004}
-        tracker = Tracker.objects.create(
-            name="Test", require_min_value=1000, webhook=self.webhook_1
-        )
-        results = self._matching_killmail_ids(tracker, killmail_ids)
-        expected = {10000004}
-        self.assertSetEqual(results, expected)
-
     @patch("eveuniverse.models.esi")
     def test_can_filter_max_jumps(self, mock_esi):
         mock_esi.client.Routes.get_route_origin_destination.side_effect = (
@@ -535,6 +526,22 @@ class TestTrackerCalculate2(LoadTestDataMixin, NoSocketsTestCase):
         tracker.require_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2011)
         )
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNone(result)
+
+    def test_should_deny_when_value_is_below_minimum(self):
+        killmail = KillmailFactory(zkb__total_value=50_000_000)
+        tracker = TrackerFactory(require_min_value=51, webhook=self.webhook_1)
+        # when
+        result = tracker.process_killmail(killmail)
+        # then
+        self.assertIsNone(result)
+
+    def test_should_threat_no_value_as_zero(self):
+        killmail = KillmailFactory(zkb__total_value=None)
+        tracker = TrackerFactory(require_min_value=51, webhook=self.webhook_1)
         # when
         result = tracker.process_killmail(killmail)
         # then
