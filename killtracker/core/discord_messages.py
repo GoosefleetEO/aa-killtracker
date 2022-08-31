@@ -1,20 +1,74 @@
+"""Create discord messages from killmails."""
+
 import dhooks_lite
+from requests.exceptions import HTTPError
 
 from eveuniverse.helpers import EveEntityNameResolver
 from eveuniverse.models import EveEntity, EveSolarSystem
 
 from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
+from allianceauth.services.hooks import get_extension_logger
+from allianceauth.services.modules.discord.models import DiscordUser
+from app_utils.django import app_labels
+from app_utils.logging import LoggerAddTag
 from app_utils.urls import static_file_absolute_url
 from app_utils.views import humanize_value
 
+from .. import __title__
 from ..models import Tracker
 from .killmails import ZKB_KILLMAIL_BASEURL, Killmail
 
 ICON_SIZE = 128
 
 
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+def create_content(tracker: Tracker, intro_text: str = None) -> str:
+    """Create content for Discord message for a killmail."""
+
+    intro_parts = []
+
+    if tracker.ping_type == Tracker.ChannelPingType.EVERYBODY:
+        intro_parts.append("@everybody")
+    elif tracker.ping_type == Tracker.ChannelPingType.HERE:
+        intro_parts.append("@here")
+
+    if tracker.ping_groups.exists():
+        if "discord" in app_labels():
+            for group in tracker.ping_groups.all():
+                try:
+                    role = DiscordUser.objects.group_to_role(group)
+                except HTTPError:
+                    logger.warning(
+                        "Failed to get Discord roles. Can not ping groups.",
+                        exc_info=True,
+                    )
+                else:
+                    if role:
+                        intro_parts.append(f"<@&{role['id']}>")
+
+        else:
+            logger.warning(
+                "Discord service needs to be installed in order "
+                "to use groups ping features."
+            )
+
+    if tracker.is_posting_name:
+        intro_parts.append(f"Tracker **{tracker.name}**:")
+
+    intro_parts_2 = []
+    if intro_text:
+        intro_parts_2.append(intro_text)
+    if intro_parts:
+        intro_parts_2.append(" ".join(intro_parts))
+
+    return "\n".join(intro_parts_2)
+
+
 def create_embed(tracker: Tracker, killmail: Killmail) -> dhooks_lite.Embed:
     """Create Discord embed for a killmail."""
+
     resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 
     # victim

@@ -29,7 +29,8 @@ from ..exceptions import WebhookTooManyRequests
 from ..models import EveKillmail, EveKillmailVictim, Tracker, Webhook
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
-MODULE_PATH = "killtracker.models"
+MODELS_PATH = "killtracker.models"
+DISCORD_MESSAGES_PATH = "killtracker.core.discord_messages"
 
 
 class TestWebhookQueue(LoadTestDataMixin, TestCase):
@@ -270,7 +271,7 @@ class TestSaveMethod(LoadTestDataMixin, NoSocketsTestCase):
 
 if "discord" in app_labels():
 
-    @patch(MODULE_PATH + ".DiscordUser", spec=True)
+    @patch(DISCORD_MESSAGES_PATH + ".DiscordUser", spec=True)
     class TestGroupPings(LoadTestDataMixin, TestCase):
         @classmethod
         def setUpClass(cls):
@@ -483,7 +484,7 @@ class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
         self.assertEqual(str(obj), "Caldari State")
 
 
-@patch(MODULE_PATH + ".Webhook.enqueue_message")
+@patch(MODELS_PATH + ".Webhook.enqueue_message")
 class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
         self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)

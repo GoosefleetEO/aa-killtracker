@@ -4,7 +4,6 @@ from datetime import timedelta
 from typing import List, Optional
 
 import dhooks_lite
-from requests.exceptions import HTTPError
 from simple_mq import SimpleMQ
 
 from django.contrib.auth.models import Group, User
@@ -25,9 +24,7 @@ from eveuniverse.models import (
 from allianceauth.authentication.models import State
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
-from allianceauth.services.modules.discord.models import DiscordUser
 from app_utils.allianceauth import get_redis_client
-from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 from app_utils.urls import static_file_absolute_url
@@ -1137,45 +1134,6 @@ class Tracker(models.Model):
         """
         from .core import discord_messages
 
+        content = discord_messages.create_content(self, intro_text)
         embed = discord_messages.create_embed(self, killmail)
-        content = self._create_content(intro_text)
         return self.webhook.enqueue_message(content=content, embeds=[embed])
-
-    def _create_content(self, intro_text) -> str:
-        intro_parts = []
-
-        if self.ping_type == Tracker.ChannelPingType.EVERYBODY:
-            intro_parts.append("@everybody")
-        elif self.ping_type == Tracker.ChannelPingType.HERE:
-            intro_parts.append("@here")
-
-        if self.ping_groups.exists():
-            if "discord" in app_labels():
-                for group in self.ping_groups.all():
-                    try:
-                        role = DiscordUser.objects.group_to_role(group)
-                    except HTTPError:
-                        logger.warning(
-                            "Failed to get Discord roles. Can not ping groups.",
-                            exc_info=True,
-                        )
-                    else:
-                        if role:
-                            intro_parts.append(f"<@&{role['id']}>")
-
-            else:
-                logger.warning(
-                    "Discord service needs to be installed in order "
-                    "to use groups ping features."
-                )
-
-        if self.is_posting_name:
-            intro_parts.append(f"Tracker **{self.name}**:")
-
-        intro_parts_2 = []
-        if intro_text:
-            intro_parts_2.append(intro_text)
-        if intro_parts:
-            intro_parts_2.append(" ".join(intro_parts))
-
-        return "\n".join(intro_parts_2)
