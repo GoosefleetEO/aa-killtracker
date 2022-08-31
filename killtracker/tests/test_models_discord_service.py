@@ -4,9 +4,9 @@ from unittest.mock import patch
 from requests.exceptions import HTTPError
 
 from django.contrib.auth.models import Group
+from django.test import TestCase
 
 from app_utils.django import app_labels
-from app_utils.testing import NoSocketsTestCase
 
 from killtracker.core.killmails import Killmail
 from killtracker.models import Tracker
@@ -19,7 +19,7 @@ DISCORD_MESSAGES_PATH = "killtracker.core.discord_messages"
 if "discord" in app_labels():
 
     @patch(DISCORD_MESSAGES_PATH + "._import_discord_user")
-    class TestGroupPings(LoadTestDataMixin, NoSocketsTestCase):
+    class TestGroupPings(LoadTestDataMixin, TestCase):
         @classmethod
         def setUpClass(cls):
             super().setUpClass()

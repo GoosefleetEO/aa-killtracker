@@ -608,7 +608,7 @@ class TestTrackerCalculateTrackerInfo(LoadTestDataMixin, NoSocketsTestCase):
 
 class TestTrackerEnqueueKillmail(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
-        self.tracker = TrackerFactory(webhook=self.webhook_1)
+        self.tracker = TrackerFactory(name="My Tracker", webhook=self.webhook_1)
         self.webhook_1.main_queue.clear()
 
     @patch(MODULE_PATH + ".KILLTRACKER_WEBHOOK_SET_AVATAR", True)
