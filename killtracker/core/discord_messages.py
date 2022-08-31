@@ -8,7 +8,6 @@ from eveuniverse.models import EveEntity, EveSolarSystem
 
 from allianceauth.eveonline.evelinks import dotlan, eveimageserver, zkillboard
 from allianceauth.services.hooks import get_extension_logger
-from allianceauth.services.modules.discord.models import DiscordUser
 from app_utils.django import app_labels
 from app_utils.logging import LoggerAddTag
 from app_utils.urls import static_file_absolute_url
@@ -36,6 +35,7 @@ def create_content(tracker: Tracker, intro_text: str = None) -> str:
 
     if tracker.ping_groups.exists():
         if "discord" in app_labels():
+            DiscordUser = _import_discord_user()
             for group in tracker.ping_groups.all():
                 try:
                     role = DiscordUser.objects.group_to_role(group)
@@ -64,6 +64,12 @@ def create_content(tracker: Tracker, intro_text: str = None) -> str:
         intro_parts_2.append(" ".join(intro_parts))
 
     return "\n".join(intro_parts_2)
+
+
+def _import_discord_user():
+    from allianceauth.services.modules.discord.models import DiscordUser
+
+    return DiscordUser
 
 
 def create_embed(tracker: Tracker, killmail: Killmail) -> dhooks_lite.Embed:

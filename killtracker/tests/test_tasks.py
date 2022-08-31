@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 
 from ..exceptions import WebhookTooManyRequests
-from ..models import EveKillmail, Tracker
+from ..models import EveKillmail
 from ..tasks import (
     delete_stale_killmails,
     generate_killmail_message,
@@ -18,6 +18,7 @@ from ..tasks import (
     send_test_message_to_webhook,
     store_killmail,
 )
+from .testdata.factories import TrackerFactory
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODULE_PATH = "killtracker.tasks"
@@ -32,15 +33,13 @@ class TestTrackerBase(LoadTestDataMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.tracker_1 = Tracker.objects.create(
-            name="Low Sec Only",
+        cls.tracker_1 = TrackerFactory(
             exclude_high_sec=True,
             exclude_null_sec=True,
             exclude_w_space=True,
             webhook=cls.webhook_1,
         )
-        cls.tracker_2 = Tracker.objects.create(
-            name="High Sec Only",
+        cls.tracker_2 = TrackerFactory(
             exclude_low_sec=True,
             exclude_null_sec=True,
             exclude_w_space=True,

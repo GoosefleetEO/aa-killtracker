@@ -6,7 +6,8 @@ from eveuniverse.models import EveType
 from allianceauth.eveonline.models import EveCorporationInfo
 from app_utils.testing import create_fake_user
 
-from ..models import Tracker, Webhook
+from killtracker.models import Tracker, Webhook
+
 from .testdata.factories import TrackerFactory
 from .testdata.helpers import LoadTestDataMixin
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -21,14 +22,13 @@ class TestTrackerChangeList(LoadTestDataMixin, WebTest):
         )
 
     def setUp(self) -> None:
-        Tracker.objects.create(name="T1", webhook=self.webhook_1, exclude_high_sec=True)
-        Tracker.objects.create(
-            name="T2",
+        TrackerFactory(webhook=self.webhook_1, exclude_high_sec=True)
+        TrackerFactory(
             webhook=self.webhook_1,
             origin_solar_system_id=30003067,
             require_max_jumps=3,
         )
-        tracker = Tracker.objects.create(name="T3", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.exclude_attacker_corporations.add(
             EveCorporationInfo.objects.get(corporation_id=2001)
         )

@@ -23,8 +23,9 @@ from app_utils.testing import NoSocketsTestCase
 
 from killtracker.core.killmails import Killmail
 from killtracker.exceptions import WebhookTooManyRequests
-from killtracker.models import EveKillmail, EveKillmailVictim, Tracker, Webhook
+from killtracker.models import EveKillmail, EveKillmailVictim, Webhook
 
+from .testdata.factories import TrackerFactory
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
 MODELS_PATH = "killtracker.models"
@@ -193,75 +194,73 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
 
 class TestHasLocalizationClause(LoadTestDataMixin, NoSocketsTestCase):
     def test_has_localization_filter_1(self):
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_high_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_high_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_low_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_low_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_null_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_null_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_w_space=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_w_space=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_distance=10)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, require_max_distance=10)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_jumps=10)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, require_max_jumps=10)
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_no_matching_clause(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         self.assertFalse(tracker.has_localization_clause)
 
     def test_has_localization_filter_3(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_regions.add(EveRegion.objects.get(id=10000014))
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_localization_filter_4(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_constellations.add(EveConstellation.objects.get(id=20000169))
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_localization_filter_5(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_solar_systems.add(EveSolarSystem.objects.get(id=30001161))
         self.assertTrue(tracker.has_localization_clause)
 
 
 class TestHasTypeClause(LoadTestDataMixin, NoSocketsTestCase):
     def test_has_no_matching_clause(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         self.assertFalse(tracker.has_type_clause)
 
     def test_has_require_attackers_ship_groups(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_attackers_ship_groups.add(self.type_svipul.eve_group)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_attackers_ship_types(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_attackers_ship_types.add(self.type_svipul)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_victim_ship_groups(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_victim_ship_groups.add(self.type_svipul.eve_group)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_victim_ship_types(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_victim_ship_types.add(self.type_svipul)
         self.assertTrue(tracker.has_type_clause)
 
 
 class TestSaveMethod(LoadTestDataMixin, NoSocketsTestCase):
     def test_black_color_is_none(self):
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, color="#000000"
-        )
+        tracker = TrackerFactory(webhook=self.webhook_1, color="#000000")
         tracker.refresh_from_db()
         self.assertFalse(tracker.color)
 
@@ -397,7 +396,7 @@ class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
 @patch(MODELS_PATH + ".Webhook.enqueue_message")
 class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
-        self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
+        self.tracker = TrackerFactory(name="My Tracker", webhook=self.webhook_1)
 
     def test_should_generate_message(self, mock_enqueue_message):
         # given
