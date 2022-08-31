@@ -1,5 +1,6 @@
 import dhooks_lite
 
+from django.db import models
 from eveuniverse.helpers import EveEntityNameResolver
 from eveuniverse.models import EveEntity, EveSolarSystem
 
@@ -12,7 +13,7 @@ from .killmails import ZKB_KILLMAIL_BASEURL, Killmail
 ICON_SIZE = 128
 
 
-def create_embed(tracker, killmail: Killmail) -> dhooks_lite.Embed:
+def create_embed(tracker: models.Model, killmail: Killmail) -> dhooks_lite.Embed:
     """Create Discord embed for a killmail."""
     resolver = EveEntity.objects.bulk_resolve_names(ids=killmail.entity_ids())
 
@@ -168,11 +169,13 @@ def create_embed(tracker, killmail: Killmail) -> dhooks_lite.Embed:
             )
 
     victim_ship_type_name = resolver.to_name(killmail.victim.ship_type_id)
-
+    total_value = (
+        humanize_value(killmail.zkb.total_value) if killmail.zkb.total_value else "?"
+    )
     description = (
         f"{victim_str} lost their **{victim_ship_type_name}** "
         f"in {solar_system_text} "
-        f"worth **{humanize_value(killmail.zkb.total_value)}** ISK.\n"
+        f"worth **{total_value}** ISK.\n"
         f"Final blow by {final_attacker_str} "
         f"in a **{final_attacker_ship_type_name}**.\n"
         f"Attackers: **{len(killmail.attackers):,}**{main_org_text}"
@@ -180,7 +183,6 @@ def create_embed(tracker, killmail: Killmail) -> dhooks_lite.Embed:
         f"{tracked_ship_types_text}"
         f"{distance_text}"
     )
-
     solar_system_name = resolver.to_name(killmail.solar_system_id)
     if show_as_fleetkill:
         title = f"{solar_system_name} | {main_org_name} | Fleetkill"
