@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.7.3] - tbd
+## [0.7.4] - 2022-08-31
+
+### Fixed
+
+- Can not process killmails which have no zkb total value (#32)
+- Can not created messages from killmails which have no zkb total value
+- App requires Discord service to be installed for startup
+
+## [0.7.3] - 2022-08-30
 
 ### Changed
 

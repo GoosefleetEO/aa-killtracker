@@ -7,9 +7,10 @@ from django.core.cache import cache
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from .. import tasks
-from ..core.killmails import ZKB_REDISQ_URL
-from ..models import Tracker
+from killtracker import tasks
+from killtracker.core.killmails import ZKB_REDISQ_URL
+
+from .testdata.factories import TrackerFactory
 from .testdata.helpers import LoadTestDataMixin, killmails_data
 
 PACKAGE_PATH = "killtracker"
@@ -25,7 +26,7 @@ class TestTasksEnd2End(LoadTestDataMixin, TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cache.clear()
-        cls.tracker_1 = Tracker.objects.create(
+        cls.tracker_1 = TrackerFactory(
             name="My Tracker",
             exclude_null_sec=True,
             exclude_w_space=True,

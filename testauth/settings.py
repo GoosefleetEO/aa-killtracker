@@ -286,7 +286,7 @@ DEBUG = False
 INSTALLED_APPS += [
     "eveuniverse",
     "killtracker",
-    "allianceauth.services.modules.discord",
+    # "allianceauth.services.modules.discord",
 ]
 
 # Enter credentials to use MySQL/MariaDB. Comment out to use sqlite3

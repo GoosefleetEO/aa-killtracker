@@ -11,9 +11,15 @@ from django.utils.timezone import now
 from app_utils.esi_testing import BravadoOperationStub
 from app_utils.testing import NoSocketsTestCase
 
-from ..core.killmails import ZKB_API_URL, ZKB_REDISQ_URL, EntityCount, Killmail
-from . import CacheStub
-from .testdata.helpers import killmails_data, load_killmail
+from killtracker.core.killmails import (
+    ZKB_API_URL,
+    ZKB_REDISQ_URL,
+    EntityCount,
+    Killmail,
+)
+
+from .. import CacheStub
+from ..testdata.helpers import killmails_data, load_killmail
 
 MODULE_PATH = "killtracker.core.killmails"
 unittest.util._MAX_LENGTH = 1000

@@ -6,9 +6,7 @@ import dhooks_lite
 import requests_mock
 from bs4 import BeautifulSoup
 from markdown import markdown
-from requests.exceptions import HTTPError
 
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.test import TestCase
 from django.utils.timezone import now
@@ -20,16 +18,17 @@ from eveuniverse.models import (
     EveType,
 )
 
-from app_utils.django import app_labels
 from app_utils.json import JSONDateTimeDecoder
 from app_utils.testing import NoSocketsTestCase
 
-from ..core.killmails import Killmail
-from ..exceptions import WebhookTooManyRequests
-from ..models import EveKillmail, EveKillmailVictim, Tracker, Webhook
+from killtracker.core.killmails import Killmail
+from killtracker.exceptions import WebhookTooManyRequests
+from killtracker.models import EveKillmail, EveKillmailVictim, Webhook
+
+from .testdata.factories import TrackerFactory
 from .testdata.helpers import LoadTestDataMixin, load_eve_killmails, load_killmail
 
-MODULE_PATH = "killtracker.models"
+MODELS_PATH = "killtracker.models"
 
 
 class TestWebhookQueue(LoadTestDataMixin, TestCase):
@@ -195,164 +194,75 @@ class TestEveKillmailManager(LoadTestDataMixin, NoSocketsTestCase):
 
 class TestHasLocalizationClause(LoadTestDataMixin, NoSocketsTestCase):
     def test_has_localization_filter_1(self):
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_high_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_high_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_low_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_low_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_null_sec=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_null_sec=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, exclude_w_space=True)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, exclude_w_space=True)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_distance=10)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, require_max_distance=10)
         self.assertTrue(tracker.has_localization_clause)
 
-        tracker = Tracker(name="Test", webhook=self.webhook_1, require_max_jumps=10)
+        tracker = TrackerFactory.build(webhook=self.webhook_1, require_max_jumps=10)
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_no_matching_clause(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         self.assertFalse(tracker.has_localization_clause)
 
     def test_has_localization_filter_3(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_regions.add(EveRegion.objects.get(id=10000014))
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_localization_filter_4(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_constellations.add(EveConstellation.objects.get(id=20000169))
         self.assertTrue(tracker.has_localization_clause)
 
     def test_has_localization_filter_5(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_solar_systems.add(EveSolarSystem.objects.get(id=30001161))
         self.assertTrue(tracker.has_localization_clause)
 
 
 class TestHasTypeClause(LoadTestDataMixin, NoSocketsTestCase):
     def test_has_no_matching_clause(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         self.assertFalse(tracker.has_type_clause)
 
     def test_has_require_attackers_ship_groups(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_attackers_ship_groups.add(self.type_svipul.eve_group)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_attackers_ship_types(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_attackers_ship_types.add(self.type_svipul)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_victim_ship_groups(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_victim_ship_groups.add(self.type_svipul.eve_group)
         self.assertTrue(tracker.has_type_clause)
 
     def test_has_require_victim_ship_types(self):
-        tracker = Tracker.objects.create(name="Test", webhook=self.webhook_1)
+        tracker = TrackerFactory(webhook=self.webhook_1)
         tracker.require_victim_ship_types.add(self.type_svipul)
         self.assertTrue(tracker.has_type_clause)
 
 
 class TestSaveMethod(LoadTestDataMixin, NoSocketsTestCase):
     def test_black_color_is_none(self):
-        tracker = Tracker.objects.create(
-            name="Test", webhook=self.webhook_1, color="#000000"
-        )
+        tracker = TrackerFactory(webhook=self.webhook_1, color="#000000")
         tracker.refresh_from_db()
         self.assertFalse(tracker.color)
-
-
-if "discord" in app_labels():
-
-    @patch(MODULE_PATH + ".DiscordUser", spec=True)
-    class TestGroupPings(LoadTestDataMixin, TestCase):
-        @classmethod
-        def setUpClass(cls):
-            super().setUpClass()
-            cls.group_1 = Group.objects.create(name="Dummy Group 1")
-            cls.group_2 = Group.objects.create(name="Dummy Group 2")
-
-        def setUp(self):
-            self.tracker = Tracker.objects.create(
-                name="My Tracker",
-                webhook=self.webhook_1,
-                exclude_null_sec=True,
-                exclude_w_space=True,
-            )
-
-        @staticmethod
-        def _my_group_to_role(group: Group) -> dict:
-            if not isinstance(group, Group):
-                raise TypeError("group must be of type Group")
-
-            return {"id": group.pk, "name": group.name}
-
-        def test_can_ping_one_group(self, mock_DiscordUser):
-            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
-            self.tracker.ping_groups.add(self.group_1)
-            killmail = self.tracker.process_killmail(load_killmail(10000101))
-
-            self.tracker.generate_killmail_message(
-                Killmail.from_json(killmail.asjson())
-            )
-
-            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            self.assertEqual(self.webhook_1.main_queue.size(), 1)
-            message = json.loads(self.webhook_1.main_queue.dequeue())
-            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
-
-        def test_can_ping_multiple_groups(self, mock_DiscordUser):
-            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
-            self.tracker.ping_groups.add(self.group_1)
-            self.tracker.ping_groups.add(self.group_2)
-
-            killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.tracker.generate_killmail_message(
-                Killmail.from_json(killmail.asjson())
-            )
-
-            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            self.assertEqual(self.webhook_1.main_queue.size(), 1)
-            message = json.loads(self.webhook_1.main_queue.dequeue())
-            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
-            self.assertIn(f"<@&{self.group_2.pk}>", message["content"])
-
-        def test_can_combine_with_channel_ping(self, mock_DiscordUser):
-            mock_DiscordUser.objects.group_to_role.side_effect = self._my_group_to_role
-            self.tracker.ping_groups.add(self.group_1)
-            self.tracker.ping_type = Tracker.ChannelPingType.HERE
-            self.tracker.save()
-
-            killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.tracker.generate_killmail_message(
-                Killmail.from_json(killmail.asjson())
-            )
-
-            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            self.assertEqual(self.webhook_1.main_queue.size(), 1)
-            message = json.loads(self.webhook_1.main_queue.dequeue())
-            self.assertIn(f"<@&{self.group_1.pk}>", message["content"])
-            self.assertIn("@here", message["content"])
-
-        def test_can_handle_error_from_discord(self, mock_DiscordUser):
-            mock_DiscordUser.objects.group_to_role.side_effect = HTTPError
-            self.tracker.ping_groups.add(self.group_1)
-
-            killmail = self.tracker.process_killmail(load_killmail(10000101))
-            self.tracker.generate_killmail_message(
-                Killmail.from_json(killmail.asjson())
-            )
-
-            self.assertTrue(mock_DiscordUser.objects.group_to_role.called)
-            self.assertEqual(self.webhook_1.main_queue.size(), 1)
-            message = json.loads(self.webhook_1.main_queue.dequeue())
-            self.assertNotIn(f"<@&{self.group_1.pk}>", message["content"])
 
 
 @requests_mock.Mocker()
@@ -483,10 +393,10 @@ class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
         self.assertEqual(str(obj), "Caldari State")
 
 
-@patch(MODULE_PATH + ".Webhook.enqueue_message")
+@patch(MODELS_PATH + ".Webhook.enqueue_message")
 class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
     def setUp(self) -> None:
-        self.tracker = Tracker.objects.create(name="My Tracker", webhook=self.webhook_1)
+        self.tracker = TrackerFactory(name="My Tracker", webhook=self.webhook_1)
 
     def test_should_generate_message(self, mock_enqueue_message):
         # given
@@ -507,9 +417,7 @@ class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
         self.assertIn("My Tracker", content)
         embed = kwargs["embeds"][0]
         self.assertEqual(embed.title, "Haras | Svipul | Killmail")
-        self.assertEqual(
-            embed.thumbnail.url, svipul.icon_url(size=self.tracker.ICON_SIZE)
-        )
+        self.assertEqual(embed.thumbnail.url, svipul.icon_url(size=128))
         html = markdown(embed.description)
         description = "".join(
             BeautifulSoup(html, features="html.parser").findAll(text=True)
