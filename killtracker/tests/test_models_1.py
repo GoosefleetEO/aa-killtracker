@@ -507,9 +507,7 @@ class TestTrackerGenerateKillmailMessage(LoadTestDataMixin, TestCase):
         self.assertIn("My Tracker", content)
         embed = kwargs["embeds"][0]
         self.assertEqual(embed.title, "Haras | Svipul | Killmail")
-        self.assertEqual(
-            embed.thumbnail.url, svipul.icon_url(size=self.tracker.ICON_SIZE)
-        )
+        self.assertEqual(embed.thumbnail.url, svipul.icon_url(size=128))
         html = markdown(embed.description)
         description = "".join(
             BeautifulSoup(html, features="html.parser").findAll(text=True)
