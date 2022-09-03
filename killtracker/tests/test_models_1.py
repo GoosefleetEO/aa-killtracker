@@ -374,6 +374,28 @@ class TestEveKillmail(LoadTestDataMixin, NoSocketsTestCase):
     def test_repr(self):
         self.assertEqual(repr(self.eve_killmail), "EveKillmail(id=10000001)")
 
+    def test_entity_ids(self):
+        result = self.eve_killmail.entity_ids()
+        expected = {
+            1011,
+            2011,
+            3011,
+            603,
+            30004984,
+            1001,
+            1002,
+            1003,
+            2001,
+            3001,
+            34562,
+            2977,
+            3756,
+            2488,
+            500001,
+            500004,
+        }
+        self.assertSetEqual(result, expected)
+
 
 class TestEveKillmailCharacter(LoadTestDataMixin, NoSocketsTestCase):
     def test_str_character(self):

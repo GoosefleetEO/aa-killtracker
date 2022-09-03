@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 from datetime import timedelta
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import dhooks_lite
 from simple_mq import SimpleMQ
@@ -59,6 +59,7 @@ class EveTypePlus(EveType):
 
 
 class EveKillmail(models.Model):
+    """A killmail in Eve Online."""
 
     id = models.BigIntegerField(primary_key=True)
     time = models.DateTimeField(default=None, null=True, blank=True, db_index=True)
@@ -80,23 +81,26 @@ class EveKillmail(models.Model):
         qs = EveEntity.objects.filter(id__in=self.entity_ids(), name="")
         qs.update_from_esi()
 
-    def entity_ids(self) -> List[int]:
-        ids = [
+    def entity_ids(self) -> Set[int]:
+        """Set of all entity IDs in this killmail."""
+        ids = {
             self.victim.character_id,
             self.victim.corporation_id,
             self.victim.alliance_id,
+            self.victim.faction_id,
             self.victim.ship_type_id,
             self.solar_system_id,
-        ]
+        }
         for attacker in self.attackers.all():
-            ids += [
+            ids |= {
                 attacker.character_id,
                 attacker.corporation_id,
                 attacker.alliance_id,
+                attacker.faction_id,
                 attacker.ship_type_id,
                 attacker.weapon_type_id,
-            ]
-        return [int(x) for x in ids if x is not None]
+            }
+        return {int(x) for x in ids if x is not None}
 
 
 class EveKillmailCharacter(models.Model):
