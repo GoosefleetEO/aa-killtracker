@@ -17,7 +17,31 @@ from .constants import (
 )
 from .core.killmails import Killmail
 from .forms import TrackerAdminForm, TrackerAdminKillmailIdForm, field_nice_display
-from .models import EveTypePlus, Tracker, Webhook
+from .models import EveKillmail, EveKillmailAttacker, EveTypePlus, Tracker, Webhook
+
+
+class EveKillmailAttackerInline(admin.TabularInline):
+    model = EveKillmailAttacker
+
+
+@admin.register(EveKillmail)
+class EveKillmailAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "time",
+        "ship_type",
+        "solar_system",
+        "character",
+        "corporation",
+    )
+    list_select_related = ("ship_type", "solar_system", "character", "corporation")
+    inlines = [EveKillmailAttackerInline]
+
+    def has_add_permission(self, *args, **kwargs) -> bool:
+        return False
+
+    def has_change_permission(self, *args, **kwargs) -> bool:
+        return False
 
 
 @admin.register(Webhook)
