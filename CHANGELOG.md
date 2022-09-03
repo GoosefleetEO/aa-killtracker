@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.5] - 2022-09-03
+
 ### Fixed
 
 - Faction IDs are not resolved for EveKillmails
