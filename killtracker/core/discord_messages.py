@@ -81,7 +81,7 @@ def create_embed(tracker: Tracker, killmail: Killmail) -> dhooks_lite.Embed:
     if killmail.victim.alliance_id:
         victim_organization = resolver.to_name(killmail.victim.alliance_id)
         victim_org_url = zkillboard.alliance_url(killmail.victim.alliance_id)
-        victim_org_icon_url = eveimageserver.corporation_logo_url(
+        victim_org_icon_url = eveimageserver.alliance_logo_url(
             killmail.victim.alliance_id, size=ICON_SIZE
         )
     elif killmail.victim.corporation_id:
