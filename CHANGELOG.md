@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.8.0] - 2022-09-21
+
+### Changed
+
+- Removed outdated migrations from before the squash
+
+### Fixed
+
+- Victim alliance logo in Discord message (!10)
+
 ## [0.7.5] - 2022-09-03
 
 ### Fixed
