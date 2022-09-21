@@ -6,11 +6,6 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("killtracker", "0001_initial"),
-        ("killtracker", "0002_big_feature_update"),
-    ]
-
     initial = True
 
     dependencies = [
