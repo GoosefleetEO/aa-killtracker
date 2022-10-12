@@ -36,10 +36,7 @@ class EveKillmailQuerySet(models.QuerySet):
         return EveEntity.objects.filter(id__in=entity_ids, name="").update_from_esi()
 
 
-class EveKillmailManager(models.Manager):
-    def get_queryset(self) -> models.QuerySet:
-        return EveKillmailQuerySet(self.model, using=self._db)
-
+class EveKillmailBaseManager(models.Manager):
     def delete_stale(self) -> Tuple[int, Dict[str, int]]:
         """deletes all stale killmail"""
         if KILLTRACKER_PURGE_KILLMAILS_AFTER_DAYS > 0:
@@ -55,55 +52,43 @@ class EveKillmailManager(models.Manager):
         - resolve_ids: When set to False will not resolve EveEntity IDs
 
         """
-        from .models import (
-            EveKillmailAttacker,
-            EveKillmailPosition,
-            EveKillmailVictim,
-            EveKillmailZkb,
-        )
+        from .models import EveKillmailAttacker
 
-        args = {
+        params = {
             "id": killmail.id,
             "time": killmail.time,
+            "damage_taken": killmail.victim.damage_taken,
+            "position_x": killmail.position.x,
+            "position_y": killmail.position.y,
+            "position_z": killmail.position.z,
         }
+        victim = self._create_args_for_entities(killmail.victim)
+        params.update(victim)
         if killmail.solar_system_id:
-            args["solar_system"], _ = EveEntity.objects.get_or_create(
+            params["solar_system"], _ = EveEntity.objects.get_or_create(
                 id=killmail.solar_system_id
             )
-        eve_killmail = self.create(**args)
-
         if killmail.zkb:
-            args = {**killmail.zkb.asdict(), **{"killmail": eve_killmail}}
-            EveKillmailZkb.objects.create(**args)
-
-        args = {
-            **{
-                "killmail": eve_killmail,
-                "damage_taken": killmail.victim.damage_taken,
-            },
-            **self._create_args_for_entities(killmail.victim),
-        }
-        EveKillmailVictim.objects.create(**args)
-
-        args = {**killmail.position.asdict(), **{"killmail": eve_killmail}}
-        EveKillmailPosition.objects.create(**args)
-
-        for attacker in killmail.attackers:
-            args = {
-                **{
-                    "killmail": eve_killmail,
-                    "damage_done": attacker.damage_done,
-                    "security_status": attacker.security_status,
-                    "is_final_blow": attacker.is_final_blow,
-                },
-                **self._create_args_for_entities(attacker),
-            }
-            EveKillmailAttacker.objects.create(**args)
-
+            zkb = killmail.zkb.asdict()
+            zkb["zkb_points"] = zkb.pop("points")
+            params.update(zkb)
+        eve_killmail = self.create(**params)
+        if killmail.attackers:
+            attacker_objs = []
+            for attacker in killmail.attackers:
+                params = {
+                    **{
+                        "killmail": eve_killmail,
+                        "damage_done": attacker.damage_done,
+                        "security_status": attacker.security_status,
+                        "is_final_blow": attacker.is_final_blow,
+                    },
+                    **self._create_args_for_entities(attacker),
+                }
+                attacker_objs.append(EveKillmailAttacker(**params))
+            EveKillmailAttacker.objects.bulk_create(attacker_objs)
         if resolve_ids:
-            EveEntity.objects.bulk_update_new_esi()
-
-        eve_killmail.refresh_from_db()
+            eve_killmail.load_entities()
         return eve_killmail
 
     @staticmethod
@@ -114,7 +99,6 @@ class EveKillmailManager(models.Manager):
             if entity_id:
                 field = prop_name.replace("_id", "")
                 args[field], _ = EveEntity.objects.get_or_create(id=entity_id)
-
         return args
 
     def update_or_create_from_killmail(
@@ -126,13 +110,12 @@ class EveKillmailManager(models.Manager):
                 created = False
             except self.model.DoesNotExist:
                 created = True
-
             obj = self.create_from_killmail(killmail, resolve_ids=False)
-
-        if created:
-            EveEntity.objects.bulk_update_new_esi()
-
+        obj.load_entities()
         return obj, created
+
+
+EveKillmailManager = EveKillmailBaseManager.from_queryset(EveKillmailQuerySet)
 
 
 class TrackerManager(ObjectCacheMixin, models.Manager):
