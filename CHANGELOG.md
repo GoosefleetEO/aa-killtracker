@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.9.0] - 2022-10-12
+
+>**Update notes**: If you are upgrading from a version prior to 0.8.x, you please need to upgrade to 0.8.1 first to avoid any migration issues.
+
+### Changed
+
+- Improved database structure of killmails for better performance
+- Consolidated migrations
+- Removed support for Python 3.7
+- Added support for Python 3.10
+
 ## [0.8.1] - 2022-09-21
 
 ### Fixed
