@@ -203,6 +203,13 @@ class Killmail(_KillmailBase):
             timeout=KILLTRACKER_STORAGE_KILLMAILS_LIFETIME,
         )
 
+    def delete(self) -> bool:
+        """Delete this killmail from temporary storage.
+
+        Returns True on success, else False.
+        """
+        return cache.delete(self._storage_key(self.id))
+
     @classmethod
     def get(cls, id: int) -> "Killmail":
         """Fetch a killmail from temporary storage."""
