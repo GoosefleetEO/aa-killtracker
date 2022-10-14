@@ -3,7 +3,7 @@ class KilltrackerException(Exception):
 
 
 class WebhookTooManyRequests(KilltrackerException):
-    """Webhook is temporarily blocked"""
+    """Webhook is temporarily blocked."""
 
     DEFAULT_RESET_AFTER = 600
 
@@ -20,3 +20,7 @@ class WebhookTooManyRequests(KilltrackerException):
     @property
     def retry_after(self) -> int:
         return self._reset_after
+
+
+class KillmailDoesNotExist(KilltrackerException):
+    """Killmail does not exist in storage."""

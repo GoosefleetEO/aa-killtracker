@@ -42,7 +42,7 @@ KILLTRACKER_SHOW_NPC_TYPES = clean_setting("KILLTRACKER_SHOW_NPC_TYPES", True)
 KILLTRACKER_REDISQ_TTW = clean_setting("KILLTRACKER_REDISQ_TTW", 5)
 
 # Tasks hard timeout
-KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1800)
+KILLTRACKER_TASKS_TIMEOUT = clean_setting("KILLTRACKER_TASKS_TIMEOUT", 1_800)
 
 # delay in seconds between every message sent to Discord
 # this needs to be >= 1 to prevent 429 Too Many Request errors
@@ -68,4 +68,9 @@ KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT = clean_setting(
 # Minimum delay when retrying a task
 KILLTRACKER_TASK_MINIMUM_RETRY_DELAY = clean_setting(
     "KILLTRACKER_TASK_MINIMUM_RETRY_DELAY", default_value=0.05, min_value=0.0
+)
+
+# Max lifetime of killmails in temporary storage in seconds
+KILLTRACKER_STORAGE_KILLMAILS_LIFETIME = clean_setting(
+    "KILLTRACKER_STORAGE_KILLMAILS_LIFETIME", 3_600 * 1
 )

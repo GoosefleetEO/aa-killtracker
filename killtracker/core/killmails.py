@@ -1,6 +1,7 @@
 import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from http import HTTPStatus
 from typing import List, Optional, Set
 
 import requests
@@ -18,7 +19,12 @@ from app_utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from app_utils.logging import LoggerAddTag
 
 from .. import USER_AGENT_TEXT, __title__
-from ..app_settings import KILLTRACKER_REDISQ_LOCK_TIMEOUT, KILLTRACKER_REDISQ_TTW
+from ..app_settings import (
+    KILLTRACKER_REDISQ_LOCK_TIMEOUT,
+    KILLTRACKER_REDISQ_TTW,
+    KILLTRACKER_STORAGE_KILLMAILS_LIFETIME,
+)
+from ..exceptions import KillmailDoesNotExist
 from ..providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -119,7 +125,7 @@ class TrackerInfo(_KillmailBase):
 
 @dataclass
 class Killmail(_KillmailBase):
-    HTTP_TOO_MANY_REQUESTS = 429
+    _STORAGE_BASE_KEY = "killtracker_storage_killmail_"
 
     id: int
     time: datetime
@@ -186,6 +192,31 @@ class Killmail(_KillmailBase):
                 return attacker
         return None
 
+    def asjson(self) -> str:
+        return json.dumps(asdict(self), cls=JSONDateTimeEncoder)
+
+    def save(self) -> None:
+        """Save this killmail to temporary storage."""
+        cache.set(
+            key=self._storage_key(self.id),
+            value=self.asjson(),
+            timeout=KILLTRACKER_STORAGE_KILLMAILS_LIFETIME,
+        )
+
+    @classmethod
+    def get(cls, id: int) -> "Killmail":
+        """Fetch a killmail from temporary storage."""
+        data = cache.get(key=cls._storage_key(id))
+        if not data:
+            raise KillmailDoesNotExist(
+                f"Killmail with ID {id} does not exist in storage."
+            )
+        return cls.from_json(data)
+
+    @classmethod
+    def _storage_key(cls, id: int) -> str:
+        return cls._STORAGE_BASE_KEY + str(id)
+
     @classmethod
     def from_dict(cls, data: dict) -> "Killmail":
         try:
@@ -193,9 +224,6 @@ class Killmail(_KillmailBase):
         except DaciteError as ex:
             logger.error("Failed to convert dict to %s", type(cls), exc_info=True)
             raise ex
-
-    def asjson(self) -> str:
-        return json.dumps(asdict(self), cls=JSONDateTimeEncoder)
 
     @classmethod
     def from_json(cls, json_str: str) -> "Killmail":
@@ -226,7 +254,7 @@ class Killmail(_KillmailBase):
             )
             return None
 
-        if r.status_code == cls.HTTP_TOO_MANY_REQUESTS:
+        if r.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             logger.error("429 Client Error: Too many requests: %s", r.text)
             return None
         r.raise_for_status()

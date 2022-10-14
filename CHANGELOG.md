@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.9.1] - 2022-10-14
+
+>**Update notes**: If you are upgrading from a version prior to 0.8.x, you please need to upgrade to 0.8.1 first to avoid any migration issues.
+
+### Changed
+
+- Store new killmails in temporary storage instead of passing them directly to tasks
+
 ## [0.9.0] - 2022-10-12
 
 >**Update notes**: If you are upgrading from a version prior to 0.8.x, you please need to upgrade to 0.8.1 first to avoid any migration issues.

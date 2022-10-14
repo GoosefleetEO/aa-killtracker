@@ -5,6 +5,8 @@ from unittest.mock import patch
 import requests_mock
 from redis.exceptions import LockError
 
+from django.core.cache import cache
+from django.test import TestCase
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
@@ -17,8 +19,10 @@ from killtracker.core.killmails import (
     EntityCount,
     Killmail,
 )
+from killtracker.exceptions import KillmailDoesNotExist
 
 from .. import CacheStub
+from ..testdata.factories import KillmailFactory
 from ..testdata.helpers import killmails_data, load_killmail
 
 MODULE_PATH = "killtracker.core.killmails"
@@ -289,3 +293,22 @@ class TestCreateFromZkbApi(NoSocketsTestCase):
         self.assertFalse(killmail.zkb.is_npc)
         self.assertFalse(killmail.zkb.is_solo)
         self.assertFalse(killmail.zkb.is_awox)
+
+
+class TestKillmailStorage(TestCase):
+    def setUp(self) -> None:
+        cache.clear()
+
+    def test_should_store_and_retrieve_killmail(self):
+        # given
+        killmail_1 = KillmailFactory()
+        # when
+        killmail_1.save()
+        killmail_2 = Killmail.get(id=killmail_1.id)
+        # then
+        self.assertEqual(killmail_1, killmail_2)
+
+    def test_should_raise_error_when_killmail_does_not_exist(self):
+        # when/then
+        with self.assertRaises(KillmailDoesNotExist):
+            Killmail.get(id=99)

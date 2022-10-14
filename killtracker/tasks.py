@@ -31,6 +31,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
 def run_killtracker(runs: int = 0) -> None:
     """Main task for running the Killtracker.
+
     Will fetch new killmails from ZKB and start running trackers for them
     """
     if not is_esi_online():
@@ -49,18 +50,18 @@ def run_killtracker(runs: int = 0) -> None:
 
     killmail = Killmail.create_from_zkb_redisq()
     if killmail:
-        killmail_json = killmail.asjson()
+        killmail.save()
         qs = cached_queryset(
             Tracker.objects.filter(is_enabled=True),
             key=f"{APP_NAME}_enabled_trackers",
             timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
         )
         for tracker in qs:
-            run_tracker.delay(tracker_pk=tracker.pk, killmail_json=killmail_json)
+            run_tracker.delay(tracker_pk=tracker.pk, killmail_id=killmail.id)
 
         if KILLTRACKER_STORING_KILLMAILS_ENABLED:
             chain(
-                store_killmail.si(killmail_json=killmail_json),
+                store_killmail.si(killmail.id),
                 update_unresolved_eve_entities.si(),
             ).delay()
 
@@ -82,10 +83,9 @@ def run_killtracker(runs: int = 0) -> None:
 
 @shared_task(bind=True, max_retries=None)
 def run_tracker(
-    self, tracker_pk: int, killmail_json: str, ignore_max_age: bool = False
+    self, tracker_pk: int, killmail_id: int, ignore_max_age: bool = False
 ) -> None:
-    """run tracker for given killmail and trigger sending if needed"""
-
+    """Run tracker for given killmail and trigger sending if needed."""
     retry_task_if_esi_is_down(self)
     tracker = Tracker.objects.get_cached(
         pk=tracker_pk,
@@ -93,38 +93,35 @@ def run_tracker(
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
     logger.info("%s: Started running tracker", tracker)
-    killmail = Killmail.from_json(killmail_json)
+    killmail = Killmail.get(killmail_id)
     killmail_new = tracker.process_killmail(
         killmail=killmail, ignore_max_age=ignore_max_age
     )
     if killmail_new:
-        generate_killmail_message.delay(
-            tracker_pk=tracker_pk, killmail_json=killmail_new.asjson()
-        )
+        generate_killmail_message.delay(tracker_pk=tracker_pk, killmail_id=killmail_id)
     elif tracker.webhook.main_queue.size():
         send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)
 
 
 @shared_task(bind=True, max_retries=None)
-def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None:
-    """generate and enqueue message from given killmail and start sending"""
-
+def generate_killmail_message(self, tracker_pk: int, killmail_id: int) -> None:
+    """Generate and enqueue message from given killmail and start sending."""
     retry_task_if_esi_is_down(self)
     tracker = Tracker.objects.get_cached(
         pk=tracker_pk,
         select_related="webhook",
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
-    killmail_new = Killmail.from_json(killmail_json)
-    logger.info("%s: Generating message from killmail %s", tracker, killmail_new.id)
+    killmail = Killmail.get(killmail_id)
+    logger.info("%s: Generating message from killmail %s", tracker, killmail.id)
     try:
-        tracker.generate_killmail_message(killmail_new)
+        tracker.generate_killmail_message(killmail)
     except Exception as ex:
         will_retry = self.request.retries < KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES
         logger.warning(
             "%s: Failed to generate killmail %s.%s",
             tracker,
-            killmail_new.id,
+            killmail.id,
             " Will retry." if will_retry else "",
             exc_info=True,
         )
@@ -138,9 +135,9 @@ def generate_killmail_message(self, tracker_pk: int, killmail_json: str) -> None
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
-def store_killmail(killmail_json: str) -> None:
+def store_killmail(killmail_id: int) -> None:
     """stores killmail as EveKillmail object"""
-    killmail = Killmail.from_json(killmail_json)
+    killmail = Killmail.get(killmail_id)
     try:
         EveKillmail.objects.create_from_killmail(killmail, resolve_ids=False)
     except IntegrityError:
@@ -221,5 +218,4 @@ def send_test_message_to_webhook(webhook_pk: int, count: int = 1) -> None:
     for n in range(count):
         num_str = f"{n+1}/{count} " if count > 1 else ""
         webhook.enqueue_message(content=f"Test message {num_str}from {__title__}.")
-
     send_messages_to_webhook.delay(webhook.pk)
