@@ -48,11 +48,11 @@ class TestTrackerBase(LoadTestDataMixin, TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-@patch(MODULE_PATH + ".is_esi_online")
-@patch(MODULE_PATH + ".delete_stale_killmails")
-@patch(MODULE_PATH + ".store_killmail")
+@patch(MODULE_PATH + ".is_esi_online", spec=True)
+@patch(MODULE_PATH + ".delete_stale_killmails", spec=True)
+@patch(MODULE_PATH + ".store_killmail", spec=True)
 @patch(MODULE_PATH + ".Killmail.create_from_zkb_redisq")
-@patch(MODULE_PATH + ".run_tracker")
+@patch(MODULE_PATH + ".run_tracker", spec=True)
 class TestRunKilltracker(TestTrackerBase):
     def setUp(self) -> None:
         cache.clear()
@@ -145,8 +145,8 @@ class TestRunKilltracker(TestTrackerBase):
 
 
 @patch(MODULE_PATH + ".retry_task_if_esi_is_down", lambda x: None)
-@patch(MODULE_PATH + ".send_messages_to_webhook")
-@patch(MODULE_PATH + ".generate_killmail_message")
+@patch(MODULE_PATH + ".send_messages_to_webhook", spec=True)
+@patch(MODULE_PATH + ".generate_killmail_message", spec=True)
 class TestRunTracker(TestTrackerBase):
     def setUp(self) -> None:
         cache.clear()
@@ -155,8 +155,12 @@ class TestRunTracker(TestTrackerBase):
         self, mock_enqueue_killmail_message, mock_send_messages_to_webhook
     ):
         """when killmail is matching, then generate new message from it"""
-        killmail_json = load_killmail(10000001).asjson()
-        run_tracker(self.tracker_1.pk, killmail_json)
+        # given
+        killmail = load_killmail(10000001)
+        killmail.save()
+        # when
+        run_tracker(self.tracker_1.pk, killmail.id)
+        # then
         self.assertTrue(mock_enqueue_killmail_message.delay.called)
         self.assertFalse(mock_send_messages_to_webhook.delay.called)
 
@@ -166,8 +170,12 @@ class TestRunTracker(TestTrackerBase):
         """when killmail is not matching and webhook queue is empty,
         then do nothing
         """
-        killmail_json = load_killmail(10000003).asjson()
-        run_tracker(self.tracker_1.pk, killmail_json)
+        # given
+        killmail = load_killmail(10000003)
+        killmail.save()
+        # when
+        run_tracker(self.tracker_1.pk, killmail.id)
+        # then
         self.assertFalse(mock_enqueue_killmail_message.delay.called)
         self.assertFalse(mock_send_messages_to_webhook.delay.called)
 
@@ -177,50 +185,57 @@ class TestRunTracker(TestTrackerBase):
         """when killmail is not matching and webhook queue is not empty,
         then start sending anyway
         """
-        killmail_json = load_killmail(10000003).asjson()
+        # given
+        killmail = load_killmail(10000003)
+        killmail.save()
         self.webhook_1.enqueue_message(content="test")
-        run_tracker(self.tracker_1.pk, killmail_json)
+        # when
+        run_tracker(self.tracker_1.pk, killmail.id)
+        # then
         self.assertFalse(mock_enqueue_killmail_message.delay.called)
         self.assertTrue(mock_send_messages_to_webhook.delay.called)
 
 
 @patch(MODULE_PATH + ".retry_task_if_esi_is_down", lambda x: None)
-@patch(MODULE_PATH + ".generate_killmail_message.retry")
-@patch(MODULE_PATH + ".send_messages_to_webhook")
+@patch(MODULE_PATH + ".generate_killmail_message.retry", spec=True)
+@patch(MODULE_PATH + ".send_messages_to_webhook", spec=True)
 class TestGenerateKillmailMessage(TestTrackerBase):
     def setUp(self) -> None:
         cache.clear()
         self.retries = 0
-        self.killmail_json = load_killmail(10000001).asjson()
+        killmail = load_killmail(10000001)
+        killmail.save()
+        self.killmail_id = killmail.id
 
     def my_retry(self, *args, **kwargs):
         self.retries += 1
         if self.retries > kwargs["max_retries"]:
             raise kwargs["exc"]
-        generate_killmail_message(self.tracker_1.pk, self.killmail_json)
+        generate_killmail_message(self.tracker_1.pk, self.killmail_id)
 
     def test_normal(self, mock_send_messages_to_webhook, mock_retry):
         """enqueue generated killmail and start sending"""
+        # given
         mock_retry.side_effect = self.my_retry
-
-        generate_killmail_message(self.tracker_1.pk, self.killmail_json)
-
+        # when
+        generate_killmail_message(self.tracker_1.pk, self.killmail_id)
+        # then
         self.assertTrue(mock_send_messages_to_webhook.delay.called)
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
         self.assertFalse(mock_retry.called)
 
     @patch(MODULE_PATH + ".KILLTRACKER_GENERATE_MESSAGE_MAX_RETRIES", 3)
-    @patch(MODULE_PATH + ".Tracker.generate_killmail_message")
+    @patch(MODULE_PATH + ".Tracker.generate_killmail_message", spec=True)
     def test_retry_until_maximum(
         self, mock_generate_killmail_message, mock_send_messages_to_webhook, mock_retry
     ):
         """when message generation fails,then retry until max retries is reached"""
+        # given
         mock_retry.side_effect = self.my_retry
         mock_generate_killmail_message.side_effect = RuntimeError
-
+        # when/then
         with self.assertRaises(RuntimeError):
-            generate_killmail_message(self.tracker_1.pk, self.killmail_json)
-
+            generate_killmail_message(self.tracker_1.pk, self.killmail_id)
         self.assertFalse(mock_send_messages_to_webhook.delay.called)
         self.assertEqual(self.webhook_1.main_queue.size(), 0)
         self.assertEqual(mock_retry.call_count, 4)
@@ -228,7 +243,7 @@ class TestGenerateKillmailMessage(TestTrackerBase):
 
 @patch("celery.app.task.Context.called_directly", False)  # make retry work with eager
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODULE_PATH + ".Webhook.send_message_to_webhook")
+@patch(MODULE_PATH + ".Webhook.send_message_to_webhook", spec=True)
 class TestSendMessagesToWebhook(TestTrackerBase):
     def setUp(self) -> None:
         cache.clear()
@@ -305,28 +320,35 @@ class TestSendMessagesToWebhook(TestTrackerBase):
         self.assertEqual(self.webhook_1.main_queue.size(), 1)
 
 
-@patch(MODULE_PATH + ".logger")
+@patch(MODULE_PATH + ".logger", spec=True)
 class TestStoreKillmail(TestTrackerBase):
-    def test_normal(self, mock_logger):
-        killmail = load_killmail(10000001)
-        killmail_json = killmail.asjson()
-        store_killmail(killmail_json)
+    def setUp(self) -> None:
+        cache.clear()
 
+    def test_normal(self, mock_logger):
+        # given
+        killmail = load_killmail(10000001)
+        killmail.save()
+        # when
+        store_killmail(killmail.id)
+        # then
         self.assertTrue(EveKillmail.objects.filter(id=10000001).exists())
         self.assertFalse(mock_logger.warning.called)
 
     def test_already_exists(self, mock_logger):
+        # given
         load_eve_killmails([10000001])
         killmail = load_killmail(10000001)
-        killmail_json = killmail.asjson()
-        store_killmail(killmail_json)
-
+        killmail.save()
+        # when
+        store_killmail(killmail.id)
+        # then
         self.assertTrue(mock_logger.warning.called)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-@patch("killtracker.models.dhooks_lite.Webhook.execute")
-@patch(MODULE_PATH + ".logger")
+@patch("killtracker.models.dhooks_lite.Webhook.execute", spec=True)
+@patch(MODULE_PATH + ".logger", spec=True)
 class TestSendTestKillmailsToWebhook(TestTrackerBase):
     def setUp(self) -> None:
         self.webhook_1.main_queue.clear()
