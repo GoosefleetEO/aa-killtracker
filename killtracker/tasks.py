@@ -98,6 +98,7 @@ def run_tracker(
         killmail=killmail, ignore_max_age=ignore_max_age
     )
     if killmail_new:
+        killmail_new.save()
         generate_killmail_message.delay(tracker_pk=tracker_pk, killmail_id=killmail_id)
     elif tracker.webhook.main_queue.size():
         send_messages_to_webhook.delay(webhook_pk=tracker.webhook.pk)

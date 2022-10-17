@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.safestring import mark_safe
 from eveuniverse.models import EveGroup
 
+from allianceauth import NAME as site_header
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 
 from . import tasks
@@ -346,9 +347,10 @@ class TrackerAdmin(admin.ModelAdmin):
                     request.session["last_killmail_id"] = killmail_id
                     actions_count = 0
                     for tracker in queryset:
+                        killmail.save()
                         tasks.run_tracker.delay(
                             tracker_pk=tracker.pk,
-                            killmail_json=killmail.asjson(),
+                            killmail_id=killmail_id,
                             ignore_max_age=True,
                         )
                         actions_count += 1
@@ -376,9 +378,11 @@ class TrackerAdmin(admin.ModelAdmin):
             request,
             "admin/killtracker/tracker/killmail_test.html",
             {
+                "title": "Run Test Killmail for Trackers",
+                "site_header": site_header,
+                "cl": {"opts": Tracker._meta},
                 "form": form,
-                "title": "Load Test Killmail for Tracker",
-                "queryset": queryset.all(),
+                "queryset": queryset.order_by("name"),
             },
         )
 

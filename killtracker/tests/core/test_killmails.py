@@ -312,3 +312,34 @@ class TestKillmailStorage(TestCase):
         # when/then
         with self.assertRaises(KillmailDoesNotExist):
             Killmail.get(id=99)
+
+    def test_should_delete_killmail(self):
+        # given
+        killmail = KillmailFactory()
+        killmail.save()
+        # when
+        result = killmail.delete()
+        # then
+        self.assertTrue(result)
+        with self.assertRaises(KillmailDoesNotExist):
+            Killmail.get(id=killmail.id)
+
+    def test_should_return_false_when_delete_killmails_fails(self):
+        # given
+        killmail = KillmailFactory()
+        # when
+        result = killmail.delete()
+        # then
+        self.assertFalse(result)
+
+    def test_should_override_existing_killmail(self):
+        # given
+        killmail_1 = KillmailFactory(zkb__points=1)
+        killmail_1.save()
+        killmail_1.zkb.points = 2
+        # when
+        killmail_1.save()
+        # then
+        killmail_2 = Killmail.get(id=killmail_1.id)
+        self.assertEqual(killmail_1.id, killmail_2.id)
+        self.assertEqual(killmail_2.zkb.points, 2)
