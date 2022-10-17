@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.9.2] - 2022-10-17
+
+>**Update notes**: If you are upgrading from a version prior to 0.8.x, you please need to upgrade to 0.8.1 first to avoid any migration issues.
+
+### Fixed
+
+- webhook colors broke (#35)
+- Error when trying to run tracker for killmail on admin site
+
 ## [0.9.1] - 2022-10-14
 
 >**Update notes**: If you are upgrading from a version prior to 0.8.x, you please need to upgrade to 0.8.1 first to avoid any migration issues.
