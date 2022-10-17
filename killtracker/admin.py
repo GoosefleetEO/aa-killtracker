@@ -346,9 +346,10 @@ class TrackerAdmin(admin.ModelAdmin):
                     request.session["last_killmail_id"] = killmail_id
                     actions_count = 0
                     for tracker in queryset:
+                        killmail.save()
                         tasks.run_tracker.delay(
                             tracker_pk=tracker.pk,
-                            killmail_json=killmail.asjson(),
+                            killmail_id=killmail_id,
                             ignore_max_age=True,
                         )
                         actions_count += 1
