@@ -39,7 +39,7 @@ def run_killtracker(runs: int = 0) -> None:
         return
 
     if runs == 0:
-        logger.info("Killtracker run started...")
+        logger.debug("Killtracker run started...")
         qs = cached_queryset(
             Webhook.objects.filter(is_enabled=True),
             key=f"{APP_NAME}_enabled_webhooks",
@@ -92,7 +92,7 @@ def run_tracker(
         select_related="webhook",
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
-    logger.info("%s: Started running tracker", tracker)
+    logger.debug(f"{tracker}: Checking killmail id {killmail_id}")
     killmail = Killmail.get(killmail_id)
     killmail_new = tracker.process_killmail(
         killmail=killmail, ignore_max_age=ignore_max_age
@@ -146,7 +146,7 @@ def store_killmail(killmail_id: int) -> None:
             "%s: Failed to store killmail, because it already exists", killmail.id
         )
     else:
-        logger.info("%s: Stored killmail", killmail.id)
+        logger.debug("%s: Stored killmail", killmail.id)
 
 
 @shared_task(timeout=KILLTRACKER_TASKS_TIMEOUT)
@@ -172,12 +172,12 @@ def send_messages_to_webhook(self, webhook_pk: int) -> None:
         timeout=KILLTRACKER_TASK_OBJECTS_CACHE_TIMEOUT,
     )
     if not webhook.is_enabled:
-        logger.info("%s: Webhook is disabled - aborting", webhook)
+        logger.warning("%s: Webhook is disabled - aborting", webhook)
         return
 
     message = webhook.main_queue.dequeue()
     if message:
-        logger.info("%s: Sending message to webhook", webhook)
+        logger.debug("%s: Sending message to webhook", webhook)
         try:
             response = webhook.send_message_to_webhook(message)
         except WebhookTooManyRequests as ex:

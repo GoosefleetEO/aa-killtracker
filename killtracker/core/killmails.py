@@ -242,7 +242,7 @@ class Killmail(_KillmailBase):
 
         Returns None if no killmail is received.
         """
-        logger.info("Trying to fetch killmail from ZKB RedisQ...")
+        logger.debug("Trying to fetch killmail from ZKB RedisQ...")
         redis = get_redis_client()
         try:
             with redis.lock(
@@ -273,7 +273,7 @@ class Killmail(_KillmailBase):
         if data:
             logger.debug("data:\n%s", data)
         if data and "package" in data and data["package"]:
-            logger.info("Received a killmail from ZKB RedisQ")
+            logger.debug("Received a killmail from ZKB RedisQ")
             package_data = data["package"]
             return cls._create_from_dict(package_data)
         else:
